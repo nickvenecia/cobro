@@ -1,0 +1,57 @@
+"""A made-up business and invoice, used by the smoke test, the tests and screenshots (never by real data)."""
+
+from __future__ import annotations
+
+from .model import Business, Client, Invoice, LineItem, Look
+from .store import DEFAULT_NOTE, DEFAULT_TERMS
+
+
+def business(look: Look | None = None) -> Business:
+    return Business(
+        id="sample-business",
+        name="Juniper Lane Films",
+        tagline="Director · Cinematographer · Editor",
+        address="1200 Sample Ave\nAlbuquerque, NM 87102",
+        email="hello@juniperlane.example",
+        phone="(505) 555-0142",
+        prefix="JLF",
+        terms_days=15,
+        payment="Checks payable to Juniper Lane Films, mailed to:\n1200 Sample Ave, Albuquerque, NM 87102\n\n"
+        "Zelle / ACH details available on request.",
+        terms=DEFAULT_TERMS,
+        note=DEFAULT_NOTE,
+        look=look or Look(),
+    )
+
+
+def invoice(items: int = 3) -> Invoice:
+    base = [
+        LineItem(
+            "Production",
+            "Shoot day: directing and cinematography, camera package",
+            "1",
+            "1500",
+        ),
+        LineItem("Post-production", "Edit, color grade, sound mix, final export", "1", "1200"),
+        LineItem("Revisions", "Two rounds of client revisions", "1", "0"),
+    ]
+    rows = [base[i % 3] for i in range(items)]
+    return Invoice(
+        id="sample-invoice",
+        business_id="sample-business",
+        number="JLF-2026-001",
+        client=Client(
+            name="Northwind Media",
+            contact="Alex Rivera",
+            address="88 Example St\nPhoenix, AZ 85004",
+        ),
+        issued="2026-10-10",
+        terms_days=15,
+        project="Fall Brand Film",
+        work_dates="Sep 26–27, 2026",
+        delivered="2026-10-09",
+        items=rows,
+        payment=business().payment,
+        terms=DEFAULT_TERMS,
+        note=DEFAULT_NOTE,
+    )

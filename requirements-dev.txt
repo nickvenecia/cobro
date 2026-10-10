@@ -1,0 +1,6 @@
+-r requirements.txt
+Pillow>=10.3  # build only: the Windows icon
+pyinstaller>=6.10
+pytest>=8
+ruff==0.16.8
+fonttools>=4.50  # scripts/make_fonts.py only
