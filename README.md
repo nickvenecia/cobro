@@ -72,14 +72,15 @@ Build the app yourself: `pyinstaller cobro.spec --noconfirm` → `dist/`.
 
 ## Making a release
 
-Builds run on GitHub for every push. To publish downloads:
+Builds run on GitHub for every push and every pull request (a pull request's builds are test copies you can
+download from its run page, under **Artifacts**, to try a change before merging).
 
-```bash
-# bump __version__ in cobro/__init__.py, then:
-git tag v1.0.1 && git push --tags
-```
+To publish downloads, raise `__version__` in `cobro/__init__.py` (and the CHANGELOG heading) and merge that into
+`main`. GitHub Actions sees the new version, builds the Mac (Apple Silicon and Intel), Windows and Linux versions,
+tests each one, and publishes them as a new Release with the tag `vX.Y.Z`. Pushing a matching tag yourself
+(`git tag v1.2.0 && git push --tags`) works too.
 
-GitHub Actions builds the Mac (Apple Silicon and Intel), Windows and Linux versions, tests each one, and attaches them to a new Release.
+With Claude Code, `/try` makes a test build of a change without merging it, and `/release` does all of the above.
 
 ### Optional: signing the Mac app
 To get rid of the "can't check this app" warning you need an Apple Developer account ($99/yr). Add these repository secrets and the workflow will sign and notarize automatically: `MACOS_CERTIFICATE` (base64 .p12), `MACOS_CERTIFICATE_PWD`, `MACOS_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`.

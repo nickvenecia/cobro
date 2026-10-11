@@ -85,10 +85,21 @@ pyinstaller cobro.spec --noconfirm      # build the app into dist/
 COBRO_DATA_DIR=/tmp/x python -m cobro   # run against a throwaway data folder
 ```
 
+## How we work (the owner's workflow)
+- Every change is made on the session's branch and reaches main only through a pull request. Never push to main.
+- **`/try`** (`.claude/skills/try`): checks, pushes, opens a **draft** PR and, once its build is green, gives the
+  owner the test-build downloads for their computer. Nothing merges. More pushes make a new test build.
+- **`/release [version]`** (`.claude/skills/release`): the owner's go-ahead to merge and publish. Puts the
+  version and changelog on the PR, merges it when the checks are green, and confirms the Release is up.
+  Without /release (or the owner plainly asking to merge or release), never merge.
+- Cloud sessions start ready: `.claude/hooks/session-start.sh` installs Qt's libraries, the packages, pytest and
+  ruff, and sets `QT_QPA_PLATFORM=offscreen`.
+
 ## Releasing
-Bump `__version__` in `cobro/__init__.py`, turn CHANGELOG's top heading into that version, commit, then tag
-`vX.Y.Z` (GitHub Desktop: History → right-click the commit → Create Tag…, then Push origin) or
-`git tag vX.Y.Z && git push --tags`. CI builds every platform and publishes the Release (about 15-20 min).
+Bump `__version__` in `cobro/__init__.py` and turn CHANGELOG's "Unreleased" heading into that version, on the PR.
+When that reaches main, CI sees a version with no tag yet, builds every platform, creates the tag `vX.Y.Z` and
+publishes the Release (about 5 minutes). Pushing a tag `vX.Y.Z` yourself still works, but CI refuses a tag that
+doesn't match `__version__` (the app would keep offering itself as an update).
 CI attaches: Cobro-mac-apple-silicon.dmg, Cobro-mac-intel.dmg, Cobro-windows-setup.exe, Cobro-windows-portable.zip,
 Cobro-linux-x64.AppImage, Cobro-linux-x64.tar.gz. **These names are a contract**: the README's download links
 (releases/latest/download/<name>) and the in-app updater (update.asset_name) both depend on them, and the repo
