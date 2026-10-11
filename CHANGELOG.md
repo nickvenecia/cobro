@@ -10,7 +10,7 @@
 - Scrolling over a date no longer changes it (dropdowns already stayed put)
 - A business name next to a logo no longer leaves an empty line above the tagline; the logo and name now line up in the middle
 
-## 1.0.0
+## 1.1.0
 - **First release.** Make an invoice, see it exactly as it will print, save it as a PDF
 - **Fill it in once**: your business (name, addresses, where checks go, how to pay, terms) starts every new invoice; numbers count up on their own (NV-2026-001); clients are remembered and offered as you type
 - **Everything on the invoice**: bill to, project with shoot/work dates and delivery date, line items with details, discount, sales tax, deposit paid, payment terms from due on receipt to Net 60
