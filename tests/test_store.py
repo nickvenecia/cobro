@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import date
 
 from cobro.core.model import Business, Client, Invoice, LineItem
@@ -57,13 +58,42 @@ def test_duplicate_is_a_fresh_draft(data_folder):
     assert inv.client.name == "Digital Empire"  # a real copy, not the same object
 
 
-def test_clients_are_remembered_by_name(data_folder):
+def test_saved_clients_survive_a_restart(data_folder):
     lib = Library(data_folder)
-    c = lib.remember_client(Client(name="Digital Empire", contact="Ana"))
-    again = lib.remember_client(Client(name="digital empire ", contact="Ana B"))
-    assert again.id == c.id and len(lib.clients) == 1
-    assert Library(data_folder).load().clients[c.id].contact == "Ana B"
-    assert lib.remember_client(Client(name="  ")) is None
+    c = lib.save_client(Client(name=" Digital Empire ", contact="Ana"))
+    assert c.name == "Digital Empire" and c.id
+    lib.save_client(replace(c, contact="Ana B"))
+    again = Library(data_folder).load()
+    assert len(again.clients) == 1 and again.clients[c.id].contact == "Ana B"
+    assert again.find_client("digital empire") is not None
+
+
+def test_drafts_follow_a_client_edit_but_sent_invoices_keep_theirs(data_folder):
+    lib = Library(data_folder)
+    b = lib.add_business(Business(name="Nicholas Venecia"))
+    c = lib.save_client(Client(name="Digital Empire", address="1 Old St"))
+    draft, sent = lib.new_invoice(b), lib.new_invoice(b)
+    draft.client, sent.client = replace(c), replace(c)
+    sent.status = "sent"
+    lib.save_invoice(draft)
+    lib.save_invoice(sent)
+    lib.save_client(replace(c, address="2 New Ave"))
+    again = Library(data_folder).load()
+    assert again.invoices[draft.id].client.address == "2 New Ave"
+    assert again.invoices[sent.id].client.address == "1 Old St"
+
+
+def test_deleting_a_client_leaves_invoices_alone(data_folder):
+    lib = Library(data_folder)
+    b = lib.add_business(Business(name="Nicholas Venecia"))
+    c = lib.save_client(Client(name="Digital Empire"))
+    inv = lib.new_invoice(b)
+    inv.client = replace(c)
+    lib.save_invoice(inv)
+    lib.delete_client(c.id)
+    again = Library(data_folder).load()
+    assert again.clients == {} and again.invoices[inv.id].client.name == "Digital Empire"
+    assert again.match_client(again.invoices[inv.id].client) is None
 
 
 def test_a_broken_file_is_set_aside_not_lost(data_folder):
@@ -91,3 +121,40 @@ def test_writes_are_atomic(data_folder):
     write_json(path, {"a": 2})
     assert json.loads(path.read_text()) == {"a": 2}
     assert [p.name for p in data_folder.iterdir()] == ["a.json"]  # no temp files left
+
+
+def test_a_draft_takes_its_clients_number_when_counting_per_client(data_folder):
+    lib = Library(data_folder)
+    b = lib.add_business(Business(name="Nicholas Venecia", number_style="client"))
+    de = lib.save_client(Client(name="Digital Empire"))
+    mesa = lib.save_client(Client(name="Mesa Coffee", code="MESA"))
+    first = lib.new_invoice(b, today=date(2026, 10, 10))
+    assert first.number == "NV-2026-001"  # no client picked yet
+    first.client = replace(de)
+    assert lib.renumber(first) and first.number == "NV-DGTL-2026-001"
+    lib.save_invoice(first)
+    second = lib.new_invoice(b, today=date(2026, 10, 11))
+    second.client = replace(de)
+    lib.renumber(second)
+    assert second.number == "NV-DGTL-2026-002"
+    second.client = replace(mesa)
+    lib.renumber(second)
+    assert second.number == "NV-MESA-2026-001"
+    assert not lib.renumber(second)  # already right: left alone
+    assert lib.duplicate(first, today=date(2026, 11, 1)).number == "NV-DGTL-2026-002"
+
+
+def test_typed_numbers_and_sent_invoices_keep_their_number(data_folder):
+    lib = Library(data_folder)
+    b = lib.add_business(Business(name="Nicholas Venecia", number_style="client"))
+    de = lib.save_client(Client(name="Digital Empire"))
+    typed = lib.new_invoice(b, today=date(2026, 10, 10))
+    typed.number, typed.auto_number = "SPECIAL-7", False
+    typed.client = replace(de)
+    assert not lib.renumber(typed) and typed.number == "SPECIAL-7"
+    sent = lib.new_invoice(b, today=date(2026, 10, 10))
+    sent.status = "sent"
+    sent.client = replace(de)
+    assert not lib.renumber(sent)
+    old = Invoice.from_dict({"number": "NV-2026-004", "client": {"name": "Digital Empire"}})
+    assert old.auto_number is False  # invoices from before keep the number they have

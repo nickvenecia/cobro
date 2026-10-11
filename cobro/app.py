@@ -12,6 +12,7 @@ from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (
     QAbstractScrollArea,
     QAbstractSlider,
+    QAbstractSpinBox,
     QApplication,
     QComboBox,
     QMenu,
@@ -83,7 +84,8 @@ def _listen(window) -> object:
 
 class _RoundPopups(QObject):
     """Qt gives menus and dropdown lists square windows; make them see-through so the
-    stylesheet's rounded corners are what you actually see. Also: scrolling never changes a value."""
+    stylesheet's rounded corners are what you actually see. Also: scrolling never changes a value
+    (dropdowns, dates and sliders pass the wheel on to the panel, which scrolls instead)."""
 
     @staticmethod
     def _see_through(win: QWidget) -> None:
@@ -93,7 +95,9 @@ class _RoundPopups(QObject):
             win.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
     def eventFilter(self, obj, ev):
-        wheel_on_control = isinstance(obj, (QComboBox, QAbstractSlider)) and not isinstance(obj, QScrollBar)
+        wheel_on_control = isinstance(obj, (QComboBox, QAbstractSlider, QAbstractSpinBox)) and not isinstance(
+            obj, QScrollBar
+        )
         if ev.type() == QEvent.Type.Wheel and wheel_on_control:
             area = obj.parent()
             while area is not None and not isinstance(area, QAbstractScrollArea):

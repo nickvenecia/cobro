@@ -88,20 +88,70 @@ class Section(QWidget):
         self.label.setVisible(bool(title))
 
 
-class Disclosure(QWidget):
-    """A fold-away group ("Advanced options"): a header row that opens and closes the controls under it.
+class ElidedLabel(QLabel):
+    """A one-line label that cuts long text short with "…" instead of widening its panel."""
 
-    The header can show a short summary (e.g. "2 on") so changed settings are never hidden silently."""
+    def __init__(self, text: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self._full = ""
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.set_full_text(text)
+
+    def set_full_text(self, text: str) -> None:
+        self._full = text
+        self.setToolTip("")
+        self._elide()
+
+    def full_text(self) -> str:
+        return self._full
+
+    def _elide(self) -> None:
+        shown = self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, max(1, self.width()))
+        self.setText(shown)
+        self.setToolTip(self._full if shown != self._full else "")
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self._elide()
+
+
+class _FoldHeader(QPushButton):
+    """The Disclosure's header: its text is cut short with "…" rather than widening the panel."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._full = ""
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+
+    def set_full_text(self, text: str) -> None:
+        self._full = text
+        self._elide()
+
+    def _elide(self) -> None:
+        room = self.width() - self.iconSize().width() - tokens.SPACE_3
+        self.setText(self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, max(1, room)))
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self._elide()
+
+
+class Disclosure(QWidget):
+    """A fold-away group: a header row that opens and closes the controls under it.
+
+    Folded, the header says what's inside ("Line Items · 3 items · $2,700.00"), so nothing that changes
+    the invoice is ever hidden silently. `first` drops the hairline above the top group of a panel."""
 
     toggled = Signal(bool)
 
-    def __init__(self, title: str, is_open: bool = False, parent: QWidget | None = None):
+    def __init__(self, title: str, is_open: bool = False, first: bool = False, parent: QWidget | None = None):
         super().__init__(parent)
         self._title = title
         self._summary = ""
         outer = vbox(self, 0, tokens.SPACE_3)
-        self.header = QPushButton()
+        self.header = _FoldHeader()
         self.header.setObjectName("Disclosure")
+        self.header.setProperty("first", first)
         self.header.setCursor(Qt.CursorShape.PointingHandCursor)
         self.header.clicked.connect(lambda: self.set_open(not self.body.isVisibleTo(self), emit=True))
         outer.addWidget(self.header)
@@ -110,8 +160,11 @@ class Disclosure(QWidget):
         outer.addWidget(self.body)
         self.set_open(is_open)
 
-    def add(self, w: QWidget) -> None:
-        self.lay.addWidget(w)
+    def add(self, item: QWidget | QHBoxLayout | QVBoxLayout) -> None:
+        if isinstance(item, QWidget):
+            self.lay.addWidget(item)
+        else:
+            self.lay.addLayout(item)
 
     def is_open(self) -> bool:
         return self.body.isVisibleTo(self)
@@ -119,13 +172,20 @@ class Disclosure(QWidget):
     def set_open(self, on: bool, emit: bool = False) -> None:
         self.body.setVisible(on)
         self.header.setIcon(theme.icon("chevron" if on else "chevron-right", theme.MUTED))
-        self.header.setToolTip("Hide" if on else "Show more settings")
+        self.header.setToolTip("Hide" if on else "Show")
+        self._show_title()
         if emit:
             self.toggled.emit(on)
 
     def set_summary(self, text: str) -> None:
-        self._summary = text
-        self.header.setText(f" {self._title}" + (f"  ·  {text}" if text else ""))
+        self._summary = text.replace("&", "&&")  # a lone & would underline the next letter instead
+        self._show_title()
+
+    def _show_title(self) -> None:
+        folded = not self.body.isVisibleTo(self)
+        self.header.set_full_text(
+            f" {self._title}" + (f"  ·  {self._summary}" if folded and self._summary else "")
+        )
 
 
 def repolish(w: QWidget) -> None:

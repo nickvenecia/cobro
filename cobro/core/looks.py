@@ -125,6 +125,20 @@ INK_SOFT = "#5A6572"  # secondary text on paper
 RULE = "#D9DEE3"  # hairlines on paper
 PAPER = "#FFFFFF"
 
+
+@dataclass(frozen=True)
+class Palette:
+    """The paper and the colors printed on it."""
+
+    paper: str
+    ink: str
+    ink_soft: str
+    rule: str
+
+
+LIGHT = Palette(PAPER, INK, INK_SOFT, RULE)  # every PDF, PNG and printout
+DARK = Palette("#1C1D21", "#ECE9E4", "#9C978F", "#34363C")  # the preview's Dark Page only, easier on the eyes
+
 _HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
@@ -148,6 +162,11 @@ class Resolved:
     logo_h: float
     name_with_logo: bool
     page: tuple[float, float]
+    paper: str = PAPER
+    ink: str = INK
+    ink_soft: str = INK_SOFT
+    rule: str = RULE
+    dark: bool = False  # the preview's Dark Page (never exported)
 
 
 def mix(a: str, b: str, t: float) -> str:
@@ -172,19 +191,26 @@ def accent_of(look: Look) -> str:
     return COLORS.get(look.color, COLORS["ink"]).accent
 
 
-def readable_on_paper(accent: str) -> str:
-    """Light picks (a pale yellow) get darkened until they read as text on white."""
+def contrast(a: str, b: str) -> float:
+    la, lb = luminance(a), luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def readable_on(accent: str, paper: str = PAPER) -> str:
+    """An accent that reads as text on the paper: a pale pick (a light yellow) is darkened on white,
+    a deep one (ink blue) is lightened on the dark page."""
+    toward = "#000000" if luminance(paper) > 0.5 else "#FFFFFF"
     c = accent
-    for _ in range(10):
-        if (1.05) / (luminance(c) + 0.05) >= 4.5:
+    for _ in range(14):
+        if contrast(c, paper) >= 4.5:
             break
-        c = mix(c, "#000000", 0.12)
+        c = mix(c, toward, 0.12)
     return c
 
 
-def resolve(look: Look, available: set[str] | None = None) -> Resolved:
+def resolve(look: Look, available: set[str] | None = None, dark: bool = False) -> Resolved:
     """Turn a Look into fonts and colors. `available`: font families this computer has
-    (a picked font that's missing falls back to the style's own)."""
+    (a picked font that's missing falls back to the style's own). `dark`: the preview's Dark Page."""
     style = TYPE_STYLES.get(look.type_style)
     if style is not None:
         heading, body, numbers, caps = (
@@ -204,19 +230,24 @@ def resolve(look: Look, available: set[str] | None = None) -> Resolved:
             body = body if body in available else base.body
             numbers = body
     raw = accent_of(look)
-    accent = readable_on_paper(raw)
+    pal = DARK if dark else LIGHT
     on_accent = "#FFFFFF" if luminance(raw) < 0.45 else INK
     return Resolved(
         heading=heading,
         body=body,
         numbers=numbers,
         caps=caps,
-        accent=accent,
+        accent=readable_on(raw, pal.paper),
         band=raw,
-        tint=mix(raw, PAPER, 0.92),
+        tint=mix(raw, pal.paper, 0.84 if dark else 0.92),
         on_accent=on_accent,
         header=look.header if look.header in HEADERS else "clean",
         logo_h=LOGO_SIZES.get(look.logo_size, LOGO_SIZES["medium"])[1],
         name_with_logo=look.name_with_logo,
         page=PAPERS.get(look.paper, PAPERS["letter"])[1],
+        paper=pal.paper,
+        ink=pal.ink,
+        ink_soft=pal.ink_soft,
+        rule=pal.rule,
+        dark=dark,
     )

@@ -1,4 +1,8 @@
-"""Invoice numbers: PREFIX-YEAR-001, counting up per prefix and year."""
+"""Invoice numbers: PREFIX-YEAR-001, counting up per prefix and year.
+
+A profile can also count per client: the client's short code goes in the middle (NV-DGTL-2026-001),
+or replaces the profile's letters (DGTL-2026-001). Each head (NV, NV-DGTL, DGTL) has its own count.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +20,30 @@ def initials(name: str) -> str:
     if len(words) == 1:
         return words[0][:3].upper()
     return "".join(w[0] for w in words[:3]).upper()
+
+
+def client_code(name: str) -> str:
+    """ "Digital Empire" -> "DGTL": the first letter, then the consonants, four at most."""
+    letters = re.sub(r"[^A-Za-z0-9]", "", name).upper()
+    if not letters:
+        return ""
+    return (letters[0] + "".join(ch for ch in letters[1:] if ch not in "AEIOU"))[:4]
+
+
+def clean_code(code: str) -> str:
+    """A client code: letters and digits only, eight at most."""
+    return re.sub(r"[^A-Za-z0-9]", "", code).upper()[:8]
+
+
+def head(prefix: str, code: str, style: str) -> str:
+    """What comes before the year: NV ("year"), NV-DGTL ("client") or DGTL ("client_only").
+    Without a client code it's always the profile's own letters."""
+    prefix, code = clean_prefix(prefix), clean_code(code)
+    if code and style == "client":
+        return f"{prefix}-{code}"
+    if code and style == "client_only":
+        return code
+    return prefix
 
 
 def clean_prefix(prefix: str) -> str:

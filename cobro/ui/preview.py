@@ -1,6 +1,8 @@
 """Step 3, Preview: the invoice exactly as it will print, and the ways to send it out.
 
 The pages are drawn by doc/render.py, the same steps the PDF uses, into pictures sized to the panel.
+The moon in the header turns on the Dark Page: the same page in light-on-dark colors, easier on the eyes
+while you work (PDFs and prints always stay white).
 The bottom bar holds Save PDF… (the one primary action), Print… and a ⋯ menu (PNG, copy as text,
 open the folder). After saving, it offers Show File and, for a draft, Mark as Sent.
 """
@@ -91,11 +93,19 @@ class PreviewPanel(QFrame):
     open_folder = Signal()
     show_file = Signal()
     mark_sent = Signal()
+    dark_changed = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
+        self.dark = False
         outer = vbox(self, 0, 0)
-        outer.addWidget(StepHeader(3, "Preview"))
+        header = StepHeader(3, "Preview")
+        self.btn_dark = QToolButton()
+        self.btn_dark.setObjectName("IconBtn")
+        self.btn_dark.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_dark.clicked.connect(lambda: self._toggle_dark())
+        header.actions.addWidget(self.btn_dark)
+        outer.addWidget(header)
         self.area = QScrollArea()
         self.area.setObjectName("PreviewArea")
         self.area.setWidgetResizable(True)
@@ -147,11 +157,25 @@ class PreviewPanel(QFrame):
         row.addWidget(self.btn_pdf)
         outer.addWidget(bottom)
         self.saved_hint(None, False)
+        self.set_dark(False)
 
         self._refit = QTimer(self)
         self._refit.setSingleShot(True)
         self._refit.setInterval(120)
         self._refit.timeout.connect(self.view.refit)
+
+    def set_dark(self, on: bool) -> None:
+        self.dark = on
+        self.btn_dark.setIcon(theme.icon("sun" if on else "moon", theme.MUTED))
+        self.btn_dark.setToolTip(
+            "Show the page in white, exactly as it prints"
+            if on
+            else "Dark Page: easier on the eyes while you work. PDFs and prints stay white."
+        )
+
+    def _toggle_dark(self) -> None:
+        self.set_dark(not self.dark)
+        self.dark_changed.emit(self.dark)
 
     def set_pages(self, pages: list[Page]) -> None:
         self.view.message = ""

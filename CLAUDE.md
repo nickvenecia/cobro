@@ -16,15 +16,17 @@ The owner is a filmmaker (director/DP/editor/colorist), not a full-time develope
 ```
 cobro/
   core/            Invoices. No Qt imports.
-    model.py       Business (+ Look), Client, LineItem, Invoice dataclasses; from_dict() tolerates old/new files
+    model.py       Business (a "profile" in the app, + Look), Client, LineItem, Invoice; from_dict() tolerates old/new files
     money.py       exact Decimal parsing / formatting, totals() (subtotal, discount, tax, deposit, balance)
     dates.py       "Oct 10, 2026", due dates, terms labels (English on every computer)
-    numbering.py   PREFIX-YEAR-001 numbers, initials()
-    looks.py       type styles, colors, headers, logo sizes, papers; resolve(Look) -> fonts + colors; paper INK/RULE
+    numbering.py   PREFIX-YEAR-001 numbers (or one count per client: PREFIX-CODE-YEAR-001 / CODE-YEAR-001), initials()
+    looks.py       type styles, colors, headers, logo sizes, papers; resolve(Look, dark=) -> fonts + colors;
+                   the paper's palette: LIGHT (every export) and DARK (the preview's Dark Page only)
     document.py    build(invoice, business) -> InvoiceView: every string on the page; status_of() (overdue);
                    file_stem() (export file name); summary_text() (Copy as Text)
     store.py       Library: JSON files in data_dir() (businesses.json, clients.json, invoices/<id>.json,
-                   settings.json), atomic writes, unreadable files set aside; new_invoice / duplicate / remember_client
+                   settings.json), atomic writes, unreadable files set aside; new_invoice / duplicate;
+                   save_client / delete_client (drafts follow a client's edits); next_number / renumber
     sample.py      the made-up Juniper Lane Films business + invoice (tests, smoke test, screenshots)
     update.py      Listo's updater, pointed at nickvenecia/cobro (asset names are a contract, see Releasing)
     paths.py, log.py, net.py (certifi SSL), fileutil.py (reveal in Finder/Explorer)
@@ -35,12 +37,16 @@ cobro/
   ui/
     tokens.py      THE design tokens (Listo's, with turquoise instead of marigold)
     theme.py       stylesheet built from tokens, SVG icons
-    widgets.py     Listo's building blocks + TextBox (multi-line field)
+    widgets.py     Listo's building blocks + TextBox (multi-line field), ElidedLabel, Disclosure (fold-away group)
     main_window.py the three panels, menus, saving (debounced), exporting, updates
     invoice_list.py   ① cards, filter, Unpaid / Paid totals, ⋯ tools menu, Update button
-    details.py     ② every field; Look group edits the Business; import_logo() copies logos into data_dir()/logos
-    preview.py     ③ pages as pictures sized to the panel; Save PDF… / Print… / ⋯; Show File, Mark as Sent
-    business_dialog.py, dialogs.py (confirm, about), update_dialog.py, titlebar.py (Mac)
+    details.py     ② every field in fold-away groups; From/Bill To pickers + Edit…; ItemEditor (foldable line
+                   item with a ⋯ menu); Look group edits the profile
+    preview.py     ③ pages as pictures sized to the panel; Dark Page (☾); Save PDF… / Print… / ⋯; Show File, Mark as Sent
+    profile_dialog.py  your profile: name, logo (import_logo() copies it into data_dir()/logos), contact,
+                   Numbers && Tax (Number Style), Payment && Terms
+    client_dialog.py   a saved client: name, attention, address, email, code (for per-client numbers)
+    dialogs.py (confirm, about), update_dialog.py, titlebar.py (Mac)
   app.py           QApplication, fonts, stylesheet, rounded popups, one window at a time, --smoke-test
   cli.py           `python -m cobro cli sample OUT.pdf|png [--style] [--color] [--header] [--items] [--logo]`
 scripts/make_icon.py   draws cobro/assets/icon.png ("cobro." on Listo's dark tile)
@@ -52,15 +58,19 @@ cobro.spec, packaging/, .github/workflows/build.yml   same as Listo
 - **Never lose an invoice.** Every write is atomic (`store.write_json`); unreadable files are renamed aside, never deleted.
   Edits save SAVE_DELAY_MS after typing stops, on switching invoices, and on quit (`MainWindow.flush/shutdown`).
 - **The preview is the export.** Never draw something in the preview that the PDF doesn't (or the other way round):
-  everything goes through `render.layout` + `render.paint`.
+  everything goes through `render.layout` + `render.paint`. The one difference allowed is the Dark Page: the same
+  layout in `looks.DARK` colors, for the preview only. Exports call `MainWindow.pages()` (light) and never pass dark.
 - **Fonts in points everywhere.** Use `fonts.make(spec, painter.device())` and `fonts.metrics(spec)`; never
   `setPointSize` directly, or the PDF and the screen drift apart.
 - Bundled fonts are fixed-weight TTFs (PDF embedding); add new ones through scripts/make_fonts.py and
   `looks.BUNDLED_FONTS`, plus their OFL file and a THIRD_PARTY_NOTICES line.
-- Clients are remembered (`Library.remember_client`) only when an invoice is exported, printed, its status changes,
-  or you switch away / quit, so half-typed names never pile up.
+- Clients are saved only on purpose, through the client dialog (`Library.save_client`): typing never adds one.
+  Invoices keep their own copy: drafts follow a client's edits, sent and paid invoices keep what they said.
+  Deleting a client leaves every invoice as it was.
+- A draft's number follows its profile, client and year while Cobro picked it (`Invoice.auto_number`,
+  `Library.renumber`). Typing a number, or the invoice being sent or paid, freezes it.
 - Logos are copied into data_dir()/logos (big pictures scaled to LOGO_MAX_PX); the Look stores only the file name.
-  A missing logo file just leaves the logo out.
+  A missing logo file just leaves the logo out. The logo is picked in the profile dialog.
 - New model fields need defaults that mean "off"/empty: old files are read through `from_dict()`.
 - Personal details never go in the code or the repo (it's public). Use core/sample.py's made-up business for examples.
 

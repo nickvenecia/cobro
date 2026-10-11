@@ -1,7 +1,7 @@
 """Saving and loading: everything lives as small JSON files in Cobro's data folder.
 
     businesses.json   your business(es), with their look and defaults
-    clients.json      everyone you've billed (filled in as you write invoices)
+    clients.json      your saved clients (added and edited from Bill To)
     invoices/<id>.json   one file per invoice
     settings.json     window and app preferences
 
@@ -168,9 +168,35 @@ class Library:
             reverse=True,
         )
 
-    def next_number(self, business: Business, year: int | None = None) -> str:
+    @staticmethod
+    def client_code(c: Client) -> str:
+        """The code a client goes by in invoice numbers (typed, or made from the name)."""
+        return numbering.clean_code(c.code) or numbering.client_code(c.name)
+
+    def next_number(
+        self, business: Business, year: int | None = None, client: Client | None = None, skip: str = ""
+    ) -> str:
+        """The next free number for this profile (and client, if it counts per client).
+        `skip`: an invoice whose own number doesn't count (it's the one being renumbered)."""
         year = year or dates.today().year
-        return numbering.next_number(business.prefix, (i.number for i in self.invoices.values()), year)
+        code = self.client_code(client) if client is not None else ""
+        head = numbering.head(business.prefix, code, business.number_style)
+        taken = (i.number for i in self.invoices.values() if i.id != skip)
+        return numbering.next_number(head, taken, year)
+
+    def renumber(self, inv: Invoice) -> bool:
+        """Keep a draft's number in step with its profile, client and year (NV-DGTL-2026-001), when Cobro
+        picked it. Numbers you typed, and invoices already sent or paid, never change. True if it changed."""
+        b = self.businesses.get(inv.business_id)
+        if b is None or not inv.auto_number or inv.status != "draft":
+            return False
+        year = (dates.parse(inv.issued) or dates.today()).year
+        code = self.client_code(inv.client) if inv.client.name.strip() else ""
+        start = f"{numbering.head(b.prefix, code, b.number_style)}-{year}-"
+        if inv.number.upper().startswith(start.upper()):
+            return False
+        inv.number = self.next_number(b, year, inv.client if code else None, skip=inv.id)
+        return True
 
     def new_invoice(self, business: Business, today: date | None = None) -> Invoice:
         today = today or dates.today()
@@ -178,6 +204,7 @@ class Library:
         inv = Invoice(
             business_id=business.id,
             number=self.next_number(business, today.year),
+            auto_number=True,
             issued=dates.iso(today),
             terms_days=business.terms_days,
             delivered=dates.iso(today),
@@ -198,10 +225,11 @@ class Library:
         copy = Invoice.from_dict(inv.to_dict())
         copy.id = new_id()
         copy.number = (
-            self.next_number(business, today.year)
+            self.next_number(business, today.year, copy.client if copy.client.name.strip() else None)
             if business
             else numbering.next_number("INV", [], today.year)
         )
+        copy.auto_number = True
         copy.issued = dates.iso(today)
         copy.delivered = dates.iso(today) if inv.delivered else ""
         copy.status, copy.sent_on, copy.paid_on = "draft", "", ""
@@ -224,14 +252,25 @@ class Library:
             return None
         return next((c for c in self.clients.values() if c.name.strip().casefold() == key), None)
 
-    def remember_client(self, c: Client) -> Client | None:
-        """Keep a client's latest details for next time (matched by name). Returns the saved copy."""
-        if not c.name.strip():
-            return None
-        saved = self.find_client(c.name)
-        fresh = replace(c, id=saved.id if saved else (c.id or new_id()), name=c.name.strip())
-        if saved is not None and saved == fresh:
-            return saved
-        self.clients[fresh.id] = fresh
+    def match_client(self, c: Client) -> Client | None:
+        """The saved client an invoice's copy belongs to: same id, or else the same name."""
+        return self.clients.get(c.id) or self.find_client(c.name)
+
+    def save_client(self, c: Client) -> Client:
+        """Add or update a saved client. Drafts billed to them pick up the change; sent and paid
+        invoices keep the details they went out with."""
+        saved = replace(c, id=c.id or new_id(), name=c.name.strip())
+        self.clients[saved.id] = saved
         self.save_clients()
-        return fresh
+        for inv in self.invoices.values():
+            if inv.client.id == saved.id and inv.status == "draft" and inv.client != saved:
+                inv.client = replace(saved)
+                self.renumber(inv)  # a new code changes the number of a draft that counts per client
+                self.save_invoice(inv)
+        log.info("saved client %s", saved.name)
+        return saved
+
+    def delete_client(self, client_id: str) -> None:
+        """Take a client off the list. Invoices keep their own copy, so none of them change."""
+        if self.clients.pop(client_id, None) is not None:
+            self.save_clients()

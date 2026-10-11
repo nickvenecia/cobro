@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication
 
 from cobro.app import setup_app
 from cobro.core import sample
+from cobro.core.model import Client
 from cobro.core.paths import use_data_dir
 from cobro.core.store import Library
 
@@ -39,8 +40,9 @@ def main(out: Path) -> int:
     tmp = Path(tempfile.mkdtemp(prefix="cobro-shots-"))
     use_data_dir(tmp)
     setup_app(app)
-    from cobro.ui.business_dialog import BusinessDialog
+    from cobro.ui.client_dialog import ClientDialog
     from cobro.ui.main_window import MainWindow
+    from cobro.ui.profile_dialog import ProfileDialog
 
     # first launch: nothing set up yet
     w = MainWindow(Library(tmp).load())
@@ -50,8 +52,12 @@ def main(out: Path) -> int:
 
     lib = Library(tmp).load()
     b = lib.add_business(sample.business())
+    client = lib.save_client(sample.invoice().client)
+    for name in ("Desert Sun Records", "Mesa Coffee Co."):
+        lib.save_client(Client(name=name))
     inv = sample.invoice()
     inv.business_id = b.id
+    inv.client = client
     lib.save_invoice(inv)
     paid = lib.duplicate(inv)
     paid.status, paid.paid_on, paid.client.name = (
@@ -68,15 +74,25 @@ def main(out: Path) -> int:
     w = MainWindow(lib)
     w.show()
     shot(w, out / "2-invoice.png")
+    w.details.items[0].set_open(True)
     w.details.scroll.verticalScrollBar().setValue(w.details.scroll.verticalScrollBar().maximum())
     shot(w, out / "3-look.png")
     b.look.type_style, b.look.color, b.look.header = "screenplay", "oxblood", "band"
     w.details.load_look(b)
     w.redraw()
     shot(w, out / "4-screenplay-band.png")
-    d = BusinessDialog(b, False, w)
+    w.details.set_open_groups({"who": True, "invoice": False, "project": False, "items": True})
+    w.details.scroll.verticalScrollBar().setValue(0)
+    w.preview.btn_dark.click()
+    shot(w, out / "5-folded-dark-page.png")
+    w.preview.btn_dark.click()
+    d = ProfileDialog(b, False, w)
     d.show()
-    shot(d, out / "5-business.png")
+    shot(d, out / "6-profile.png")
+    d.close()
+    d = ClientDialog(client, lib, True, show_code=True, parent=w)
+    d.show()
+    shot(d, out / "7-client.png")
     d.close()
     w.close()
     return 0

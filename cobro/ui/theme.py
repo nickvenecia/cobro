@@ -131,6 +131,7 @@ QPushButton#Ghost:hover {{ background: {CARD_HOVER}; color: {TEXT}; }}
 QPushButton#Disclosure {{ background: transparent; border: none; border-top: 1px solid {BORDER}; border-radius: 0;
     padding: {SPACE_2}px 0 0 0; color: {MUTED}; font-weight: {WEIGHT_SEMIBOLD}; text-align: left; }}
 QPushButton#Disclosure:hover {{ color: {TEXT}; background: transparent; }}
+QPushButton#Disclosure[first="true"] {{ border-top: none; padding-top: 0; }}
 QPushButton#Secondary {{ background: transparent; color: {MUTED}; }}
 QPushButton#Secondary:hover {{ background: {CARD_HOVER}; color: {TEXT}; }}
 QPushButton#Danger {{ background: transparent; color: {BAD}; }}
@@ -210,6 +211,9 @@ QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::su
 /* ---------- details panel */
 #Details {{ background: {PANEL}; border-left: 1px solid {BORDER}; border-right: 1px solid {BORDER}; }}
 #ItemBox {{ background: {BG}; border: 1px solid {BORDER}; border-radius: {RADIUS_LG}px; }}
+#ItemBox[open="false"]:hover {{ background: {CARD}; }}
+#ItemTitle {{ font-weight: {WEIGHT_MEDIUM}; }}
+#ItemTitle[blank="true"] {{ color: {FAINT}; }}
 #ItemAmount {{ color: {MUTED}; font-size: {TEXT_SM}px; }}
 QPlainTextEdit#Field {{ background: {CARD}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS}px;
     font-family: inherit; font-size: {TEXT_MD}px; color: {TEXT}; padding: {SPACE_1}px {SPACE_2}px;
@@ -280,6 +284,10 @@ _SVG = {
     "receipt": '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
     "edit": '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
     "alert": '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+    "arrow-up": '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+    "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    "moon": '<path d="M20.5 14.1A8.5 8.5 0 1 1 9.9 3.5a6.6 6.6 0 0 0 10.6 10.6z"/>',
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
 }
 
 
