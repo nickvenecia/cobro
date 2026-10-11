@@ -42,7 +42,7 @@ Add new icons there; don't load image files for UI icons.
 ### Fixed layout sizes
 
 `LIST_W`, `DETAILS_W`, `CARD_H`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NUM_FIELD_W`, `SWATCH`, `LOGO_THUMB`,
-`PAGE_GAP`, `PAGE_SHADOW`, `DIALOG_W`, `BUSINESS_DIALOG_H`, `WINDOW_SIZE`, `WINDOW_MIN`. Use these names, never the numbers.
+`PAGE_GAP`, `PAGE_SHADOW`, `DIALOG_W`, `PROFILE_DIALOG_H`, `WINDOW_SIZE`, `WINDOW_MIN`. Use these names, never the numbers.
 
 ---
 
@@ -118,7 +118,7 @@ the popup window see-through and gives every dropdown `widgets.ComboItemDelegate
 | `PAPER` / `SHADOW` | The invoice paper and its shadow in the preview |
 | `BAD_TINT` / `BAD_EDGE` | Danger button hover / the Overdue chip |
 
-- Turquoise means "selected" or "do this". **One** Primary button per view (Save PDF…, Save, Add Your Business…).
+- Turquoise means "selected" or "do this". **One** Primary button per view (Save PDF…, Save, Add Your Profile…).
 - Status color comes from data, not code: set `setProperty("tone", "draft" | "sent" | "overdue" | "paid")`
   and call `widgets.repolish(w)`. The stylesheet maps tone to color.
 - Never call `setStyleSheet()` on a single widget. Add a rule to `theme.STYLESHEET`
@@ -135,23 +135,28 @@ Use an object name to pick a style (`btn.setObjectName("Ghost")`). These are the
 | Primary button | `Primary` | The single main action in a view (Save PDF…, Save) |
 | Normal button | *(none)* | Everything else (Print…, Choose Logo…, Cancel) |
 | Secondary button | `Secondary` | Quiet buttons that still need a frame (Update to …) |
-| Quiet button | `Ghost` | Show File, Mark as Sent, Use Business Defaults |
-| Danger button | `Danger` | Destructive confirmations only (Delete Invoice, Delete Business…) |
-| Icon-only button | `IconBtn` (QToolButton) | New invoice (+), ⋯ menus, remove line item (×). **Must** have a tooltip |
+| Quiet button | `Ghost` | Show File, Mark as Sent, Use Profile Defaults, Remove (the logo, in the profile) |
+| Danger button | `Danger` | Destructive confirmations only (Delete Invoice, Delete Profile…, Delete Client…) |
+| Icon-only button | `IconBtn` (QToolButton) | New invoice (+), ⋯ menus (a line item has one too), the Dark Page moon. **Must** have a tooltip |
 | Status chip | `Chip` (QLabel) | Draft / Sent / Overdue / Paid on an invoice card |
 | Dropdown | `widgets.combo(items, current)` | **Every** pick-one setting, however few choices. Put extra detail in the item's tooltip |
 | On/off setting | `widgets.ToggleRow` | Every on/off setting: one full-width row, label left, switch right, whole row clickable |
 | Section | `widgets.Section` | Every labelled group in the details panel and dialogs |
 | Multi-line text | `widgets.TextBox` | Addresses, line-item details, payment text, terms (`TEXT_BOX_H` or `TEXT_BOX_TALL`) |
 | Date | `details.date_field()` | Every date (calendar popup, "Oct 10, 2026") |
-| Fold-away group | `widgets.Disclosure` | Adjustments, Payment && Terms, Look: a chevron header with a summary |
+| Fold-away group | `widgets.Disclosure` | Every group in the Details panel and the profile dialog: a chevron header that, folded, says what's inside |
+| Your own things | `details.picker()` + an `Edit…` button | From (your profiles) and Bill To (your clients): the dropdown picks, Edit… beside it opens the details |
+| Line item | `details.ItemEditor` | A header row (what it is, its amount, ⋯) that folds its fields away. One open at a time |
+| Long one-line text | `widgets.ElidedLabel` | Text that may not fit (a line item's name): cut short with "…", the full text in its tooltip |
 
 Choosing a control:
-- Pick one setting → **dropdown**, always, even with only 2–3 choices. Status, From, Payment Terms, Type,
+- Pick one setting → **dropdown**, always, even with only 2–3 choices. Status, From, Bill To, Payment Terms, Number Style, Type,
   Color, Header, Paper and Logo Size are all dropdowns. Build them with `widgets.combo` / `set_combo`.
 - The result of a choice is shown once, in the live preview, not repeated under every option.
-- Actions that belong to a dropdown (Edit This Business…, Add a Business…, Pick a Color…, Fonts on This
+- Actions that belong to a dropdown (Add a Profile…, New Client…, Pick a Color…, Fonts on This
   Computer…) go **inside** that dropdown, below a separator.
+- A dropdown of your own things that have details of their own (profiles, clients) also gets an **Edit…** button
+  right beside it. That's where people look for it; an "Edit" hidden inside the list went unfound.
 - Menus open from icon buttons (⋯) with `InstantPopup`; the menu arrow is hidden.
 
 ---
@@ -179,18 +184,22 @@ Cobro talks like a helpful person, not like software.
 ## 8. Layout of the main window
 
 ```
-┌ ① Invoices (LIST_W) ·· + ┬ ② Details (DETAILS_W) ┬ ③ Preview ───────────────────────────┐
-│ filter dropdown           │ Status · Paid On       │                                       │
-│ invoice cards             │ From                   │      the invoice, page by page,       │
-│   client · amount         │ Bill To                │      on the dark WELL, as wide as     │
-│   number · date · chip    │ Invoice No. · Issued   │      the panel allows                 │
-│                           │ Payment Terms          │                                       │
-│                           │ Project                │                                       │
-│                           │ Line Items             │                                       │
-│                           │ ▸ Adjustments          │                                       │
-│                           │ ▸ Payment && Terms     │                                       │
-├ Unpaid · Paid in 2026 · ⋯ │ ▸ Look                 ├ Saved … · Show File · ⋯ · Print… · [ Save PDF… ]
-└───────────────────────────┴────────────────────────┴───────────────────────────────────────┘
+┌ ① Invoices (LIST_W) ··· + ┬ ② Details (DETAILS_W) ──────┬ ③ Preview ························ ☾ ┐
+│ filter dropdown           │ ▾ From && Bill To           │                                      │
+│ invoice cards             │   From    [profile ▾] Edit… │      the invoice, page by page,      │
+│   client · amount         │   Bill To [client ▾]  Edit… │      on the dark WELL, as wide as    │
+│   number · date · chip    │ ▾ Invoice                   │      the panel allows: white paper,  │
+│                           │   Status · Paid On          │      or the Dark Page (☾)            │
+│                           │   Invoice No. · Issued      │                                      │
+│                           │   Payment Terms             │                                      │
+│                           │ ▾ Project                   │                                      │
+│                           │ ▾ Line Items                │                                      │
+│                           │   › Production  $1,500  ⋯   │                                      │
+│                           │   + Add Line Item           │                                      │
+│                           │ ▸ Adjustments · 1 set       │                                      │
+│                           │ ▸ Payment && Terms          │                                      │
+├ Unpaid · Paid in 2026 · ⋯ │ ▸ Look · Modern · Ink Blue  ├ Saved … · Show File · ⋯ · Print… · [ Save PDF… ]
+└───────────────────────────┴─────────────────────────────┴──────────────────────────────────────┘
 ```
 The window reads as three steps, left to right, in the order you work: **① pick or start an invoice →
 ② fill it in → ③ check it and send it out.** Every panel starts with a `widgets.StepHeader` (turquoise
@@ -198,23 +207,38 @@ number + Title Case name, `HEADER_H` tall) so the three line up. The preview tak
 
 - **Nothing to save by hand.** Edits are saved a moment after you stop typing (`SAVE_DELAY_MS`) and when you
   switch invoices or quit. The only "save" is the PDF.
-- **Fill it in once.** The business (name, addresses, payment text, terms, look) is entered once, in the
-  Business dialog, and starts every new invoice. Clients are remembered by name and offered as you type.
-  Invoice numbers count up on their own (PREFIX-YEAR-001).
-- **The details panel reads like the invoice**, top to bottom. Basic first; Adjustments, Payment && Terms and
-  Look fold away (`widgets.Disclosure`), each remembered, each header saying what's set ("· 1 set", "· Edited",
-  "· Modern · Ink Blue").
-- **Look is live.** Fonts, color, header, paper and logo belong to the business and change the preview the
-  moment you pick them. The Look group says which invoices it applies to.
+- **Fill it in once.** Your **profile** (name, logo, addresses, payment text, terms, numbering; a `Business`
+  in the code) is entered once, in the Profile dialog, and picked under From. Keep one per name you invoice
+  from. Your **clients** are saved once, in the Client dialog (New Client… under Bill To), and picked under
+  Bill To. Drafts follow a client's edits; sent and paid invoices keep what they said. Typing never saves
+  a client by itself.
+- **Numbers count up on their own**, per profile: PREFIX-YEAR-001, or one count per client
+  (PREFIX-CODE-YEAR-001, or CODE-YEAR-001), picked under the profile's Number Style. A draft's number follows
+  its client until you type your own; sent and paid invoices never change number.
+- **The details panel reads like the invoice**, top to bottom, and **every part folds away**
+  (`widgets.Disclosure`), each remembered. A folded header says what's inside ("· JLF-2026-001 · Draft",
+  "· 3 items · $2,700.00", "· Modern · Ink Blue"), so nothing that changes the invoice hides silently.
+  Basic groups start open; Adjustments, Payment && Terms and Look start folded.
+- **A long list stays tidy.** Line items fold to one row each (name, amount, ⋯) and only one is open at a
+  time. Duplicate, Move Up, Move Down and Remove live in the item's ⋯ menu.
+- **Look is live.** Fonts, color, header and paper belong to the profile and change the preview the
+  moment you pick them. The Look group says which invoices it applies to. The logo is part of the profile.
 - **Only show what applies.** Paid On only for paid invoices; logo size and "Show Name Next to Logo" only
-  with a logo; the two font dropdowns only for Custom Fonts; Use Business Defaults only when the text differs.
+  with a logo; the two font dropdowns only for Custom Fonts; Use Profile Defaults only when the text differs;
+  Edit… beside Bill To only once a client is picked; a client's Code only when a profile counts per client.
 - **Optional steps are buttons, not interruptions.** After saving a PDF, the bottom bar offers Show File and
   (for a draft) Mark as Sent. Saving never opens anything in your way.
-- **Actions that remove things always ask** (Delete Invoice, Delete Business). Cancel is the default.
-- **Menus hold commands, the panels hold settings.** File / Business / Help live in the Mac menu bar; on
+- **Removing goes through a menu or a confirmation, never a single click** (Listo's rule). Remove a line item
+  from its ⋯ menu; Delete Invoice, Delete Profile and Delete Client ask first, with Cancel as the default.
+- **Menus hold commands, the panels hold settings.** File / Profile / Help live in the Mac menu bar; on
   Windows and Linux the bar is hidden and the shortcuts still work. The same tools sit under ⋯ in the
   invoice list's bottom bar on every system.
-- **Scrolling never changes a value** (`app._RoundPopups`), and **menus open on click, never on hover**.
+- **Scrolling never changes a value**: the wheel over a dropdown, a date or a slider scrolls the panel
+  (`app._RoundPopups`). **Menus open on click, never on hover**.
+- **The Dark Page is for your eyes only.** The moon in the preview's header shows the same page, laid out
+  exactly the same, in light-on-dark colors (`looks.DARK`), remembered. PDF, PNG and print always use white
+  paper (`MainWindow.pages()` is light unless the preview asks). Logos get a small white card on the Dark Page,
+  since most are made for white paper.
 - **One identity everywhere.** The app icon is the "cobro." wordmark on Listo's dark tile
   (`scripts/make_icon.py`); on the Mac the title bar is ours (`ui/titlebar.py`).
 
@@ -230,8 +254,12 @@ The paper is the product. It follows its own small set of rules (all in `doc/ren
   the strip (Invoice / Issued / Terms / Due) → Bill To / From / Project → line items → totals → How to Pay
   and Terms → a footer on every page.
 - Small labels on the paper are capitals with letter-spacing (`LABEL_SPACING`); everything else is sentence case.
-- Ink is `INK`, secondary text `INK_SOFT`, hairlines `RULE` (core/looks.py). The accent appears only on the
-  amount due, the balance and (with Color Band) the header. A pale accent is darkened until it reads on white.
+- Ink is `INK`, secondary text `INK_SOFT`, hairlines `RULE` (core/looks.py `LIGHT`; the preview's Dark Page
+  swaps in `DARK`). The accent appears only on the amount due, the balance and (with Color Band) the header.
+  An accent is darkened (or, on the Dark Page, lightened) until it reads on the paper.
+- The business name sits on one line when it fits, measured exactly as it's drawn and with `NAME_SLACK` to
+  spare (text measures a hair differently on each computer); only a name too long even at the smallest size
+  wraps. The logo and the name block are centred on each other.
 - Type styles pair a heading face with a body face and a numbers face. Every bundled font is OFL and fixed-weight
   (`scripts/make_fonts.py`), so PDFs embed exactly what's on screen. Fonts from the computer are allowed too.
 - Long invoices flow onto more pages: the table header repeats, totals and the payment/terms boxes are kept

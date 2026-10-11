@@ -16,6 +16,7 @@ T = TypeVar("T")
 
 STATUSES = ("draft", "sent", "paid")
 TERMS_DAYS = (0, 7, 15, 30, 45, 60)
+NUMBER_STYLES = ("year", "client", "client_only")  # NV-2026-001 / NV-DGTL-2026-001 / DGTL-2026-001
 
 
 def new_id() -> str:
@@ -85,6 +86,7 @@ class Business:
     phone: str = ""
     website: str = ""
     prefix: str = ""  # invoice numbers: PREFIX-2026-001
+    number_style: str = "year"  # a NUMBER_STYLES key: one count for everyone, or one per client
     currency: str = "$"
     terms_days: int = 15
     payment: str = ""
@@ -100,6 +102,8 @@ class Business:
     def from_dict(cls, data: Any) -> Business:
         b = _from(cls, data)
         b.look = Look.from_dict(data.get("look") if isinstance(data, dict) else None)
+        if b.number_style not in NUMBER_STYLES:
+            b.number_style = "year"
         if not b.id:
             b.id = new_id()
         return b
@@ -107,13 +111,15 @@ class Business:
 
 @dataclass
 class Client:
-    """Who you're billing. Invoices keep their own copy, so changing a client never rewrites old invoices."""
+    """Who you're billing. Invoices keep their own copy: drafts follow edits to the saved client,
+    sent and paid invoices keep what they said."""
 
     id: str = field(default_factory=new_id)
     name: str = ""
     contact: str = ""
     address: str = ""
     email: str = ""
+    code: str = ""  # in invoice numbers that count per client (NV-DGTL-2026-001); blank = made from the name
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -146,6 +152,7 @@ class Invoice:
     id: str = field(default_factory=new_id)
     business_id: str = ""
     number: str = ""
+    auto_number: bool = False  # Cobro picked the number (a draft's then follows its profile and client)
     client: Client = field(default_factory=Client)
     issued: str = ""  # YYYY-MM-DD
     terms_days: int = 15

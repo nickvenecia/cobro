@@ -167,7 +167,7 @@ class InvoiceList(QFrame):
         self.btn_more = QToolButton()
         self.btn_more.setObjectName("IconBtn")
         self.btn_more.setIcon(theme.icon("more", theme.MUTED))
-        self.btn_more.setToolTip("Business, updates and more")
+        self.btn_more.setToolTip("Profiles, clients, updates and more")
         self.btn_more.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         stats.addWidget(self.btn_more, 0, Qt.AlignmentFlag.AlignBottom)

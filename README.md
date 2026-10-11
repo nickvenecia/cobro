@@ -32,7 +32,9 @@ Everything comes bundled, fonts included. There's no Python or terminal needed.
 
 ## What it does
 
-**Fill it in once.** Add your business the first time you open Cobro: name, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`NV-2026-001`, `NV-2026-002`…). Clients are remembered and offered as you type.
+**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`NV-2026-001`, `NV-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
+
+**Numbers your way.** One count for all your invoices (`NV-2026-001`), or a separate count for each client with their code in it (`NV-DGTL-2026-001`, or just `DGTL-2026-001`). Pick it under your profile's **Numbers & Tax**.
 
 **Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date, line items with details, quantities and rates (a rate of 0 prints as *Included*), discount, sales tax and a deposit already paid.
 
@@ -49,7 +51,9 @@ The preview on the right is exactly what gets exported, and changes the moment y
 
 **Keep track:** each invoice is a Draft, Sent or Paid (with the date it was paid). Sent invoices past their due date show as **Overdue**. The bottom of the list shows what's still unpaid and what came in this year. Filter the list to see only what's unpaid, overdue, drafts or paid. Right-click an invoice to **duplicate** it for the next job.
 
-**More than one business?** Add as many as you like (your own name, your production company…). Each has its own details, numbering and look.
+**More than one profile?** Add as many as you like (your own name, your production company…) and pick one under **From**. Each has its own details, logo, numbering and look.
+
+**Tidy while you work.** Every part of the details panel folds away and says what's inside. Line items fold to one row each (move, duplicate or remove them from their **⋯** menu). The moon above the preview turns on a **Dark Page** that's easier on the eyes; PDFs and prints always come out on white paper.
 
 **Your data stays yours.** Invoices are saved as small files on your computer only, as you type. Nothing is uploaded. Long invoices flow onto more pages on their own.
 

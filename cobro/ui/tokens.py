@@ -64,11 +64,11 @@ TEXT_BOX_H = 2 * CONTROL_H - SPACE_2  # a two-line text box (addresses, details)
 TEXT_BOX_TALL = 4 * CONTROL_H - SPACE_3  # payment and terms text
 NUM_FIELD_W = 96  # qty / rate fields
 SWATCH = 12  # the color dot in the Color dropdown
-LOGO_THUMB = 40  # the logo preview in the Look group
+LOGO_THUMB = 40  # the logo preview in the profile dialog
 PAGE_GAP = 24  # space between preview pages
 PAGE_SHADOW = 18  # blur of the paper's shadow in the preview
 DIALOG_W = 480
-BUSINESS_DIALOG_H = 760  # tall enough to show most fields without scrolling
+PROFILE_DIALOG_H = 640  # the profile dialog: name, logo and contact show without scrolling
 WINDOW_SIZE = (1440, 880)
 WINDOW_MIN = (1180, 640)
 

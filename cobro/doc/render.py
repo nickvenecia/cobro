@@ -16,7 +16,7 @@ from PySide6.QtGui import QColor, QImage, QImageReader, QPainter, QPen
 from PySide6.QtSvg import QSvgRenderer
 
 from ..core.document import InvoiceView
-from ..core.looks import INK, INK_SOFT, RULE, Resolved
+from ..core.looks import PAPER, Resolved
 from .fonts import FontSpec, make, metrics
 
 LEFT = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
@@ -26,6 +26,7 @@ WRAP = int(Qt.TextFlag.TextWordWrap)
 
 MARGIN = 48.0
 LABEL_SPACING = 0.14  # letter-spacing of the small capital labels
+NAME_SLACK = 6.0  # points kept free beside the business name, so it fits on one line on every computer
 
 
 # ---------------------------------------------------------------------------- drawing steps
@@ -63,6 +64,7 @@ class Logo:
 class Page:
     size: tuple[float, float]
     steps: list = field(default_factory=list)
+    paper: str = PAPER
 
 
 # ---------------------------------------------------------------------------- logo files
@@ -111,9 +113,10 @@ def text_w(text: str, spec: FontSpec) -> float:
 class _Pages:
     """A cursor that adds steps to the current page and starts new pages."""
 
-    def __init__(self, size: tuple[float, float]):
+    def __init__(self, size: tuple[float, float], paper: str):
         self.size = size
-        self.pages: list[Page] = [Page(size)]
+        self.paper = paper
+        self.pages: list[Page] = [Page(size, paper=paper)]
         self.y = MARGIN
 
     @property
@@ -128,7 +131,7 @@ class _Pages:
         return self.y + h <= self.bottom
 
     def new_page(self) -> None:
-        self.pages.append(Page(self.size))
+        self.pages.append(Page(self.size, paper=self.paper))
         self.y = MARGIN
 
     def text(
@@ -140,12 +143,13 @@ class _Pages:
         spec: FontSpec,
         color: str,
         flags: int = LEFT,
+        wrap: bool = True,
     ) -> float:
-        """Add wrapped text; returns its height."""
+        """Add text (wrapped, or kept to one line); returns its height."""
         if not text:
             return 0.0
-        h = text_h(text, spec, w)
-        self.steps.append(Text(QRectF(x, y, w, h + 1), text, spec, color, flags | WRAP))
+        h = text_h(text, spec, w) if wrap else metrics(spec).lineSpacing()
+        self.steps.append(Text(QRectF(x, y, w, h + 1), text, spec, color, flags | (WRAP if wrap else 0)))
         return h
 
 
@@ -154,7 +158,8 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     W, H = look.page
     cw = W - 2 * MARGIN
     x0 = MARGIN
-    out = _Pages((W, H))
+    out = _Pages((W, H), look.paper)
+    INK, INK_SOFT, RULE = look.ink, look.ink_soft, look.rule  # white paper's, or the Dark Page's
 
     body = FontSpec(look.body, 9.5)
     body_soft = FontSpec(look.body, 9)
@@ -179,22 +184,39 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     name_text = v.name.upper() if look.caps else v.name
     nx = x0 + (logo_w + 14 if dims and show_name else 0)
     nw = x0 + left_w - nx
+    # Shrink the name until it fits on one line, measured exactly as it's drawn (letter-spacing too) and
+    # with a little slack: text measures a hair differently on each computer, and a name that only just
+    # fits must never count as two lines (that opened an empty line above the tagline).
+    room = nw - NAME_SLACK
+
+    def name_font(pt: float) -> FontSpec:
+        return FontSpec(look.heading, pt, 800, 0.01 if look.caps else 0)
+
     size = 26.0
-    while size > 15 and text_w(name_text, FontSpec(look.heading, size, 800)) > nw:
+    while size > 15 and text_w(name_text, name_font(size)) > room:
         size -= 1
-    name_spec = FontSpec(look.heading, size, 800, 0.01 if look.caps else 0)
+    name_spec = name_font(size)
+    one_line = text_w(name_text, name_spec) <= room
     tag_spec = FontSpec(look.body, 7.6, 600, 0.13)
-    name_h = text_h(name_text, name_spec, nw) if show_name else 0.0
+    if not show_name:
+        name_h = 0.0
+    else:
+        name_h = metrics(name_spec).lineSpacing() if one_line else text_h(name_text, name_spec, nw)
     tag_text = v.tagline.upper()
     tag_h = text_h(tag_text, tag_spec, nw if show_name else left_w)
     block_h = name_h + (6 + tag_h if tag_h and show_name else 0)
 
     steps_before_band = len(out.steps)
     if dims:
-        out.steps.append(Logo(QRectF(x0, top, logo_w, logo_h), logo))
+        # the shorter of the logo and the name block is centred on the taller one
+        ly = top + max(0.0, (block_h - logo_h) / 2) if show_name else top
+        logo_rect = QRectF(x0, ly, logo_w, logo_h)
+        if look.dark:  # most logos are made for white paper: give them a little white card on the dark page
+            out.steps.append(Fill(logo_rect.adjusted(-4, -4, 4, 4), PAPER, 3))
+        out.steps.append(Logo(logo_rect, logo))
     if show_name:
         by = top + max(0.0, (logo_h - block_h) / 2) if dims else top
-        out.text(nx, by, nw, name_text, name_spec, on)
+        out.text(nx, by, nw, name_text, name_spec, on, wrap=not one_line)
         if tag_h:
             out.text(nx, by + name_h + 6, nw, tag_text, tag_spec, on_soft)
         left_h = max(logo_h, block_h)
@@ -430,7 +452,7 @@ def paint(p: QPainter, page: Page) -> None:
     p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
     p.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
     p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-    p.fillRect(QRectF(0, 0, *page.size), QColor("#FFFFFF"))
+    p.fillRect(QRectF(0, 0, *page.size), QColor(page.paper))
     device = p.device()
     for s in page.steps:
         if isinstance(s, Fill):

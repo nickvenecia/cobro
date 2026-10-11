@@ -25,6 +25,13 @@ def test_a_pale_custom_color_still_reads_on_paper():
     assert r.on_accent == looks.INK  # dark text on a light band
 
 
+def test_the_dark_page_lightens_a_deep_accent():
+    r = looks.resolve(Look(color="ink"), dark=True)
+    assert looks.contrast(r.accent, looks.DARK.paper) >= 4.5
+    assert (r.paper, r.ink) == (looks.DARK.paper, looks.DARK.ink) and r.dark
+    assert looks.resolve(Look()).paper == looks.PAPER  # light unless asked
+
+
 def test_bad_values_fall_back():
     r = looks.resolve(Look(color="nope", header="nope", paper="nope", logo_size="nope"))
     assert r.accent == looks.COLORS["ink"].accent

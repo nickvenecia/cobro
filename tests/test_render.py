@@ -66,3 +66,46 @@ def test_logo(qapp, tmp_path):
     assert any(isinstance(s, render.Logo) for s in pages[0].steps)
     pages = _pages(qapp, logo=tmp_path / "missing.png")  # a lost logo file never breaks the invoice
     assert not any(isinstance(s, render.Logo) for s in pages[0].steps)
+
+
+def test_the_dark_page_changes_colors_only(qapp, tmp_path):
+    from cobro.core.looks import DARK, LIGHT
+
+    fonts.load_bundled()
+    v = document.build(sample.invoice(), sample.business())
+    light = render.layout(v, resolve(Look()))
+    dark = render.layout(v, resolve(Look(), dark=True))
+    assert light[0].paper == LIGHT.paper and dark[0].paper == DARK.paper
+    assert len(light) == len(dark) and len(light[0].steps) == len(dark[0].steps)
+    for a, b in zip(light[0].steps, dark[0].steps, strict=True):  # same words in the same places
+        assert type(a) is type(b) and getattr(a, "rect", None) == getattr(b, "rect", None)
+        assert getattr(a, "text", None) == getattr(b, "text", None)
+    ink = {s.color for s in dark[0].steps if isinstance(s, render.Text)}
+    assert DARK.ink in ink and LIGHT.ink not in ink
+
+
+def test_the_name_and_tagline_stay_together_beside_a_logo(qapp, tmp_path):
+    """A name that fits on one line is measured as one line, so no empty line opens above the tagline,
+    whatever the logo's shape; the logo is centred on the name block."""
+    from PySide6.QtGui import QColor, QImage
+
+    from cobro.doc.fonts import metrics
+
+    fonts.load_bundled()
+    for width in range(60, 400, 7):
+        logo = tmp_path / f"logo{width}.png"
+        img = QImage(width, 300, QImage.Format.Format_ARGB32)
+        img.fill(QColor("#222222"))
+        img.save(str(logo))
+        for style in ("screenplay", "modern", "editorial"):
+            look = Look(type_style=style, header="band", logo=logo.name)
+            b = sample.business(look)
+            b.name, b.tagline = "Marisol Delacruz Films", "Photographer | Cinematographer"
+            steps = render.layout(document.build(sample.invoice(), b), resolve(look), logo)[0].steps
+            pic = next(s for s in steps if isinstance(s, render.Logo))
+            name, tag = [s for s in steps if isinstance(s, render.Text)][:2]
+            if name.font.size > 15:  # it fit on one line
+                assert tag.rect.top() - name.rect.top() <= metrics(name.font).lineSpacing() + 6.5
+            block = (name.rect.top(), tag.rect.bottom())
+            if block[1] - block[0] > pic.rect.height():
+                assert abs(pic.rect.center().y() - (block[0] + block[1]) / 2) < 1.5

@@ -7,6 +7,7 @@ Save button except the PDF itself.
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QTimer, QUrl
@@ -23,11 +24,12 @@ from ..core.paths import data_dir, documents_dir, log_dir, logos_dir
 from ..core.store import Library
 from ..doc import export, fonts, render
 from . import theme, titlebar, tokens
-from .business_dialog import BusinessDialog
+from .client_dialog import ClientDialog
 from .details import DetailsPanel
 from .dialogs import about, confirm
 from .invoice_list import InvoiceList
 from .preview import PreviewPanel
+from .profile_dialog import ProfileDialog
 from .widgets import Toast, hbox, vbox
 
 log = get_logger(__name__)
@@ -70,7 +72,9 @@ class MainWindow(QMainWindow):
 
         self._wire()
         self._menus()
-        self.details.set_open_groups(self.lib.settings.get("groups", {}))
+        groups = self.lib.settings.get("groups", {})
+        self.details.set_open_groups(groups if isinstance(groups, dict) else {})
+        self.preview.set_dark(bool(self.lib.settings.get("dark_preview", False)))
         geo = self.lib.settings.get("geometry")
         if isinstance(geo, str) and geo:
             self.restoreGeometry(QByteArray.fromHex(geo.encode()))
@@ -88,6 +92,7 @@ class MainWindow(QMainWindow):
         self.details.status_changed.connect(self._status_changed)
         self.details.look_changed.connect(self._look_edited)
         self.details.business_wanted.connect(lambda kind: self.edit_business(kind == "add"))
+        self.details.client_wanted.connect(lambda kind: self.edit_client(kind == "new"))
         self.details.defaults_saved.connect(self._defaults_saved)
         self.details.groups_changed.connect(self._groups_changed)
         self.preview.save_pdf.connect(self.save_pdf)
@@ -97,6 +102,7 @@ class MainWindow(QMainWindow):
         self.preview.open_folder.connect(self.open_folder)
         self.preview.show_file.connect(lambda: self.last_export and reveal(self.last_export))
         self.preview.mark_sent.connect(self._mark_sent)
+        self.preview.dark_changed.connect(self._dark_changed)
 
     def _menus(self) -> None:
         """Commands with shortcuts. The menu bar shows on the Mac; on Windows/Linux it's hidden (no strip
@@ -114,15 +120,16 @@ class MainWindow(QMainWindow):
         f = bar.addMenu("File")
         act(f, "New Invoice", self.new_invoice, QKeySequence.StandardKey.New)
         act(f, "Duplicate Invoice", self._duplicate_current, "Ctrl+D")
+        act(f, "New Client…", lambda: self.edit_client(True, assign=False))
         f.addSeparator()
         act(f, "Save PDF…", self.save_pdf, QKeySequence.StandardKey.Save)
         act(f, "Save as PNG…", self.save_png)
         act(f, "Print…", self.print_invoice, QKeySequence.StandardKey.Print)
         f.addSeparator()
         act(f, "Delete Invoice…", self._delete_current)
-        b = bar.addMenu("Business")
-        act(b, "Edit Business…", lambda: self.edit_business(False))
-        act(b, "Add a Business…", lambda: self.edit_business(True))
+        b = bar.addMenu("Profile")
+        act(b, "Edit Profile…", lambda: self.edit_business(False))
+        act(b, "Add a Profile…", lambda: self.edit_business(True))
         h = bar.addMenu("Help")
         act(h, "Check for Updates…", self.check_updates)
         act(
@@ -136,8 +143,9 @@ class MainWindow(QMainWindow):
 
         # the same tools under ⋯ in the list's bottom bar, on every system
         m = QMenu(self.list.btn_more)
-        m.addAction(theme.menu_icon("edit"), "Edit Business…", lambda: self.edit_business(False))
-        m.addAction(theme.menu_icon("plus"), "Add a Business…", lambda: self.edit_business(True))
+        m.addAction(theme.menu_icon("edit"), "Edit Profile…", lambda: self.edit_business(False))
+        m.addAction(theme.menu_icon("plus"), "Add a Profile…", lambda: self.edit_business(True))
+        m.addAction(theme.menu_icon("plus"), "New Client…", lambda: self.edit_client(True, assign=False))
         m.addSeparator()
         m.addAction(theme.menu_icon("retry"), "Check for Updates…", self.check_updates)
         auto = m.addAction("Check for Updates Daily")
@@ -181,7 +189,6 @@ class MainWindow(QMainWindow):
         if self.inv is not None and self.inv.id == inv_id:
             return
         self.flush()
-        self._remember_client()
         inv = self.lib.invoices.get(inv_id)
         if inv is None:
             return
@@ -263,7 +270,6 @@ class MainWindow(QMainWindow):
         self.preview.saved_hint(None, False)
 
     def _status_changed(self, inv: Invoice) -> None:
-        self._remember_client()
         self.flush()
         self.list.refresh()
 
@@ -280,16 +286,39 @@ class MainWindow(QMainWindow):
                     continue
             self._dirty.discard(inv_id)
 
-    def _remember_client(self) -> None:
-        """Keep the client for next time (only finished names, so half-typed ones never pile up)."""
-        if self.inv is None:
+    # ------------------------------------------------------------------ clients
+    def edit_client(self, new: bool, assign: bool = True) -> None:
+        """New Client… or Edit… under Bill To: the saved client goes on the open invoice, and drafts billed
+        to them follow the change (other sent and paid invoices keep what they said). From the menus
+        (`assign=False`) a new client is only saved, for picking later."""
+        inv = self.inv
+        current = None
+        saved = None
+        if not new and inv is not None:
+            saved = self.lib.match_client(inv.client)
+            current = replace(inv.client, id=saved.id) if saved else inv.client
+        per_client = any(b.number_style != "year" for b in self.lib.businesses.values())
+        d = ClientDialog(current, self.lib, saved is not None, per_client, parent=self)
+        if d.exec() != ClientDialog.DialogCode.Accepted:
             return
-        saved = self.lib.remember_client(self.inv.client)
-        if saved is not None and self.inv.client.id != saved.id:
-            self.inv.client.id = saved.id
-            self._dirty.add(self.inv.id)
+        self.flush()
+        if d.deleted:
+            self.lib.delete_client(d.client.id)
+            log.info("deleted client %s", d.client.name)
+            self.toast(f"Deleted {d.client.name}. Invoices you already made keep their details.")
+            if inv is not None:
+                self.details.refresh_clients()
+        else:
+            client = self.lib.save_client(d.client)
+            if inv is not None and assign:
+                self.details.use_client(client)  # saves and redraws through invoice_changed
+            else:
+                self.toast(f"Saved {client.name}. Pick them under Bill To.")
+                if inv is not None:
+                    self.details.refresh_clients()
+        self.list.refresh()
 
-    # ------------------------------------------------------------------ business + look
+    # ------------------------------------------------------------------ profiles + look
     def edit_business(self, add: bool) -> None:
         current = None if add else self.default_business()
         can_delete = (
@@ -297,8 +326,8 @@ class MainWindow(QMainWindow):
             and len(self.lib.businesses) > 1
             and not any(i.business_id == current.id for i in self.lib.invoices.values())
         )
-        d = BusinessDialog(current, can_delete, self)
-        if d.exec() != BusinessDialog.DialogCode.Accepted:
+        d = ProfileDialog(current, can_delete, self)
+        if d.exec() != ProfileDialog.DialogCode.Accepted:
             return
         if d.deleted and current is not None:
             self.lib.delete_business(current.id)
@@ -308,7 +337,7 @@ class MainWindow(QMainWindow):
         first = not self.lib.businesses
         if current is None:
             self.lib.add_business(b)
-            log.info("added business %s", b.name)
+            log.info("added profile %s", b.name)
         else:
             self.lib.businesses[b.id] = b
             self.lib.save_businesses()
@@ -320,6 +349,9 @@ class MainWindow(QMainWindow):
             self.details.refresh_businesses()
         else:
             if self.inv is not None:
+                if self.lib.renumber(self.inv):  # new letters or number style: an untouched draft follows
+                    self._dirty.add(self.inv.id)
+                    self.flush()
                 self.details.load(self.inv)
             self.list.refresh()
             self.redraw()
@@ -340,17 +372,19 @@ class MainWindow(QMainWindow):
         self.lib.settings["groups"] = groups
 
     # ------------------------------------------------------------------ drawing
-    def pages(self) -> list[render.Page]:
+    def pages(self, dark: bool = False) -> list[render.Page]:
+        """The invoice, laid out. `dark` is only ever for the preview's Dark Page: everything that
+        leaves Cobro (PDF, PNG, print) is drawn on white paper."""
         inv = self.inv
         b = self.details.current_business()
         if inv is None or b is None:
             return []
         view = document.build(inv, b)
         logo = logos_dir() / b.look.logo if b.look.logo else None
-        return render.layout(view, resolve(b.look, self._fonts), logo)
+        return render.layout(view, resolve(b.look, self._fonts, dark), logo)
 
     def redraw(self) -> None:
-        pages = self.pages()
+        pages = self.pages(dark=self.preview.dark)
         if pages:
             self.preview.set_pages(pages)
         else:
@@ -384,7 +418,6 @@ class MainWindow(QMainWindow):
 
     def _exported(self, path: Path) -> None:
         self.last_export = path
-        self._remember_client()
         self.flush()
         self.preview.saved_hint(path.name, self.inv is not None and self.inv.status == "draft")
 
@@ -438,7 +471,6 @@ class MainWindow(QMainWindow):
             log.warning("print failed", exc_info=True)
             self.toast(str(e))
             return
-        self._remember_client()
         self.toast("Sent to the printer.")
 
     def copy_text(self) -> None:
@@ -454,6 +486,10 @@ class MainWindow(QMainWindow):
         folder = self._export_folder()
         folder.mkdir(parents=True, exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+
+    def _dark_changed(self, on: bool) -> None:
+        self.lib.settings["dark_preview"] = on
+        self.redraw()
 
     def _mark_sent(self) -> None:
         if self.inv is not None and self.inv.status == "draft":
@@ -520,7 +556,6 @@ class MainWindow(QMainWindow):
 
     def shutdown(self) -> None:
         """Save everything before quitting."""
-        self._remember_client()
         self.flush()
         self.lib.settings["geometry"] = bytes(self.saveGeometry().toHex()).decode()
         try:
