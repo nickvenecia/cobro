@@ -36,7 +36,8 @@ If you need a value that doesn't exist, add a token, give it a comment, and add 
 | `ICON` | 16 | Icons inside normal buttons and menus |
 | `ICON_LG` | 24 | Reserved for larger placeholders |
 
-All icons are line icons drawn as SVG in `theme._SVG` and made with `theme.icon(name, color)`.
+All icons are line icons drawn as SVG in `theme._SVG` and made with `theme.icon(name, "MUTED")` (a color by
+its token name, so the icon redraws itself when Cobro switches between light and dark).
 Add new icons there; don't load image files for UI icons.
 
 ### Fixed layout sizes
@@ -99,7 +100,13 @@ the popup window see-through and gives every dropdown `widgets.ComboItemDelegate
 
 ---
 
-## 5. Color (dark theme)
+## 5. Color (light and dark)
+
+Cobro is light or dark, as the computer is set, and switches along with it while it's open
+(`app.apply_scheme`). `tokens.py` has two palettes with the same names: `DARK` (Listo's) and `LIGHT`
+(the same jobs on white; turquoise and the status colors are deeper there so they still read).
+Read a color through `tokens.C` (`C.TEXT`, `C.ACCENT`) at the moment you draw it, never keep one in a
+variable of your own, and check every change in both (§10).
 
 | Token | Use |
 |---|---|
@@ -107,8 +114,9 @@ the popup window see-through and gives every dropdown `widgets.ComboItemDelegate
 | `PANEL` | Sidebar, footer, dialogs |
 | `CARD` / `CARD_HOVER` / `CARD_SELECTED` | Invoice cards (normal / hover / selected), text fields |
 | `RAISED` (+ `_HOVER`, `_PRESS`) | Buttons, popups |
+| `HOVER` | Behind an icon-only button you point at |
 | `WELL` | Sunken areas: the preview behind the paper |
-| `BORDER` / `BORDER_STRONG` / `BORDER_HOVER` / `BORDER_CHECK` | Hairlines, control borders, hover, empty checkbox |
+| `BORDER` / `BORDER_STRONG` / `BORDER_HOVER` / `BORDER_CHECK` | Hairlines and progress tracks, control borders, hover, empty checkbox |
 | `TEXT` / `MUTED` / `FAINT` | Main text / secondary text / hints, labels, disabled |
 | `ACCENT` (+ `_HOVER`, `_PRESS`) | Turquoise (Listo's is marigold). Selection, the one primary action, focus |
 | `ON_ACCENT` | Text and icons on turquoise |
@@ -121,8 +129,10 @@ the popup window see-through and gives every dropdown `widgets.ComboItemDelegate
 - Turquoise means "selected" or "do this". **One** Primary button per view (Save PDF…, Save, Add Your Profile…).
 - Status color comes from data, not code: set `setProperty("tone", "draft" | "sent" | "overdue" | "paid")`
   and call `widgets.repolish(w)`. The stylesheet maps tone to color.
-- Never call `setStyleSheet()` on a single widget. Add a rule to `theme.STYLESHEET`
+- Never call `setStyleSheet()` on a single widget. Add a rule to the stylesheet in `theme._rules()`
   under an object name instead.
+- Rich text can't follow the stylesheet: the wordmark is `widgets.Wordmark`, which colors its dot again
+  after a switch. An icon on its own (not on a button) is `widgets.IconLabel`.
 
 ---
 
@@ -187,7 +197,7 @@ Cobro talks like a helpful person, not like software.
 ┌ ① Invoices (LIST_W) ··· + ┬ ② Details (DETAILS_W) ──────┬ ③ Preview ························ ☾ ┐
 │ filter dropdown           │ ▾ From && Bill To           │                                      │
 │ invoice cards             │   From    [profile ▾] Edit… │      the invoice, page by page,      │
-│   client · amount         │   Bill To [client ▾]  Edit… │      on the dark WELL, as wide as    │
+│   client · amount         │   Bill To [client ▾]  Edit… │      on the WELL, as wide as         │
 │   number · date · chip    │ ▾ Invoice                   │      the panel allows: white paper,  │
 │                           │   Status · Paid On          │      or the Dark Page (☾)            │
 │                           │   Invoice No. · Issued      │                                      │
@@ -239,6 +249,9 @@ number + Title Case name, `HEADER_H` tall) so the three line up. The preview tak
   exactly the same, in light-on-dark colors (`looks.DARK`), remembered. PDF, PNG and print always use white
   paper (`MainWindow.pages()` is light unless the preview asks). Logos get a small white card on the Dark Page,
   since most are made for white paper.
+- **Light or dark, as the computer is set.** The whole window follows the system's Light / Dark setting,
+  and switches with it while Cobro is open (by hand, or on its own at sunset). The Dark Page is separate:
+  it's about the invoice, not the window, and keeps its own moon in either.
 - **One identity everywhere.** The app icon is the "cobro." wordmark on Listo's dark tile
   (`scripts/make_icon.py`); on the Mac the title bar is ours (`ui/titlebar.py`).
 
@@ -276,4 +289,5 @@ The paper is the product. It follows its own small set of rules (all in `doc/ren
 2. New controls are `CONTROL_H` tall (or `SMALL_H` for icon buttons) and line up with their neighbours.
 3. Every icon-only button has a tooltip.
 4. Labels are short and in Title Case; sentences (tooltips, hints, messages) are plain sentences.
-5. Screenshots look right: `QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR`.
+5. Screenshots look right, in dark and in light: `QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR`
+   (it takes each one twice; the light ones end in `-light`).

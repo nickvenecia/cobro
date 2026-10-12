@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtCore import QEvent, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter
 from PySide6.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -115,6 +115,43 @@ class ElidedLabel(QLabel):
         self._elide()
 
 
+class Wordmark(QLabel):
+    """The "cobro." wordmark with its turquoise dot. Rich text doesn't follow the stylesheet, so the dot
+    is colored again whenever the stylesheet is (a switch between light and dark)."""
+
+    def __init__(self, object_name: str = "Wordmark", parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName(object_name)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self._color_dot()
+
+    def _color_dot(self) -> None:
+        self.setText(f'cobro<span style="color:{tokens.C.ACCENT}">.</span>')
+
+    def changeEvent(self, e):
+        if e.type() == QEvent.Type.StyleChange:
+            self._color_dot()
+        super().changeEvent(e)
+
+
+class IconLabel(QWidget):
+    """An icon on its own, not a button (a line item's fold arrow). Clicks go through to what's under it."""
+
+    def __init__(self, size: int = tokens.ICON_SM, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+        self._icon = QIcon()
+
+    def set_icon(self, icon: QIcon) -> None:
+        self._icon = icon
+        self.update()
+
+    def paintEvent(self, _e):
+        p = QPainter(self)
+        self._icon.paint(p, self.rect())
+        p.end()
+
+
 class _FoldHeader(QPushButton):
     """The Disclosure's header: its text is cut short with "…" rather than widening the panel."""
 
@@ -171,7 +208,7 @@ class Disclosure(QWidget):
 
     def set_open(self, on: bool, emit: bool = False) -> None:
         self.body.setVisible(on)
-        self.header.setIcon(theme.icon("chevron" if on else "chevron-right", theme.MUTED))
+        self.header.setIcon(theme.icon("chevron" if on else "chevron-right", "MUTED"))
         self.header.setToolTip("Hide" if on else "Show")
         self._show_title()
         if emit:
@@ -302,7 +339,7 @@ class ComboItemDelegate(QStyledItemDelegate):
         if self._is_separator(index):
             y = option.rect.center().y()
             painter.save()
-            painter.setPen(QColor(tokens.BORDER_STRONG))
+            painter.setPen(QColor(tokens.C.BORDER_STRONG))
             painter.drawLine(
                 option.rect.left() + tokens.SPACE_2,
                 y,
@@ -393,7 +430,7 @@ class ToggleRow(QAbstractButton):
         on, enabled = self.isChecked(), self.isEnabled()
         r = self.rect()
         # label
-        p.setPen(QColor(tokens.TEXT if enabled else tokens.FAINT))
+        p.setPen(QColor(tokens.C.TEXT if enabled else tokens.C.FAINT))
         text_rect = r.adjusted(0, 0, -(tokens.TOGGLE_W + tokens.SPACE_3), 0)
         label = self.fontMetrics().elidedText(self.text(), Qt.TextElideMode.ElideRight, text_rect.width())
         p.drawText(
@@ -405,17 +442,17 @@ class ToggleRow(QAbstractButton):
         tw, th = tokens.TOGGLE_W, tokens.TOGGLE_H
         track = QRectF(r.right() - tw + 1, r.center().y() - th / 2 + 1, tw - 1, th - 1)
         if on:
-            fill = tokens.ACCENT_HOVER if self._hover and enabled else tokens.ACCENT
+            fill = tokens.C.ACCENT_HOVER if self._hover and enabled else tokens.C.ACCENT
         else:
-            fill = tokens.BORDER_HOVER if self._hover and enabled else tokens.BORDER_STRONG
+            fill = tokens.C.BORDER_HOVER if self._hover and enabled else tokens.C.BORDER_STRONG
         if not enabled:
-            fill = tokens.ACCENT_OFF if on else tokens.BORDER
+            fill = tokens.C.ACCENT_OFF if on else tokens.C.BORDER
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(fill))
         p.drawRoundedRect(track, th / 2, th / 2)
         knob = th - 2 * tokens.TOGGLE_INSET
         x = track.right() - tokens.TOGGLE_INSET - knob if on else track.left() + tokens.TOGGLE_INSET
-        p.setBrush(QColor(tokens.ON_ACCENT if on else tokens.TEXT) if enabled else QColor(tokens.FAINT))
+        p.setBrush(QColor(tokens.C.ON_ACCENT if on else tokens.C.TEXT) if enabled else QColor(tokens.C.FAINT))
         p.drawEllipse(QRectF(x, track.top() + tokens.TOGGLE_INSET, knob, knob))
         p.end()
 

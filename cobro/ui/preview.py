@@ -68,7 +68,7 @@ class PageView(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         if not self.pages:
             if self.message:
-                p.setPen(QColor(tokens.FAINT))
+                p.setPen(QColor(tokens.C.FAINT))
                 p.drawText(self.rect(), int(Qt.AlignmentFlag.AlignCenter), self.message)
             return
         y = float(tokens.PAGE_GAP)
@@ -134,7 +134,7 @@ class PreviewPanel(QFrame):
         row.addWidget(self.btn_sent)
         self.btn_more = QToolButton()
         self.btn_more.setObjectName("IconBtn")
-        self.btn_more.setIcon(theme.icon("more", theme.MUTED))
+        self.btn_more.setIcon(theme.icon("more", "MUTED"))
         self.btn_more.setToolTip("More ways to send it")
         self.btn_more.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -148,7 +148,7 @@ class PreviewPanel(QFrame):
         self.btn_more.setMenu(m)
         row.addWidget(self.btn_more)
         self.btn_print = QPushButton("Print…")
-        self.btn_print.setIcon(theme.icon("printer", theme.TEXT, tokens.ICON_SM))
+        self.btn_print.setIcon(theme.icon("printer", "TEXT"))
         self.btn_print.clicked.connect(self.print_wanted.emit)
         row.addWidget(self.btn_print)
         self.btn_pdf = QPushButton("Save PDF…")
@@ -166,7 +166,7 @@ class PreviewPanel(QFrame):
 
     def set_dark(self, on: bool) -> None:
         self.dark = on
-        self.btn_dark.setIcon(theme.icon("sun" if on else "moon", theme.MUTED))
+        self.btn_dark.setIcon(theme.icon("sun" if on else "moon", "MUTED"))
         self.btn_dark.setToolTip(
             "Show the page in white, exactly as it prints"
             if on

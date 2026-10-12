@@ -1,4 +1,4 @@
-"""App entry point: fonts, stylesheet, rounded popups, one window at a time, and --smoke-test."""
+"""App entry point: fonts, light/dark stylesheet, rounded popups, one window at a time, and --smoke-test."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 from . import APP_NAME, __version__
 from .core.log import get_logger, setup_logging
 from .core.paths import data_dir, log_dir, use_data_dir
-from .ui import theme
+from .ui import theme, tokens
 from .ui.widgets import ComboItemDelegate
 
 log = get_logger(__name__)
@@ -152,6 +152,19 @@ def _crash_log() -> None:
         log.debug("no crash log", exc_info=True)
 
 
+def system_is_dark(app: QApplication) -> bool:
+    """The computer's Light / Dark setting. When it can't tell (some Linux desktops), Cobro stays dark."""
+    hints = app.styleHints()
+    return not (hasattr(hints, "colorScheme") and hints.colorScheme() == Qt.ColorScheme.Light)
+
+
+def apply_scheme(app: QApplication, dark: bool | None = None) -> None:
+    """Light or dark: as the computer is set, or as asked (`dark`, for screenshots and tests).
+    Everything on screen repaints in the new colors; the system's own title bars follow by themselves."""
+    tokens.use(system_is_dark(app) if dark is None else dark)
+    app.setStyleSheet(theme.stylesheet(data_dir() / "ui"))
+
+
 def setup_app(app: QApplication) -> None:
     """Fonts, stylesheet and look (also used by the tests and screenshots)."""
     app.setApplicationName(APP_NAME)
@@ -159,9 +172,6 @@ def setup_app(app: QApplication) -> None:
     app.setOrganizationName("Cobro")
     app.setApplicationVersion(__version__)
     app.setStyle("Fusion")
-    hints = app.styleHints()
-    if hasattr(hints, "setColorScheme"):  # Qt 6.8+: dark system title bars
-        hints.setColorScheme(Qt.ColorScheme.Dark)
     icon_path = theme.ASSETS / "icon.png"
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
@@ -170,7 +180,10 @@ def setup_app(app: QApplication) -> None:
     f.setPointSizeF(13 if sys.platform == "darwin" else 10)
     f.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
     app.setFont(f)
-    app.setStyleSheet(theme.stylesheet(data_dir() / "ui"))
+    apply_scheme(app)
+    hints = app.styleHints()
+    if hasattr(hints, "colorSchemeChanged"):  # the computer switched (by hand, or on its own at sunset)
+        hints.colorSchemeChanged.connect(lambda _scheme: apply_scheme(app))
     app._round = _RoundPopups(app)
     app.installEventFilter(app._round)
 

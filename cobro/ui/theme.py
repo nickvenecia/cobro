@@ -5,47 +5,20 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QRectF, Qt
-from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtCore import QByteArray, QRect, QRectF, QSize, Qt
+from PySide6.QtGui import QIcon, QIconEngine, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 from .tokens import (
-    ACCENT,
-    ACCENT_EDGE,
-    ACCENT_HOVER,
-    ACCENT_OFF,
-    ACCENT_OFF_TEXT,
-    ACCENT_PRESS,
-    ACCENT_TINT,
-    BAD,
-    BAD_EDGE,
-    BAD_TINT,
     BAR_H,
-    BG,
-    BORDER,
-    BORDER_CHECK,
-    BORDER_HOVER,
-    BORDER_STRONG,
-    CARD,
-    CARD_HOVER,
-    CARD_SELECTED,
     CONTROL_H,
-    FAINT,
-    GOOD,
+    DARK,
     HANDLE,
-    ICON,
     INDICATOR,
-    MUTED,
-    ON_ACCENT,
-    PANEL,
-    PAPER,
     RADIUS,
     RADIUS_LG,
     RADIUS_SM,
     RADIUS_XS,
-    RAISED,
-    RAISED_HOVER,
-    RAISED_PRESS,
     SCROLL_MIN,
     SCROLL_W,
     SEG_INSET,
@@ -56,7 +29,6 @@ from .tokens import (
     SPACE_4,
     SPACE_5,
     STEP_BADGE,
-    TEXT,
     TEXT_BRAND,
     TEXT_LG,
     TEXT_MD,
@@ -68,7 +40,7 @@ from .tokens import (
     WEIGHT_BOLD,
     WEIGHT_MEDIUM,
     WEIGHT_SEMIBOLD,
-    WELL,
+    C,
 )
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
@@ -89,167 +61,170 @@ def load_fonts() -> str:
     return FONT_FAMILY if FONT_FAMILY in load_bundled() else ""
 
 
-STYLESHEET = f"""
+def _rules() -> str:
+    """The stylesheet, in the colors in use (tokens.C)."""
+    return f"""
 * {{ outline: none; }}
-QWidget {{ color: {TEXT}; font-size: {TEXT_MD}px; }}
-QMainWindow, #Root {{ background: {BG}; }}
-QDialog {{ background: {PANEL}; }}
-QToolTip {{ background: {RAISED}; color: {TEXT}; border: 1px solid {BORDER_STRONG};
+QWidget {{ color: {C.TEXT}; font-size: {TEXT_MD}px; }}
+QMainWindow, #Root {{ background: {C.BG}; }}
+QDialog {{ background: {C.PANEL}; }}
+QToolTip {{ background: {C.RAISED}; color: {C.TEXT}; border: 1px solid {C.BORDER_STRONG};
     padding: {SPACE_1}px {SPACE_2}px; border-radius: {RADIUS_SM}px; font-size: {TEXT_SM}px; }}
 
 /* ---------- text styles */
 #Wordmark {{ font-size: {TEXT_BRAND}px; font-weight: {WEIGHT_BOLD}; letter-spacing: -0.5px; }}
-#TitleBar {{ background: {BG}; border-bottom: 1px solid {BORDER}; }}
+#TitleBar {{ background: {C.BG}; border-bottom: 1px solid {C.BORDER}; }}
 #TitleWordmark {{ font-size: {TEXT_TITLEBAR}px; font-weight: {WEIGHT_BOLD}; letter-spacing: -0.3px; }}
 #DialogTitle {{ font-size: {TEXT_XL}px; font-weight: {WEIGHT_BOLD}; }}
-#SectionLabel {{ color: {MUTED}; font-size: {TEXT_SM}px; font-weight: {WEIGHT_SEMIBOLD}; }}
-#Hint {{ color: {FAINT}; font-size: {TEXT_SM}px; }}
-#Muted {{ color: {MUTED}; }}
-#Meta {{ color: {MUTED}; font-size: {TEXT_SM}px; }}
+#SectionLabel {{ color: {C.MUTED}; font-size: {TEXT_SM}px; font-weight: {WEIGHT_SEMIBOLD}; }}
+#Hint {{ color: {C.FAINT}; font-size: {TEXT_SM}px; }}
+#Muted {{ color: {C.MUTED}; }}
+#Meta {{ color: {C.MUTED}; font-size: {TEXT_SM}px; }}
 
 /* ---------- areas */
-#StepHeader {{ border-bottom: 1px solid {BORDER}; }}
-#StepBadge {{ background: {ACCENT}; color: {ON_ACCENT}; border-radius: {STEP_BADGE // 2}px;
+#StepHeader {{ border-bottom: 1px solid {C.BORDER}; }}
+#StepBadge {{ background: {C.ACCENT}; color: {C.ON_ACCENT}; border-radius: {STEP_BADGE // 2}px;
     font-size: {TEXT_SM}px; font-weight: {WEIGHT_BOLD}; }}
 #StepTitle {{ font-size: {TEXT_LG}px; font-weight: {WEIGHT_SEMIBOLD}; }}
 
 /* ---------- buttons: all CONTROL_H tall */
 QPushButton {{
-    background: {RAISED}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS}px;
+    background: {C.RAISED}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS}px;
     padding: 0 {SPACE_3}px; min-height: {_INNER}px; max-height: {_INNER}px; font-weight: {WEIGHT_MEDIUM};
 }}
-QPushButton:hover {{ background: {RAISED_HOVER}; }}
-QPushButton:pressed {{ background: {RAISED_PRESS}; }}
-QPushButton:disabled {{ color: {FAINT}; background: {CARD}; border-color: {BORDER}; }}
-QPushButton#Primary {{ background: {ACCENT}; color: {ON_ACCENT}; border-color: {ACCENT};
+QPushButton:hover {{ background: {C.RAISED_HOVER}; }}
+QPushButton:pressed {{ background: {C.RAISED_PRESS}; }}
+QPushButton:disabled {{ color: {C.FAINT}; background: {C.CARD}; border-color: {C.BORDER}; }}
+QPushButton#Primary {{ background: {C.ACCENT}; color: {C.ON_ACCENT}; border-color: {C.ACCENT};
     font-weight: {WEIGHT_SEMIBOLD}; padding: 0 {SPACE_4}px; }}
-QPushButton#Primary:hover {{ background: {ACCENT_HOVER}; border-color: {ACCENT_HOVER}; }}
-QPushButton#Primary:pressed {{ background: {ACCENT_PRESS}; border-color: {ACCENT_PRESS}; }}
-QPushButton#Primary:disabled {{ background: {ACCENT_OFF}; border-color: {ACCENT_OFF}; color: {ACCENT_OFF_TEXT}; }}
-QPushButton#Ghost {{ background: transparent; border-color: transparent; color: {MUTED}; }}
-QPushButton#Ghost:hover {{ background: {CARD_HOVER}; color: {TEXT}; }}
-QPushButton#Disclosure {{ background: transparent; border: none; border-top: 1px solid {BORDER}; border-radius: 0;
-    padding: {SPACE_2}px 0 0 0; color: {MUTED}; font-weight: {WEIGHT_SEMIBOLD}; text-align: left; }}
-QPushButton#Disclosure:hover {{ color: {TEXT}; background: transparent; }}
+QPushButton#Primary:hover {{ background: {C.ACCENT_HOVER}; border-color: {C.ACCENT_HOVER}; }}
+QPushButton#Primary:pressed {{ background: {C.ACCENT_PRESS}; border-color: {C.ACCENT_PRESS}; }}
+QPushButton#Primary:disabled {{ background: {C.ACCENT_OFF}; border-color: {C.ACCENT_OFF}; color: {C.ACCENT_OFF_TEXT}; }}
+QPushButton#Ghost {{ background: transparent; border-color: transparent; color: {C.MUTED}; }}
+QPushButton#Ghost:hover {{ background: {C.CARD_HOVER}; color: {C.TEXT}; }}
+QPushButton#Disclosure {{ background: transparent; border: none; border-top: 1px solid {C.BORDER}; border-radius: 0;
+    padding: {SPACE_2}px 0 0 0; color: {C.MUTED}; font-weight: {WEIGHT_SEMIBOLD}; text-align: left; }}
+QPushButton#Disclosure:hover {{ color: {C.TEXT}; background: transparent; }}
 QPushButton#Disclosure[first="true"] {{ border-top: none; padding-top: 0; }}
-QPushButton#Secondary {{ background: transparent; color: {MUTED}; }}
-QPushButton#Secondary:hover {{ background: {CARD_HOVER}; color: {TEXT}; }}
-QPushButton#Danger {{ background: transparent; color: {BAD}; }}
-QPushButton#Danger:hover {{ background: {BAD_TINT}; }}
+QPushButton#Secondary {{ background: transparent; color: {C.MUTED}; }}
+QPushButton#Secondary:hover {{ background: {C.CARD_HOVER}; color: {C.TEXT}; }}
+QPushButton#Danger {{ background: transparent; color: {C.BAD}; }}
+QPushButton#Danger:hover {{ background: {C.BAD_TINT}; }}
 QPushButton::menu-indicator, QToolButton::menu-indicator {{ image: none; width: 0; }}
 
 /* ---------- small controls: all SMALL_H tall */
 QToolButton#IconBtn {{ background: transparent; border: none; border-radius: {RADIUS_SM}px;
     min-width: {SMALL_H}px; max-width: {SMALL_H}px; min-height: {SMALL_H}px; max-height: {SMALL_H}px; }}
-QToolButton#IconBtn:hover {{ background: {RAISED}; }}
+QToolButton#IconBtn:hover {{ background: {C.HOVER}; }}
 
 /* ---------- fields + dropdowns: all CONTROL_H tall */
 QComboBox, QLineEdit {{
-    background: {CARD}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS}px;
+    background: {C.CARD}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS}px;
     padding: 0 {SPACE_3}px; min-height: {_INNER}px; max-height: {_INNER}px;
-    selection-background-color: {ACCENT}; selection-color: {ON_ACCENT};
+    selection-background-color: {C.ACCENT}; selection-color: {C.ON_ACCENT};
 }}
-QComboBox:hover, QLineEdit:hover {{ border-color: {BORDER_HOVER}; }}
-QLineEdit:focus, QComboBox:focus {{ border-color: {ACCENT}; }}
+QComboBox:hover, QLineEdit:hover {{ border-color: {C.BORDER_HOVER}; }}
+QLineEdit:focus, QComboBox:focus {{ border-color: {C.ACCENT}; }}
 QComboBox::drop-down {{ border: none; width: {SPACE_5}px; }}
 QComboBox::down-arrow {{ image: url(__CHEVRON__); width: {SPACE_3}px; height: {SPACE_3}px; }}
 QComboBox QAbstractItemView {{
-    background: {RAISED}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_1}px;
-    selection-background-color: {ACCENT}; selection-color: {ON_ACCENT}; outline: none;
+    background: {C.RAISED}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_1}px;
+    selection-background-color: {C.ACCENT}; selection-color: {C.ON_ACCENT}; outline: none;
 }}
 QComboBox QAbstractItemView::item {{ padding: 0 {SPACE_3}px; min-height: {CONTROL_H - SPACE_2}px; border-radius: {RADIUS_SM}px; }}
-QComboBox QAbstractItemView::item:selected {{ background: {ACCENT}; color: {ON_ACCENT}; }}
-QComboBox QAbstractItemView::separator {{ height: 1px; background: {BORDER_STRONG}; margin: {SPACE_1}px {SPACE_2}px; }}
+QComboBox QAbstractItemView::item:selected {{ background: {C.ACCENT}; color: {C.ON_ACCENT}; }}
+QComboBox QAbstractItemView::separator {{ height: 1px; background: {C.BORDER_STRONG}; margin: {SPACE_1}px {SPACE_2}px; }}
 
 /* ---------- segmented control: CONTROL_H tall overall */
-#Seg {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: {RADIUS}px; }}
+#Seg {{ background: {C.CARD}; border: 1px solid {C.BORDER}; border-radius: {RADIUS}px; }}
 #SegBtn {{ background: transparent; border: none; border-radius: {RADIUS_SM}px; padding: 0 {SPACE_2}px;
-    min-height: {_SEG_INNER}px; max-height: {_SEG_INNER}px; color: {MUTED}; font-weight: {WEIGHT_MEDIUM}; }}
-#SegBtn:hover {{ color: {TEXT}; }}
-#SegBtn:checked {{ background: {RAISED}; color: {TEXT}; font-weight: {WEIGHT_SEMIBOLD}; }}
+    min-height: {_SEG_INNER}px; max-height: {_SEG_INNER}px; color: {C.MUTED}; font-weight: {WEIGHT_MEDIUM}; }}
+#SegBtn:hover {{ color: {C.TEXT}; }}
+#SegBtn:checked {{ background: {C.RAISED}; color: {C.TEXT}; font-weight: {WEIGHT_SEMIBOLD}; }}
 
 /* ---------- checkboxes, sliders, progress */
 QCheckBox {{ spacing: {SPACE_2}px; min-height: {SMALL_H}px; }}
-QCheckBox::indicator {{ width: {INDICATOR}px; height: {INDICATOR}px; border-radius: {RADIUS_XS}px; border: 1px solid {BORDER_CHECK}; background: {CARD}; }}
-QCheckBox::indicator:checked {{ background: {ACCENT}; border-color: {ACCENT}; image: url(__CHECK__); }}
-QCheckBox:disabled {{ color: {FAINT}; }}
+QCheckBox::indicator {{ width: {INDICATOR}px; height: {INDICATOR}px; border-radius: {RADIUS_XS}px; border: 1px solid {C.BORDER_CHECK}; background: {C.CARD}; }}
+QCheckBox::indicator:checked {{ background: {C.ACCENT}; border-color: {C.ACCENT}; image: url(__CHECK__); }}
+QCheckBox:disabled {{ color: {C.FAINT}; }}
 QSlider {{ min-height: {SMALL_H}px; }}
-QSlider::groove:horizontal {{ height: {TRACK_H}px; background: {RAISED}; border-radius: {TRACK_H // 2}px; }}
-QSlider::sub-page:horizontal {{ background: {ACCENT}; border-radius: {TRACK_H // 2}px; }}
-QSlider::handle:horizontal {{ background: {TEXT}; width: {HANDLE}px; height: {HANDLE}px; margin: -{(HANDLE - TRACK_H) // 2}px 0; border-radius: {HANDLE // 2}px; }}
-QProgressBar {{ background: {RAISED}; border: none; border-radius: {BAR_H // 2}px; max-height: {BAR_H}px; min-height: {BAR_H}px; }}
-QProgressBar::chunk {{ background: {ACCENT}; border-radius: {BAR_H // 2}px; }}
+QSlider::groove:horizontal {{ height: {TRACK_H}px; background: {C.BORDER}; border-radius: {TRACK_H // 2}px; }}
+QSlider::sub-page:horizontal {{ background: {C.ACCENT}; border-radius: {TRACK_H // 2}px; }}
+QSlider::handle:horizontal {{ background: {C.TEXT}; width: {HANDLE}px; height: {HANDLE}px; margin: -{(HANDLE - TRACK_H) // 2}px 0; border-radius: {HANDLE // 2}px; }}
+QProgressBar {{ background: {C.BORDER}; border: none; border-radius: {BAR_H // 2}px; max-height: {BAR_H}px; min-height: {BAR_H}px; }}
+QProgressBar::chunk {{ background: {C.ACCENT}; border-radius: {BAR_H // 2}px; }}
 
 /* ---------- scrolling */
 QScrollArea {{ background: transparent; border: none; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QScrollBar:vertical {{ background: transparent; width: {SCROLL_W}px; margin: {SEG_INSET}px; }}
-QScrollBar::handle:vertical {{ background: {BORDER_STRONG}; border-radius: {(SCROLL_W - 2 * SEG_INSET) // 2}px; min-height: {SCROLL_MIN}px; }}
-QScrollBar::handle:vertical:hover {{ background: {BORDER_HOVER}; }}
+QScrollBar::handle:vertical {{ background: {C.BORDER_STRONG}; border-radius: {(SCROLL_W - 2 * SEG_INSET) // 2}px; min-height: {SCROLL_MIN}px; }}
+QScrollBar::handle:vertical:hover {{ background: {C.BORDER_HOVER}; }}
 QScrollBar:vertical:disabled, QScrollBar::handle:vertical:disabled {{ background: transparent; }}
 QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {{ height: 0; background: none; }}
 
 /* ---------- invoice cards */
-#Card {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: {RADIUS_LG}px; }}
-#Card:hover {{ background: {CARD_HOVER}; }}
-#Card[selected="true"], #Card[selected="true"]:hover {{ background: {CARD_SELECTED}; border-color: {ACCENT_EDGE}; }}
+#Card {{ background: {C.CARD}; border: 1px solid {C.BORDER}; border-radius: {RADIUS_LG}px; }}
+#Card:hover {{ background: {C.CARD_HOVER}; }}
+#Card[selected="true"], #Card[selected="true"]:hover {{ background: {C.CARD_SELECTED}; border-color: {C.ACCENT_EDGE}; }}
 #CardClient {{ font-size: {TEXT_LG}px; font-weight: {WEIGHT_SEMIBOLD}; }}
-#CardNumber {{ color: {MUTED}; font-size: {TEXT_SM}px; font-weight: {WEIGHT_MEDIUM}; }}
+#CardNumber {{ color: {C.MUTED}; font-size: {TEXT_SM}px; font-weight: {WEIGHT_MEDIUM}; }}
 #CardAmount {{ font-size: {TEXT_LG}px; font-weight: {WEIGHT_SEMIBOLD}; }}
 #Chip {{ border-radius: {RADIUS_SM}px; padding: 0 {SPACE_2}px; font-size: {TEXT_XS}px; font-weight: {WEIGHT_SEMIBOLD};
-    min-height: {_SMALL_INNER - 4}px; max-height: {_SMALL_INNER - 4}px; border: 1px solid {BORDER_STRONG}; color: {MUTED}; }}
-#Chip[tone="sent"] {{ color: {ACCENT}; border-color: {ACCENT_EDGE}; background: {ACCENT_TINT}; }}
-#Chip[tone="overdue"] {{ color: {BAD}; border-color: {BAD_EDGE}; background: {BAD_TINT}; }}
-#Chip[tone="paid"] {{ color: {GOOD}; border-color: {GOOD}; }}
-#FooterStat {{ color: {MUTED}; font-size: {TEXT_SM}px; }}
+    min-height: {_SMALL_INNER - 4}px; max-height: {_SMALL_INNER - 4}px; border: 1px solid {C.BORDER_STRONG}; color: {C.MUTED}; }}
+#Chip[tone="sent"] {{ color: {C.ACCENT}; border-color: {C.ACCENT_EDGE}; background: {C.ACCENT_TINT}; }}
+#Chip[tone="overdue"] {{ color: {C.BAD}; border-color: {C.BAD_EDGE}; background: {C.BAD_TINT}; }}
+#Chip[tone="paid"] {{ color: {C.GOOD}; border-color: {C.GOOD}; }}
+#FooterStat {{ color: {C.MUTED}; font-size: {TEXT_SM}px; }}
 #FooterValue {{ font-size: {TEXT_LG}px; font-weight: {WEIGHT_SEMIBOLD}; }}
 
 /* ---------- empty states */
 #EmptyTitle {{ font-size: {TEXT_XL}px; font-weight: {WEIGHT_SEMIBOLD}; }}
-#EmptyText {{ color: {MUTED}; }}
+#EmptyText {{ color: {C.MUTED}; }}
 
 /* ---------- details panel */
-#Details {{ background: {PANEL}; border-left: 1px solid {BORDER}; border-right: 1px solid {BORDER}; }}
-#ItemBox {{ background: {BG}; border: 1px solid {BORDER}; border-radius: {RADIUS_LG}px; }}
-#ItemBox[open="false"]:hover {{ background: {CARD}; }}
+#Details {{ background: {C.PANEL}; border-left: 1px solid {C.BORDER}; border-right: 1px solid {C.BORDER}; }}
+#ItemBox {{ background: {C.BG}; border: 1px solid {C.BORDER}; border-radius: {RADIUS_LG}px; }}
+#ItemBox[open="false"]:hover {{ background: {C.CARD}; }}
 #ItemTitle {{ font-weight: {WEIGHT_MEDIUM}; }}
-#ItemTitle[blank="true"] {{ color: {FAINT}; }}
-#ItemAmount {{ color: {MUTED}; font-size: {TEXT_SM}px; }}
-QPlainTextEdit#Field {{ background: {CARD}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS}px;
-    font-family: inherit; font-size: {TEXT_MD}px; color: {TEXT}; padding: {SPACE_1}px {SPACE_2}px;
-    selection-background-color: {ACCENT}; selection-color: {ON_ACCENT}; }}
-QPlainTextEdit#Field:hover {{ border-color: {BORDER_HOVER}; }}
-QPlainTextEdit#Field:focus {{ border-color: {ACCENT}; }}
-QPlainTextEdit#Field:disabled, QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled {{ color: {FAINT}; border-color: {BORDER}; }}
-QDateEdit {{ background: {CARD}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS}px;
+#ItemTitle[blank="true"] {{ color: {C.FAINT}; }}
+#ItemAmount {{ color: {C.MUTED}; font-size: {TEXT_SM}px; }}
+QPlainTextEdit#Field {{ background: {C.CARD}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS}px;
+    font-family: inherit; font-size: {TEXT_MD}px; color: {C.TEXT}; padding: {SPACE_1}px {SPACE_2}px;
+    selection-background-color: {C.ACCENT}; selection-color: {C.ON_ACCENT}; }}
+QPlainTextEdit#Field:hover {{ border-color: {C.BORDER_HOVER}; }}
+QPlainTextEdit#Field:focus {{ border-color: {C.ACCENT}; }}
+QPlainTextEdit#Field:disabled, QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled {{ color: {C.FAINT}; border-color: {C.BORDER}; }}
+QDateEdit {{ background: {C.CARD}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS}px;
     padding: 0 {SPACE_3}px; min-height: {_INNER}px; max-height: {_INNER}px;
-    selection-background-color: {ACCENT}; selection-color: {ON_ACCENT}; }}
-QDateEdit:hover {{ border-color: {BORDER_HOVER}; }}
-QDateEdit:focus {{ border-color: {ACCENT}; }}
+    selection-background-color: {C.ACCENT}; selection-color: {C.ON_ACCENT}; }}
+QDateEdit:hover {{ border-color: {C.BORDER_HOVER}; }}
+QDateEdit:focus {{ border-color: {C.ACCENT}; }}
 QDateEdit::drop-down {{ border: none; width: {SPACE_5}px; }}
 QDateEdit::down-arrow {{ image: url(__CHEVRON__); width: {SPACE_3}px; height: {SPACE_3}px; }}
-QCalendarWidget QWidget {{ background: {RAISED}; color: {TEXT}; }}
-QCalendarWidget QAbstractItemView {{ background: {CARD}; selection-background-color: {ACCENT}; selection-color: {ON_ACCENT}; }}
+QCalendarWidget QWidget {{ background: {C.RAISED}; color: {C.TEXT}; }}
+QCalendarWidget QAbstractItemView {{ background: {C.CARD}; selection-background-color: {C.ACCENT}; selection-color: {C.ON_ACCENT}; }}
 QCalendarWidget QToolButton {{ background: transparent; border: none; padding: {SPACE_1}px {SPACE_2}px; font-weight: {WEIGHT_SEMIBOLD}; }}
-QCalendarWidget QToolButton:hover {{ background: {RAISED_HOVER}; border-radius: {RADIUS_SM}px; }}
-#LogoThumb {{ background: {PAPER}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS_SM}px; }}
+QCalendarWidget QToolButton:hover {{ background: {C.RAISED_HOVER}; border-radius: {RADIUS_SM}px; }}
+#LogoThumb {{ background: {C.PAPER}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS_SM}px; }}
 
 /* ---------- preview panel */
-#PreviewArea {{ background: {WELL}; }}
-#PanelBottom {{ background: {PANEL}; border-top: 1px solid {BORDER}; }}
+#PreviewArea {{ background: {C.WELL}; }}
+#PanelBottom {{ background: {C.PANEL}; border-top: 1px solid {C.BORDER}; }}
 
 /* ---------- popups, toasts */
-#Toast {{ background: {RAISED}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_2}px {SPACE_4}px; }}
-QTextBrowser#Notes {{ background: {WELL}; color: {TEXT}; border: 1px solid {BORDER}; border-radius: {RADIUS}px;
+#Toast {{ background: {C.RAISED}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_2}px {SPACE_4}px; }}
+QTextBrowser#Notes {{ background: {C.WELL}; color: {C.TEXT}; border: 1px solid {C.BORDER}; border-radius: {RADIUS}px;
     padding: {SPACE_2}px; }}
-QMenu {{ background: {RAISED}; border: 1px solid {BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_1}px; }}
+QMenu {{ background: {C.RAISED}; border: 1px solid {C.BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_1}px; }}
 QMenu::item {{ padding: 0 {SPACE_4}px 0 {SPACE_2}px; min-height: {CONTROL_H - SPACE_2}px; border-radius: {RADIUS_SM}px; }}
-QMenu::item:selected {{ background: {ACCENT}; color: {ON_ACCENT}; }}
-QMenu::item:disabled {{ color: {FAINT}; }}
+QMenu::item:selected {{ background: {C.ACCENT}; color: {C.ON_ACCENT}; }}
+QMenu::item:disabled {{ color: {C.FAINT}; }}
 QMenu::icon {{ padding-left: {SPACE_2}px; }}
-QMenu::separator {{ height: 1px; background: {BORDER_STRONG}; margin: {SPACE_1}px {SPACE_2}px; }}
-QMenu::section {{ color: {FAINT}; padding: {SPACE_2}px {SPACE_2}px 0 {SPACE_2}px; font-size: {TEXT_XS}px; font-weight: {WEIGHT_SEMIBOLD}; }}
+QMenu::separator {{ height: 1px; background: {C.BORDER_STRONG}; margin: {SPACE_1}px {SPACE_2}px; }}
+QMenu::section {{ color: {C.FAINT}; padding: {SPACE_2}px {SPACE_2}px 0 {SPACE_2}px; font-size: {TEXT_XS}px; font-weight: {WEIGHT_SEMIBOLD}; }}
 """
+
 
 # Minimal line icons (Lucide-style, ISC licensed shapes redrawn).
 _SVG = {
@@ -291,7 +266,7 @@ _SVG = {
 }
 
 
-def svg_markup(name: str, color: str = TEXT, stroke: float = 2.0) -> str:
+def svg_markup(name: str, color: str, stroke: float = 2.0) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" '
         f'stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round">{_SVG[name]}</svg>'
@@ -299,54 +274,82 @@ def svg_markup(name: str, color: str = TEXT, stroke: float = 2.0) -> str:
 
 
 @lru_cache(maxsize=512)
-def pixmap(
-    name: str,
-    size: int = ICON,
-    color: str = TEXT,
-    stroke: float = 2.0,
-    dpr: float = 2.0,
-) -> QPixmap:
-    """Drawn once per look and reused (a long list redraws the same few icons thousands of times)."""
-    r = QSvgRenderer(QByteArray(svg_markup(name, color, stroke).encode()))
-    pm = QPixmap(int(size * dpr), int(size * dpr))
+def _drawn(name: str, px: int, color: str) -> QPixmap:
+    """One icon, px pixels square, in one color. Drawn once and reused (a long list redraws the same
+    few icons thousands of times)."""
+    pm = QPixmap(px, px)
+    if px <= 0:
+        return pm
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    r.render(p, QRectF(0, 0, size * dpr, size * dpr))
+    QSvgRenderer(QByteArray(svg_markup(name, color).encode())).render(p, QRectF(0, 0, px, px))
     p.end()
-    pm.setDevicePixelRatio(dpr)
     return pm
 
 
+_clones: list[QIconEngine] = []
+
+
+class _LineIcon(QIconEngine):
+    """Draws an icon each time it's shown, in the colors in use right then (tokens.C), so every icon
+    follows a switch between light and dark without being set again. Disabled icons are FAINT, like
+    disabled text; `on_accent` ones (menu rows) turn dark on the turquoise highlight."""
+
+    def __init__(self, name: str, color: str, on_accent: bool):
+        super().__init__()
+        if name not in _SVG or color not in DARK:  # say so now, not later while painting
+            raise ValueError(f"no icon {name!r} in {color!r}")
+        self.name, self.color, self.on_accent = name, color, on_accent
+
+    def _color(self, mode: QIcon.Mode) -> str:
+        if mode == QIcon.Mode.Disabled:
+            return C.FAINT
+        if self.on_accent and mode in (QIcon.Mode.Active, QIcon.Mode.Selected):
+            return C.ON_ACCENT
+        return getattr(C, self.color)
+
+    def pixmap(self, size: QSize, mode: QIcon.Mode, state: QIcon.State) -> QPixmap:
+        return _drawn(self.name, min(size.width(), size.height()), self._color(mode))
+
+    def paint(self, painter: QPainter, rect: QRect, mode: QIcon.Mode, state: QIcon.State) -> None:
+        side = min(rect.width(), rect.height())
+        px = round(side * painter.device().devicePixelRatioF())
+        box = QRectF(rect.x() + (rect.width() - side) / 2, rect.y() + (rect.height() - side) / 2, side, side)
+        painter.drawPixmap(box, _drawn(self.name, px, self._color(mode)), QRectF(0, 0, px, px))
+
+    def clone(self) -> QIconEngine:
+        twin = _LineIcon(self.name, self.color, self.on_accent)
+        _clones.append(twin)  # PySide doesn't hand a returned engine over to Qt: keep it alive for Qt
+        return twin
+
+
 @lru_cache(maxsize=256)
-def icon(name: str, color: str = TEXT, size: int = ICON) -> QIcon:
-    """An icon that looks the same however the button is hovered, focused or pressed."""
-    ic = QIcon()
-    for mode in (QIcon.Mode.Normal, QIcon.Mode.Active, QIcon.Mode.Selected):
-        ic.addPixmap(pixmap(name, size, color), mode)
-    return ic
+def icon(name: str, color: str = "TEXT") -> QIcon:
+    """A line icon in one of the palette's colors, by name ("TEXT", "MUTED"…). It looks the same however
+    the button is hovered, focused or pressed, and is drawn at the size the button shows it."""
+    return QIcon(_LineIcon(name, color, on_accent=False))
 
 
 @lru_cache(maxsize=128)
-def menu_icon(name: str, color: str = MUTED, size: int = ICON) -> QIcon:
+def menu_icon(name: str, color: str = "MUTED") -> QIcon:
     """For menu rows: the highlighted row is turquoise, so its icon switches to dark there."""
-    ic = QIcon(pixmap(name, size, color))
-    ic.addPixmap(pixmap(name, size, ON_ACCENT), QIcon.Mode.Active)
-    ic.addPixmap(pixmap(name, size, ON_ACCENT), QIcon.Mode.Selected)
-    return ic
+    return QIcon(_LineIcon(name, color, on_accent=True))
 
 
 def stylesheet(folder: Path) -> str:
-    """QSS can only reference image files, so write the couple it needs into `folder`
-    (Cobro's per-user data folder, overwritten each launch)."""
+    """The app's stylesheet, in the colors in use. QSS can only reference image files, so write the
+    couple it needs into `folder` (Cobro's per-user data folder, overwritten each time). Each palette
+    gets its own file names: Qt may reuse a picture it already loaded from the same file."""
     try:
         folder.mkdir(parents=True, exist_ok=True)
     except OSError:  # data folder not writable: fall back to a private temp folder
         import tempfile
 
         folder = Path(tempfile.mkdtemp(prefix="cobro-ui-"))
-    chevron = folder / "chevron.svg"
-    chevron.write_text(svg_markup("chevron", MUTED))
-    check = folder / "check.svg"
-    check.write_text(svg_markup("check", ON_ACCENT, 3))
-    return STYLESHEET.replace("__CHEVRON__", chevron.as_posix()).replace("__CHECK__", check.as_posix())
+    scheme = "dark" if C.dark else "light"
+    chevron = folder / f"chevron-{scheme}.svg"
+    chevron.write_text(svg_markup("chevron", C.MUTED))
+    check = folder / f"check-{scheme}.svg"
+    check.write_text(svg_markup("check", C.ON_ACCENT, 3))
+    return _rules().replace("__CHEVRON__", chevron.as_posix()).replace("__CHECK__", check.as_posix())

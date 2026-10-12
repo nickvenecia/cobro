@@ -2,7 +2,8 @@
 
     QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR
 
-Uses a throwaway data folder with the made-up sample business, never your real invoices.
+Every shot is taken in dark and in light (…-light.png). Uses a throwaway data folder with the made-up
+sample business, never your real invoices.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PySide6.QtWidgets import QApplication
 
-from cobro.app import setup_app
+from cobro.app import apply_scheme, setup_app
 from cobro.core import sample
 from cobro.core.model import Client
 from cobro.core.paths import use_data_dir
@@ -37,9 +38,17 @@ def shot(w, path: Path) -> None:
 def main(out: Path) -> int:
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv[:1])
+    use_data_dir(Path(tempfile.mkdtemp(prefix="cobro-shots-")))
+    setup_app(app)
+    for dark in (True, False):  # every shot in dark, then again in light (…-light.png)
+        apply_scheme(app, dark)
+        shots(out, "" if dark else "-light")
+    return 0
+
+
+def shots(out: Path, suffix: str) -> None:
     tmp = Path(tempfile.mkdtemp(prefix="cobro-shots-"))
     use_data_dir(tmp)
-    setup_app(app)
     from cobro.ui.client_dialog import ClientDialog
     from cobro.ui.main_window import MainWindow
     from cobro.ui.profile_dialog import ProfileDialog
@@ -47,7 +56,7 @@ def main(out: Path) -> int:
     # first launch: nothing set up yet
     w = MainWindow(Library(tmp).load())
     w.show()
-    shot(w, out / "1-first-launch.png")
+    shot(w, out / f"1-first-launch{suffix}.png")
     w.close()
 
     lib = Library(tmp).load()
@@ -73,29 +82,28 @@ def main(out: Path) -> int:
     lib.settings["groups"] = {"look": True}
     w = MainWindow(lib)
     w.show()
-    shot(w, out / "2-invoice.png")
+    shot(w, out / f"2-invoice{suffix}.png")
     w.details.items[0].set_open(True)
     w.details.scroll.verticalScrollBar().setValue(w.details.scroll.verticalScrollBar().maximum())
-    shot(w, out / "3-look.png")
+    shot(w, out / f"3-look{suffix}.png")
     b.look.type_style, b.look.color, b.look.header = "screenplay", "oxblood", "band"
     w.details.load_look(b)
     w.redraw()
-    shot(w, out / "4-screenplay-band.png")
+    shot(w, out / f"4-screenplay-band{suffix}.png")
     w.details.set_open_groups({"who": True, "invoice": False, "project": False, "items": True})
     w.details.scroll.verticalScrollBar().setValue(0)
     w.preview.btn_dark.click()
-    shot(w, out / "5-folded-dark-page.png")
+    shot(w, out / f"5-folded-dark-page{suffix}.png")
     w.preview.btn_dark.click()
     d = ProfileDialog(b, False, w)
     d.show()
-    shot(d, out / "6-profile.png")
+    shot(d, out / f"6-profile{suffix}.png")
     d.close()
     d = ClientDialog(client, lib, True, show_code=True, parent=w)
     d.show()
-    shot(d, out / "7-client.png")
+    shot(d, out / f"7-client{suffix}.png")
     d.close()
     w.close()
-    return 0
 
 
 if __name__ == "__main__":

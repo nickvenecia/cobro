@@ -35,9 +35,11 @@ cobro/
     render.py      layout(view, resolved_look, logo) -> [Page of steps]; paint(painter, page). Pagination, footer
     export.py      to_pdf (QPdfWriter at 72 dpi), to_png, print_pages, image() for the preview; temp file + os.replace
   ui/
-    tokens.py      THE design tokens (Listo's, with turquoise instead of marigold)
-    theme.py       stylesheet built from tokens, SVG icons
-    widgets.py     Listo's building blocks + TextBox (multi-line field), ElidedLabel, Disclosure (fold-away group)
+    tokens.py      THE design tokens (Listo's, with turquoise instead of marigold); colors in DARK and LIGHT,
+                   read through C (the palette in use)
+    theme.py       stylesheet built from tokens.C, SVG icons that redraw in the colors in use
+    widgets.py     Listo's building blocks + TextBox (multi-line field), ElidedLabel, Disclosure (fold-away group),
+                   Wordmark, IconLabel
     main_window.py the three panels, menus, saving (debounced), exporting, updates
     invoice_list.py   ① cards, filter, Unpaid / Paid totals, ⋯ tools menu, Update button
     details.py     ② every field in fold-away groups; From/Bill To pickers + Edit…; ItemEditor (foldable line
@@ -47,7 +49,8 @@ cobro/
                    Numbers && Tax (Number Style), Payment && Terms
     client_dialog.py   a saved client: name, attention, address, email, code (for per-client numbers)
     dialogs.py (confirm, about), update_dialog.py, titlebar.py (Mac)
-  app.py           QApplication, fonts, stylesheet, rounded popups, one window at a time, --smoke-test
+  app.py           QApplication, fonts, stylesheet (light or dark: apply_scheme), rounded popups, one window
+                   at a time, --smoke-test
   cli.py           `python -m cobro cli sample OUT.pdf|png [--style] [--color] [--header] [--items] [--logo]`
 scripts/make_icon.py   draws cobro/assets/icon.png ("cobro." on Listo's dark tile)
 scripts/make_fonts.py  cuts the bundled fonts from Google Fonts' OFL files (results are committed)
@@ -60,6 +63,10 @@ cobro.spec, packaging/, .github/workflows/build.yml   same as Listo
 - **The preview is the export.** Never draw something in the preview that the PDF doesn't (or the other way round):
   everything goes through `render.layout` + `render.paint`. The one difference allowed is the Dark Page: the same
   layout in `looks.DARK` colors, for the preview only. Exports call `MainWindow.pages()` (light) and never pass dark.
+- **Light or dark, as the computer is set**, switching live (`app.apply_scheme`, on `colorSchemeChanged`;
+  unknown stays dark). Read colors as `tokens.C.X` when you draw, never keep one; icons are
+  `theme.icon(name, "MUTED")` (a color by name) and recolor themselves. Every color needs a DARK and a LIGHT value.
+  This is the window only: the invoice's own Dark Page (`looks.DARK`) is a separate switch.
 - **Fonts in points everywhere.** Use `fonts.make(spec, painter.device())` and `fonts.metrics(spec)`; never
   `setPointSize` directly, or the PDF and the screen drift apart.
 - Bundled fonts are fixed-weight TTFs (PDF embedding); add new ones through scripts/make_fonts.py and
@@ -80,7 +87,7 @@ pip install -r requirements-dev.txt
 python -m cobro                         # run the app
 python -m cobro cli sample out.pdf      # a sample invoice without a window
 python -m pytest -q
-QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR   # UI screenshots without a display
+QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR   # UI screenshots without a display (dark + light)
 pyinstaller cobro.spec --noconfirm      # build the app into dist/
 COBRO_DATA_DIR=/tmp/x python -m cobro   # run against a throwaway data folder
 ```

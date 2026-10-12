@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QWidget
 
 from .tokens import DIALOG_W, SPACE_2, SPACE_3, SPACE_5
-from .widgets import hbox, hint, vbox
+from .widgets import Wordmark, hbox, hint, vbox
 
 
 def confirm(parent: QWidget, title: str, text: str, action: str, danger: bool = True) -> bool:
@@ -38,12 +37,7 @@ def about(parent: QWidget, version: str, data_folder: str) -> None:
     d.setWindowTitle("About Cobro")
     d.setMinimumWidth(DIALOG_W)
     lay = vbox(d, SPACE_5, SPACE_3)
-    from . import theme
-
-    word = QLabel(f'cobro<span style="color:{theme.ACCENT}">.</span>')
-    word.setObjectName("Wordmark")
-    word.setTextFormat(Qt.TextFormat.RichText)
-    lay.addWidget(word)
+    lay.addWidget(Wordmark())
     lay.addWidget(hint(f"Version {version}. Make an invoice, send it, get paid."))
     lay.addWidget(hint(f"Your invoices are saved on this computer only, in {data_folder}"))
     lay.addWidget(

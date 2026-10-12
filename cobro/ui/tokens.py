@@ -6,6 +6,8 @@ that isn't here, add a token (and document it in DESIGN.md) instead of typing a 
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 # ---------------------------------------------------------------- spacing (4-pt grid)
 SPACE_1 = 4  # tight: a label and its control, an icon and its text
 SPACE_2 = 8  # related items: buttons in a row, cards in the list, options in a stack
@@ -72,35 +74,83 @@ PROFILE_DIALOG_H = 640  # the profile dialog: name, logo and contact show withou
 WINDOW_SIZE = (1440, 880)
 WINDOW_MIN = (1180, 640)
 
-# ---------------------------------------------------------------- colors (dark theme, shared with Listo)
-BG = "#111113"  # window background
-PANEL = "#17171A"  # sidebar, footer, dialogs
-CARD = "#1E1E22"  # cards, fields
-CARD_HOVER = "#24242A"
-CARD_SELECTED = "#16282A"  # a selected invoice card (cool, so it reads as turquoise)
-RAISED = "#2A2A30"  # buttons, popups
-RAISED_HOVER = "#33333A"
-RAISED_PRESS = "#26262C"
-BORDER = "#2C2C33"
-BORDER_STRONG = "#3A3A42"
-BORDER_HOVER = "#4A4A54"
-BORDER_CHECK = "#55555F"  # unchecked checkbox outline
-TEXT = "#F4F1EC"
-MUTED = "#A09B93"  # secondary text
-FAINT = "#6E6A64"  # hints, disabled, section labels
-WELL = "#0C0C0E"  # sunken areas: thumbnails, previews, logs
-ACCENT = "#3CC8B4"  # Southwest turquoise — selection, primary action, focus (Listo's is marigold)
-ACCENT_HOVER = "#5DD6C4"
-ACCENT_PRESS = "#2AA996"
-ON_ACCENT = "#04211D"  # text/icons on turquoise
-ACCENT_OFF = "#1F3532"  # disabled primary button
-ACCENT_OFF_TEXT = "#5B807A"
-ACCENT_TINT = "rgba(60, 200, 180, 0.08)"  # turquoise wash
-ACCENT_EDGE = "rgba(60, 200, 180, 0.55)"
-GOOD = "#4CC38A"
-BAD = "#F0616D"
-BAD_TINT = "#2A1A1D"  # danger button hover
-BAD_EDGE = "#5A2A30"  # failed card border
-WARN = "#E9B949"
-PAPER = "#FFFFFF"  # the invoice paper (and logo thumbnails) in the preview
-SHADOW = "rgba(0, 0, 0, 0.55)"  # the paper's shadow on the dark preview
+# ---------------------------------------------------------------- colors
+# Cobro is light or dark, as the computer is set (app.apply_scheme), and switches along with it while
+# it's open. Both palettes use the same names. Read colors through C (C.TEXT, C.ACCENT…) at the moment
+# you draw: C always holds the palette in use. Never keep a color in a variable of your own.
+DARK = {  # shared with Listo
+    "BG": "#111113",  # window background
+    "PANEL": "#17171A",  # sidebar, footer, dialogs
+    "CARD": "#1E1E22",  # cards, fields
+    "CARD_HOVER": "#24242A",
+    "CARD_SELECTED": "#16282A",  # a selected invoice card (cool, so it reads as turquoise)
+    "RAISED": "#2A2A30",  # buttons, popups
+    "RAISED_HOVER": "#33333A",
+    "RAISED_PRESS": "#26262C",
+    "HOVER": "#2A2A30",  # behind an icon-only button you point at
+    "BORDER": "#2C2C33",  # hairlines, progress bar tracks
+    "BORDER_STRONG": "#3A3A42",
+    "BORDER_HOVER": "#4A4A54",
+    "BORDER_CHECK": "#55555F",  # unchecked checkbox outline
+    "TEXT": "#F4F1EC",
+    "MUTED": "#A09B93",  # secondary text
+    "FAINT": "#6E6A64",  # hints, disabled, section labels
+    "WELL": "#0C0C0E",  # sunken areas: thumbnails, previews, logs
+    "ACCENT": "#3CC8B4",  # Southwest turquoise — selection, primary action, focus (Listo's is marigold)
+    "ACCENT_HOVER": "#5DD6C4",
+    "ACCENT_PRESS": "#2AA996",
+    "ON_ACCENT": "#04211D",  # text/icons on turquoise
+    "ACCENT_OFF": "#1F3532",  # disabled primary button
+    "ACCENT_OFF_TEXT": "#5B807A",
+    "ACCENT_TINT": "rgba(60, 200, 180, 0.08)",  # turquoise wash
+    "ACCENT_EDGE": "rgba(60, 200, 180, 0.55)",
+    "GOOD": "#4CC38A",
+    "BAD": "#F0616D",
+    "BAD_TINT": "#2A1A1D",  # danger button hover
+    "BAD_EDGE": "#5A2A30",  # failed card border
+    "WARN": "#E9B949",
+    "PAPER": "#FFFFFF",  # the invoice paper (and logo thumbnails) in the preview
+    "SHADOW": "rgba(0, 0, 0, 0.55)",  # the paper's shadow on the dark preview
+}
+
+LIGHT = {  # the same jobs on white; turquoise and the status colors are deeper so they read on it
+    "BG": "#EDECE8",
+    "PANEL": "#FBFAF8",
+    "CARD": "#FFFFFF",
+    "CARD_HOVER": "#F2F1ED",
+    "CARD_SELECTED": "#E2F3F0",
+    "RAISED": "#FFFFFF",
+    "RAISED_HOVER": "#F4F3F0",
+    "RAISED_PRESS": "#EAE9E5",
+    "HOVER": "#E3E2DD",
+    "BORDER": "#E3E1DC",
+    "BORDER_STRONG": "#D2CFC9",
+    "BORDER_HOVER": "#B8B4AD",
+    "BORDER_CHECK": "#A8A39B",
+    "TEXT": "#1C1B19",
+    "MUTED": "#67625B",
+    "FAINT": "#8C877F",
+    "WELL": "#E1E0DC",
+    "ACCENT": "#189A88",
+    "ACCENT_HOVER": "#22AE9A",
+    "ACCENT_PRESS": "#128575",
+    "ON_ACCENT": "#04211D",
+    "ACCENT_OFF": "#CFE7E3",
+    "ACCENT_OFF_TEXT": "#7AA7A0",
+    "ACCENT_TINT": "rgba(24, 154, 136, 0.10)",
+    "ACCENT_EDGE": "rgba(24, 154, 136, 0.55)",
+    "GOOD": "#1A7F50",
+    "BAD": "#C8303F",
+    "BAD_TINT": "#FBEAEB",
+    "BAD_EDGE": "#EFBCC1",
+    "WARN": "#A87A08",
+    "PAPER": "#FFFFFF",
+    "SHADOW": "rgba(0, 0, 0, 0.18)",
+}
+
+C = SimpleNamespace(**DARK, dark=True)  # the palette in use: dark until app.apply_scheme asks the computer
+
+
+def use(dark: bool) -> None:
+    """Switch every color in C to the dark or the light palette."""
+    vars(C).update(DARK if dark else LIGHT, dark=dark)

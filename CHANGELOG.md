@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Light and dark**: Cobro follows your computer's Light / Dark setting, and switches with it while it's open (including when your computer changes on its own at sunset). The Dark Page for the invoice keeps its own moon button
 - **Profiles**: your name, logo, contact details and payment text live in your profile (what used to be "Business"). Pick one under From, with **Edit…** right next to it; keep as many as you invoice from
 - **Saved clients**: **New Client…** under Bill To saves a client once; after that just pick them. **Edit…** changes a client; drafts follow the change, invoices you already sent keep what they said
 - **Numbers per client** (optional): `NV-DGTL-2026-001` or `DGTL-2026-001`, each client with its own count, picked under the profile's Number Style. A draft's number follows its client until you type your own

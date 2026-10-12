@@ -1,4 +1,4 @@
-"""The Mac title bar, drawn by Cobro: the app's dark background with the "cobro." wordmark centred.
+"""The Mac title bar, drawn by Cobro: the app's background with the "cobro." wordmark centred.
 
 Qt (6.9+) lets the window's content run up under the title bar (ExpandedClientAreaHint) with no
 bar background (NoTitleBarBackgroundHint); the traffic-light buttons stay where they are, on top of
@@ -7,7 +7,7 @@ undraggable strip above our bar: the window turns that off, so our bar IS the ti
 own title text is hidden with one call into AppKit (ctypes, no extra packages). Dragging the bar
 moves the window (Cobro moves it itself); double-clicking zooms it, like any Mac title bar.
 
-Windows and Linux keep their system title bar (dark, via the app's colour scheme in app.py).
+Windows and Linux keep their system title bar (light or dark, as the computer is set).
 If any piece is missing (older Qt, the AppKit call fails), the normal title bar stays.
 """
 
@@ -16,11 +16,10 @@ from __future__ import annotations
 import sys
 
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtWidgets import QLabel, QMainWindow, QWidget
+from PySide6.QtWidgets import QMainWindow, QWidget
 
-from . import theme
 from .tokens import TITLEBAR_H
-from .widgets import hbox
+from .widgets import Wordmark, hbox
 
 
 def supported() -> bool:
@@ -54,9 +53,7 @@ class TitleBar(QWidget):
         self.setFixedHeight(TITLEBAR_H)
         ignore_safe_area(self)
         lay = hbox(self, 0, 0)
-        word = QLabel(f'cobro<span style="color:{theme.ACCENT}">.</span>')
-        word.setObjectName("TitleWordmark")
-        word.setTextFormat(Qt.TextFormat.RichText)
+        word = Wordmark("TitleWordmark")
         word.setAlignment(Qt.AlignmentFlag.AlignCenter)
         word.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         lay.addWidget(word, 1)

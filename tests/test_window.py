@@ -255,3 +255,54 @@ def test_new_client_from_the_menu_only_saves_it(qapp, data_folder, monkeypatch):
     w.edit_client(True)  # New Client… under Bill To fills in the open invoice
     assert w.inv.client.name == "Brand New Co"
     w.shutdown()
+
+
+def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
+    from PySide6.QtCore import QSize
+    from PySide6.QtGui import QStyleHints
+
+    from cobro.app import apply_scheme
+    from cobro.ui import theme, tokens
+    from cobro.ui.main_window import MainWindow
+    from cobro.ui.widgets import Wordmark
+
+    assert set(tokens.LIGHT) == set(tokens.DARK)  # every color has both versions
+    lib = Library(data_folder)
+    lib.add_business(sample.business())
+    w = MainWindow(lib.load())
+    word = Wordmark()
+    word.show()
+    plus = theme.icon("plus", "TEXT")
+
+    def computer_says(scheme) -> None:
+        monkeypatch.setattr(QStyleHints, "colorScheme", lambda _hints: scheme)
+        qapp.styleHints().colorSchemeChanged.emit(scheme)
+
+    def background() -> str:
+        return w.grab().toImage().pixelColor(tokens.LIST_W // 2, 2).name()
+
+    def ink(icon) -> str:  # the icon's color where it's fully drawn
+        img = icon.pixmap(QSize(64, 64), 1.0).toImage()
+        return next(
+            img.pixelColor(x, y).name()
+            for x in range(64)
+            for y in range(64)
+            if img.pixelColor(x, y).alpha() == 255
+        )
+
+    try:
+        assert background() == tokens.DARK["BG"].lower()
+        computer_says(Qt.ColorScheme.Light)  # e.g. switched in System Settings while Cobro is open
+        assert not tokens.C.dark
+        assert background() == tokens.LIGHT["BG"].lower()
+        assert ink(plus) == tokens.LIGHT["TEXT"].lower()  # icons already made follow too
+        assert tokens.LIGHT["ACCENT"] in word.text()
+        computer_says(Qt.ColorScheme.Dark)
+        assert tokens.C.dark and background() == tokens.DARK["BG"].lower()
+        assert ink(plus) == tokens.DARK["TEXT"].lower()
+        assert tokens.DARK["ACCENT"] in word.text()
+        computer_says(Qt.ColorScheme.Unknown)  # can't tell: Cobro's own dark
+        assert tokens.C.dark
+    finally:
+        apply_scheme(qapp, dark=True)
+    w.shutdown()
