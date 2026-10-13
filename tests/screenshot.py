@@ -114,6 +114,19 @@ def shots(out: Path, suffix: str) -> None:
     w.toast("Couldn't save the CSV. Check that there's free space on this computer.", "problem")
     shot(w, out / f"13b-toast-problem{suffix}.png")
     w.toaster.dismiss()
+    w.go("clients")
+    shot(w, out / f"14-clients{suffix}.png")
+    w.open_client(lib.find_client("Desert Sun Records").id)
+    shot(w, out / f"14b-client{suffix}.png")
+    w.new_client()
+    shot(w, out / f"14c-new-client{suffix}.png")
+    w.deselect()
+    for key in ("all", "clients"):  # the sidebar with both lists folded away
+        w.sidebar.rows[key].fold_wanted.emit(key)
+    shot(w, out / f"14d-sidebar-folded{suffix}.png")
+    for key in ("all", "clients"):
+        w.sidebar.rows[key].fold_wanted.emit(key)
+    w.go("all")
     w.go("all")
     for name, menu in (("6-filter-menu", w.view_menu.m), ("6b-share-menu", w.btn_export.menu())):
         menu.popup(w.mapToGlobal(w.rect().center()))

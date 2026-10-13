@@ -1,6 +1,8 @@
-"""The sidebar: where you are. Invoices (All Invoices, Drafts, Unpaid, Paid), each with a count; Unpaid's turns
-amber while something's waiting to be paid and red once something is overdue. The section's + makes a new
-invoice. At the bottom: your profile card (your profiles, feedback, updates and Settings).
+"""The sidebar: where you are. Invoices (All Invoices, with Drafts, Unpaid and Paid under it) and Clients (All
+Clients, with each client under it), each row with a count. Unpaid's turns amber while something's waiting to
+be paid and red once something is overdue (and so does All Invoices' while it's folded). The arrow beside All
+Invoices or All Clients folds what's under it; clicking a heading folds the whole section. Each section's +
+makes something new in it. At the bottom: your profile card (your profiles, feedback, updates and Settings).
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ from PySide6.QtWidgets import QFrame, QGraphicsOpacityEffect, QLabel, QPushButto
 
 from cobro.core import dates, document
 from cobro.core.store import Library
-from cobro.ui.components.panels import LeftPanel
+from cobro.ui.components.panels import LeftPanel, NavRow
 from cobro.ui.components.widgets import ElidedLabel, IconLabel, hbox, section_label, vbox
 from cobro.ui.style import theme, tokens
 from cobro.ui.window.common import PLACES, in_place
@@ -99,8 +101,10 @@ class ProfileCard(QFrame):
 
 
 class Sidebar(LeftPanel):
-    picked = Signal(str)  # a PLACES key
+    picked = Signal(str)  # a PLACES key, "clients", or "client:<id>" (one client: opens it)
+    menu_wanted = Signal(str, QPoint)  # right-click on a client's row
     new_invoice = Signal()
+    new_client = Signal()
 
     def __init__(self, lib: Library, parent: QWidget | None = None):
         super().__init__(tokens.SIDEBAR_W, tokens.TOOLBAR_H, parent)
@@ -112,17 +116,25 @@ class Sidebar(LeftPanel):
         self.top_lay.addWidget(word)
 
         self.heads: dict[str, SectionHead] = {}
-        self.boxes: dict[str, QWidget] = {}
+        self.boxes: dict[str, QWidget] = {}  # what folds: a section's list, or the rows under a row
         self.btn_new = self._plus("New Invoice")
         self.btn_new.clicked.connect(self.new_invoice.emit)
         inv = self._section("invoices", "Invoices", self.btn_new)
-        for key, (label, icon) in PLACES.items():
-            r = self.add_row(key, label, icon, inv, foldable=False)
-            r.clicked.connect(self.pick)
+        places = iter(PLACES.items())
+        key, (label, icon) = next(places)  # All Invoices…
+        self._row(key, label, icon, inv)
+        under = self._under(key, inv)  # …and what's under it: views of the same list
+        for key, (label, icon) in places:
+            self._row(key, label, icon, under).as_child()
+        self.btn_new_client = self._plus("New Client")
+        self.btn_new_client.clicked.connect(self.new_client.emit)
+        people = self._section("client-section", "Clients", self.btn_new_client)
+        self._row("clients", "All Clients", "users", people)
+        self.client_lay = self._under("clients", people)
         self.lay.addStretch(1)
         folded = lib.settings.get("sidebar_folded", [])
         for key in folded if isinstance(folded, list) else []:
-            if key in self.heads:
+            if key in self.boxes:
                 self._show_fold(key, True)
 
         self.btn_update = QPushButton()
@@ -202,6 +214,22 @@ class Sidebar(LeftPanel):
         self.heads[key], self.boxes[key] = head, box
         return lay
 
+    def _under(self, key: str, into):
+        """The rows under row `key` (its arrow folds them); returns their layout."""
+        box = QWidget()
+        lay = vbox(box, 0, tokens.NAV_GAP)
+        into.addWidget(box)
+        self.boxes[key] = box
+        self.rows[key].arrow.show()
+        self.rows[key].fold_wanted.connect(lambda k: self._fold(k, not self.rows[k].folded))
+        return lay
+
+    def _row(self, key: str, label: str, icon: str = "", into=None) -> NavRow:
+        r = self.add_row(key, label, icon, into)
+        r.clicked.connect(self.pick)
+        r.menu_wanted.connect(self.menu_wanted.emit)
+        return r
+
     def show_who(self) -> None:
         """The profile card: your profile, and whether you're signed in."""
         from cobro.services import account
@@ -217,16 +245,25 @@ class Sidebar(LeftPanel):
             h._draw()
         for r in self.rows.values():
             r.recolor()
-        self.btn_new.setIcon(theme.icon("plus", theme.MUTED, tokens.ICON_SM))
+        for b in (self.btn_new, self.btn_new_client):
+            b.setIcon(theme.icon("plus", theme.MUTED, tokens.ICON_SM))
 
     def _show_fold(self, key: str, folded: bool) -> None:
         self.boxes[key].setVisible(not folded)
-        self.heads[key].set_folded(folded)
+        if key in self.heads:
+            self.heads[key].set_folded(folded)
+        else:
+            self.rows[key].set_folded(folded)
 
     def _fold(self, key: str, folded: bool) -> None:
         self._show_fold(key, folded)
-        self.lib.settings["sidebar_folded"] = sorted(k for k, h in self.heads.items() if h.folded)
+        self.lib.settings["sidebar_folded"] = sorted(
+            [k for k, h in self.heads.items() if h.folded]
+            + [k for k in ("all", "clients") if self.rows[k].folded]
+        )
         self.lib.save_settings()
+        if key == "all":
+            self.refresh()  # its count shows what's waiting only while folded
 
     def pick(self, key: str) -> None:
         self.select(key)
@@ -237,13 +274,36 @@ class Sidebar(LeftPanel):
         super().select(key)
 
     def refresh(self) -> None:
-        """Every place's count; Unpaid amber while invoices wait, red once one is overdue."""
+        """Every place's count; Unpaid amber while invoices wait, red once one is overdue (All Invoices too,
+        while it's folded). One row per client."""
+        lib = self.lib
         today = dates.today()
-        invoices = list(self.lib.invoices.values())
+        invoices = list(lib.invoices.values())
         for key in PLACES:
             self.rows[key].set_count(sum(1 for inv in invoices if in_place(inv, key, today)))
         overdue = any(document.status_of(inv, today) == "overdue" for inv in invoices)
         unpaid = sum(1 for inv in invoices if in_place(inv, "unpaid", today))
-        self.rows["unpaid"].set_count(unpaid, "overdue" if overdue else ("sent" if unpaid else ""))
+        tone = "overdue" if overdue else ("sent" if unpaid else "")
+        self.rows["unpaid"].set_count(unpaid, tone)
+        if self.rows["all"].folded:
+            self.rows["all"].set_count(len(invoices), tone)
+        clients = sorted(lib.clients.values(), key=lambda c: c.name.casefold())
+        have = [k for k in self.rows if k.startswith("client:")]
+        if have != [f"client:{c.id}" for c in clients]:
+            for k in have:
+                self.rows.pop(k).deleteLater()
+            for c in clients:
+                self._row(f"client:{c.id}", "", "", self.client_lay).as_child()
+        mine = lib.invoices_by_client()
+        for c in clients:
+            row = self.rows[f"client:{c.id}"]
+            row.label.setText(c.name)
+            row.set_count(len(mine.get(c.id, [])))
+        self.rows["clients"].set_count(len(clients))
+        self.rows["clients"].arrow.setVisible(bool(clients))
         self.show_who()
-        self.select(self.current if self.current in self.rows else "all")
+        self.select(
+            self.current
+            if self.current in self.rows
+            else ("clients" if self.current.startswith("client:") else "all")
+        )

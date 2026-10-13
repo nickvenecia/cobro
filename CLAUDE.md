@@ -19,23 +19,28 @@ The owner is a filmmaker (director/DP/editor/colorist), not a full-time develope
   with its CHANGELOG notes under that version. Merging it publishes the release.
 
 ## The window
-A glass sidebar on the left (where you are), a big table of invoices in the middle, and a glass panel on the right
-that slides in when something is picked.
-- **Sidebar**: the wordmark; Invoices (All Invoices, Drafts, Unpaid, Paid, with counts; its own small + makes a new
-  invoice); the Update button when there is one; the profile card at the bottom (your profiles, Edit Profile…,
-  Add a Profile…, Send Feedback…, Check for Updates…, Settings…).
+A glass sidebar on the left (where you are), a big table of invoices (or clients) in the middle, and a glass panel
+on the right that slides in when something is picked.
+- **Sidebar**: the wordmark; Invoices (All Invoices, with Drafts, Unpaid and Paid folding under it; counts; its own
+  small + makes a new invoice); Clients (All Clients, with each client folding under it; its + makes a new client);
+  the Update button when there is one; the profile card at the bottom (your profiles, Edit Profile…, Add a
+  Profile…, Send Feedback…, Check for Updates…, Settings…). Folds are remembered (`sidebar_folded`).
 - **Toolbar**: the place's title and count; search, then the filter button (Divide By month / client / none;
   Show by status; From one profile; Year; Clear Filters); on the right the share button (Invoice…, Export as
-  CSV…, Back Up…), the assistant's bubble, and the round + (New Invoice).
+  CSV…, Back Up…), the assistant's bubble, and the round + (New Invoice; New Client in All Clients, where the
+  filter, share and totals step aside).
 - **Empty page**: with nothing to show, the table gives way to start tiles (`components/empty.py`): Add Your
-  Profile…, New Invoice (the place's icon) or Clear Filters; search and the filter hide.
+  Profile…, New Invoice (the place's icon), New Client or Clear Filters; search and the filter hide.
 - **Table**: sorts by any column (newest first to start), bands by month (newest month on top) or client with their
   totals, each folding with a click; ⌘A, Shift and ⌘-click pick many; Delete deletes them after one alert.
-  Underneath: Unpaid, Overdue (only when something is), Paid and Total of what's showing.
+  Underneath: Unpaid, Overdue (only when something is), Paid and Total of what's showing. All Clients' table
+  (`ClientTable`): name, attention, email, how many invoices, unpaid, billed; picked one at a time.
 - **Right panel**: the invoice (`panels/invoice.py`): From && Bill To, Invoice, Project, Line Items (drag one by its
   grip to reorder), Adjustments, Payment && Terms, each folding away (remembered); Invoice… across the bottom opens
-  the page. Or the assistant (`panels/assistant.py`), which stays while you move around. Esc or ✕ closes it; a new
-  invoice left empty goes away.
+  the page. Or a client (`panels/client.py`): their name as the title, Contact, Invoice Numbers (only when a
+  profile counts per client), their Invoices (click to open), New Invoice across the bottom. Or the assistant
+  (`panels/assistant.py`), which stays while you move around. Esc or ✕ closes it; a new invoice left empty goes
+  away, and a new client is kept only once it has a name.
 - **The page** opens in its own window (`dialogs/preview.py`): Save PDF…, Print…, ⋯ (Save as PNG…, Copy as Text,
   Email Client…, Open Invoices Folder), Show File, Mark as Sent, and the moon for the Dark Page.
 - **Settings** (⌘,) is one window with its own sidebar: General (Appearance, Accent Color, Updates), Profiles (the
@@ -88,7 +93,7 @@ cobro/
     window/        main_window.py and its parts: menus.py, editing.py, pages.py (the page window, exports),
                    transfer.py (CSV, Back Up), services.py (settings, account, feedback, updates, light/dark),
                    ai.py, sidebar.py, tables.py, filters.py, common.py (places, status words and colors)
-    panels/        base.py (DetailsBase), invoice.py (+ LineEditor), assistant.py
+    panels/        base.py (DetailsBase), invoice.py (+ LineEditor), client.py (+ InvoiceLine), assistant.py
     dialogs/       common.py (Alert, confirm, notice, about), settings.py, profile.py (+ import_logo), client.py,
                    preview.py (the page window), shortcuts.py, feedback.py, account.py, ai_setup.py,
                    ai_review.py, update.py
@@ -116,9 +121,11 @@ cobro.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   bu
 - **Fonts in points everywhere.** Use `fonts.make(spec, painter.device())` and `fonts.metrics(spec)`; never
   `setPointSize` directly, or the PDF and the screen drift apart. The paper is Inter, with IBM Plex Mono for the
   invoice number. Older files' type styles are kept in the file but no longer change the page.
-- Clients are saved only on purpose, through the client dialog (`Library.save_client`): typing never adds one.
+- Clients are saved only on purpose (`Library.save_client`): in their panel in All Clients (a new one once it has
+  a name no other client has), or through the client dialog from Bill To. Typing under Bill To never adds one.
   Invoices keep their own copy: drafts follow a client's edits, sent and paid invoices keep what they said.
-  Deleting a client leaves every invoice as it was.
+  Deleting a client leaves every invoice as it was. `Library.invoices_by_client()` finds a client's invoices (by
+  id, or else by name).
 - A draft's number follows its profile, client and year while Cobro picked it (`Invoice.auto_number`,
   `Library.renumber`). Typing a number, or the invoice being sent or paid, freezes it.
 - Another app may hand Cobro a draft by writing an invoice file into `invoices/` in this format, so the data

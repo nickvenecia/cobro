@@ -1,8 +1,9 @@
-"""The window: the sidebar (where you are) | a big table of your invoices | the one you picked, editable.
+"""The window: the sidebar (where you are) | a big table of your invoices or your clients | the one you
+picked, editable.
 
-Pick a place in the sidebar (All Invoices, Drafts, Unpaid, Paid), click an invoice, change it on the right.
-The invoice itself opens in its own window when you ask for it (Invoice…). Edits save themselves a moment
-after you stop typing.
+Pick a place in the sidebar (All Invoices, Drafts, Unpaid, Paid, or All Clients), click a row, change it on the
+right. The invoice itself opens in its own window when you ask for it (Invoice…). Edits save themselves a
+moment after you stop typing.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from cobro.ui.components.empty import EmptyPage
 from cobro.ui.components.glass import Dock, GlassRoot, glass
 from cobro.ui.components.widgets import ElidedLabel, SearchField, Toast, hbox, vbox
 from cobro.ui.dialogs.preview import PageDialog
+from cobro.ui.panels.client import ClientPanel
 from cobro.ui.panels.invoice import InvoicePanel
 from cobro.ui.style import theme, tokens
 from cobro.ui.window.ai import AIMixin
@@ -43,7 +45,7 @@ from cobro.ui.window.menus import MenusMixin
 from cobro.ui.window.pages import PagesMixin
 from cobro.ui.window.services import ServicesMixin
 from cobro.ui.window.sidebar import Sidebar
-from cobro.ui.window.tables import InvoiceTable, menu
+from cobro.ui.window.tables import ClientTable, InvoiceTable, menu
 from cobro.ui.window.transfer import TransferMixin
 
 log = get_logger(__name__)
@@ -58,6 +60,7 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self.setMinimumSize(*tokens.WINDOW_MIN)
         self._dirty: set[str] = set()
         self._dirty_businesses = False
+        self._dirty_client = False  # the client on the right was edited
         self.history: History | None = None
         self._fresh: tuple[str, dict] | None = None  # a new invoice not filled in yet
         self.last_export: Path | None = None
@@ -82,6 +85,8 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self.panel = InvoicePanel(self.lib)
         self.inspector = glass(QStackedWidget())  # the glass panel on the right…
         self.inspector.addWidget(self.panel)
+        self.client_panel = ClientPanel(self.lib)
+        self.inspector.addWidget(self.client_panel)
         self.assistant = self._build_assistant()
         self.inspector.addWidget(self.assistant)
         self.dock = Dock(self.inspector, root, self.sidebar, body)  # …which slides in when something's picked
@@ -102,9 +107,10 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self._menus()
         groups = self.lib.settings.get("groups", {})
         groups = groups if isinstance(groups, dict) else {}
-        state = groups.get(self.panel.KEY)
-        if isinstance(state, dict):
-            self.panel.set_open_groups(state)
+        for panel in (self.panel, self.client_panel):
+            state = groups.get(panel.KEY)
+            if isinstance(state, dict):
+                panel.set_open_groups(state)
         folded = self.lib.settings.get("folded", [])
         self.table.folded = {x for x in folded if isinstance(x, str)} if isinstance(folded, list) else set()
         self.view_menu.set_divide(str(self.lib.settings.get("divide", "month")))
@@ -177,7 +183,7 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self.btn_new.setIcon(theme.icon("plus", theme.ON_ACCENT))
         self.btn_new.setToolTip("New Invoice (⌘N)")
         self.btn_new.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_new.clicked.connect(self.new_invoice)
+        self.btn_new.clicked.connect(lambda: self.new_client() if self.on_clients() else self.new_invoice())
         right.addWidget(self.btn_new)
         grid.addLayout(right, 0, 2)
         lay.addWidget(bar)
@@ -185,8 +191,9 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
 
         self.pages = QStackedWidget()
         self.table = InvoiceTable()
+        self.client_table = ClientTable()
         self.empty = EmptyPage()  # where the table would be, with nothing in it
-        for w in (self.table, self.empty):
+        for w in (self.table, self.client_table, self.empty):
             self.pages.addWidget(w)
         lay.addWidget(self.pages, 1)
         self.totals = QFrame()
@@ -216,8 +223,10 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
 
     def _wire(self) -> None:
         sb = self.sidebar
-        sb.picked.connect(self.go)
+        sb.picked.connect(self._place_picked)
+        sb.menu_wanted.connect(self._sidebar_menu)
         sb.new_invoice.connect(self.new_invoice)
+        sb.new_client.connect(self.new_client)
         sb.profile_card.clicked.connect(self._app_menu)
         sb.btn_update.clicked.connect(self.show_update)
         t = self.table
@@ -238,6 +247,18 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         p.sheet_wanted.connect(self.show_page)
         p.close_wanted.connect(self.deselect)  # the round ✕
         p.groups_changed.connect(self._groups_changed)
+        ct = self.client_table
+        ct.picked.connect(self.open_client)
+        ct.menu_wanted.connect(self._client_menu)
+        ct.delete_wanted.connect(lambda ids: self.delete_client(ids[0]))
+        ct.cleared.connect(self.deselect)
+        cp = self.client_panel
+        cp.changed.connect(self._client_edited)
+        cp.open_invoice.connect(self.open)
+        cp.new_invoice_wanted.connect(self.new_invoice_for)
+        cp.delete_wanted.connect(self.delete_client)
+        cp.close_wanted.connect(self.deselect)
+        cp.groups_changed.connect(self._groups_changed)
 
     # ------------------------------------------------------------------ where you are
     def business(self) -> Business | None:
@@ -257,24 +278,57 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self.lib.settings["divide"] = self.view_menu.divide
         self.refresh()
 
+    def on_clients(self) -> bool:
+        """Is the window showing your clients (not invoices)?"""
+        return self.view_key == "clients"
+
+    def _place_picked(self, key: str) -> None:
+        """A row in the sidebar: a place, or one client (opens it)."""
+        if key.startswith("client:"):
+            self.open_client(key[7:])
+        else:
+            self.go(key)
+
+    def _set_place(self, view: str) -> None:
+        """Where you are: the sidebar's row, the title, and what the toolbar offers there."""
+        clients = view == "clients"
+        if clients != self.on_clients():  # a search for invoices means nothing among clients
+            self.search.blockSignals(True)
+            self.search.clear()
+            self.search.blockSignals(False)
+            if not clients:  # leaving All Clients (everything's saved by now): no client is open
+                self.client_panel.c = None
+                self.client_panel.fresh = False
+        self.view_key = view
+        self.lib.settings["view"] = view
+        self.sidebar.select(view)
+        self.title.setText(TITLES[view])
+        self.btn_new.setToolTip("New Client (⇧⌘N)" if clients else "New Invoice (⌘N)")
+        self.btn_export.setVisible(not clients)
+
     def go(self, view: str) -> None:
         """Show a place from the sidebar."""
         self.flush()
         self._drop_fresh()
         view = view if view in TITLES else "all"
-        self.view_key = view
-        self.lib.settings["view"] = view
-        self.sidebar.select(view)
-        self.title.setText(TITLES[view])
+        self._set_place(view)
         self.refresh()
         if self.assistant_showing():  # the assistant stays while you move around
             self._ai_state()
             return
-        cur = self.panel.inv
-        if cur is not None and self.dock.opened and cur.id in self._shown_ids():
-            self.table.select_id(cur.id)
+        if self.on_clients():
+            cur = self.client_panel.c
+            showing = self.inspector.currentWidget() is self.client_panel
+            if cur is not None and self.dock.opened and showing and cur.id in self.lib.clients:
+                self.client_table.select_id(cur.id)
+                return
         else:
-            self._inspector_empty()
+            cur = self.panel.inv
+            showing = self.inspector.currentWidget() is self.panel
+            if cur is not None and self.dock.opened and showing and cur.id in self._shown_ids():
+                self.table.select_id(cur.id)
+                return
+        self._inspector_empty()
 
     def _showing(self) -> list[Invoice]:
         """The invoices this place and the filter keep (before searching)."""
@@ -290,17 +344,31 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
     def refresh(self) -> None:
         """Fill the table for where you are (and the sidebar's counts)."""
         self.sidebar.refresh()
-        invoices = self._showing()
-        self.table.fill(self.lib, invoices, self.view_menu.divide)
-        if invoices:
-            self.pages.setCurrentWidget(self.table)
-        else:
-            self.pages.setCurrentWidget(self._empty_page())
-            if (not self.lib.businesses or not self.lib.invoices) and not self.assistant_showing():
+        if self.on_clients():
+            self.client_table.fill(self.lib)
+            empty = not self.lib.clients
+            self.pages.setCurrentWidget(self._empty_page() if empty else self.client_table)
+            if empty and not self.assistant_showing() and not self.client_panel.fresh:
                 self.dock.set_open(False)
-        empty = not invoices  # nothing to search or filter
+            if self.client_panel.c is not None and self.inspector.currentWidget() is self.client_panel:
+                self.client_panel.refresh_invoices()
+            cur = self.client_panel.c
+            if cur is not None and self.dock.opened and cur.id in self.lib.clients:
+                self.client_table.select_id(cur.id)
+                if f"client:{cur.id}" in self.sidebar.rows:
+                    self.sidebar.select(f"client:{cur.id}")  # the client's own row
+        else:
+            invoices = self._showing()
+            self.table.fill(self.lib, invoices, self.view_menu.divide)
+            empty = not invoices  # nothing to search or filter
+            if empty:
+                self.pages.setCurrentWidget(self._empty_page())
+                if (not self.lib.businesses or not self.lib.invoices) and not self.assistant_showing():
+                    self.dock.set_open(False)
+            else:
+                self.pages.setCurrentWidget(self.table)
         self.search.setVisible(not empty)
-        self.view_menu.setVisible(not empty)
+        self.view_menu.setVisible(not empty and not self.on_clients())
         self._apply_search()
         if self.history is not None:
             self.history.mark()
@@ -312,6 +380,8 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
                 ("user", "Add Your Profile…", "Your name, logo and how you get paid", "",
                  lambda: self.edit_business(True)),
             )  # fmt: skip
+        elif self.on_clients():
+            tiles = (("users", "New Client", "Someone you bill, saved for next time", "", self.new_client),)
         elif self.view_menu.filter.active() and self.lib.invoices:
             tiles = (("filter", "Clear Filters", "Show every invoice again", "", self._clear_filters),)
         else:
@@ -330,6 +400,11 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self._view_picked()
 
     def _apply_search(self) -> None:
+        if self.on_clients():
+            shown = self.client_table.show_only(self.search.text())
+            self.totals.hide()
+            self.count.set_full_text(f"{len(shown):,}" if shown else "")
+            return
         shown = self.table.show_only(self.search.text())
         self._totals([self.lib.invoices[i] for i in shown if i in self.lib.invoices])
         self.totals.setVisible(bool(self.lib.invoices) and self.pages.currentWidget() is self.table)
@@ -358,6 +433,8 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         self.total_values["overdue"].setVisible(late)
 
     def _selection_count(self) -> None:
+        if self.on_clients():
+            return
         picked = len(self.table.chosen_ids()) if len(self.table.selectedItems()) > 1 else 0
         shown = sum(1 for _r in self.table.showing_rows())
         self.count.set_full_text(f"{picked} selected" if picked > 1 else (f"{shown:,}" if shown else ""))
@@ -376,6 +453,10 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
 
         self.dock.after_close(blank)
         self.panel.inv = None
+        if self.on_clients():
+            self.client_panel.c = None
+            self.client_panel.fresh = False
+            self.sidebar.select("clients")
         self.dock.set_open(False)
 
     def deselect(self) -> None:
@@ -383,7 +464,7 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         didn't fill in goes away)."""
         self.flush()
         self._drop_fresh()
-        t = self.table
+        t = self.client_table if self.on_clients() else self.table
         t._quiet = True
         t.clearSelection()
         t.setCurrentItem(None)
@@ -401,16 +482,13 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
             return
         self.flush()
         self._drop_fresh(keep=inv_id)
-        if inv_id not in self._shown_ids():
+        if self.on_clients() or inv_id not in self._shown_ids():
             self.search.blockSignals(True)
             self.search.clear()
             self.search.blockSignals(False)
-            if not in_place(inv, self.view_key) or not self.view_menu.filter.keep(inv):
+            if self.on_clients() or not in_place(inv, self.view_key) or not self.view_menu.filter.keep(inv):
                 self.view_menu.clear()
-                self.view_key = "all"
-                self.lib.settings["view"] = "all"
-                self.sidebar.select("all")
-                self.title.setText(TITLES["all"])
+                self._set_place("all")
             self.refresh()
         self.table.select_id(inv_id)
         if inv.business_id not in self.lib.businesses and self.lib.businesses:
@@ -432,6 +510,20 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
                 ("", "-", None),
                 ("trash", "Delete…", lambda: self.delete_invoices([inv_id])),
             ]
+        menu(self, items).exec(pos)
+
+    def _sidebar_menu(self, key: str, pos) -> None:
+        """Right-click in the sidebar: a client's row has their menu (the places have none)."""
+        if key.startswith("client:"):
+            self._client_menu(key[7:], pos)
+
+    def _client_menu(self, client_id: str, pos) -> None:
+        """Right-click on a client (in the table or the sidebar)."""
+        items = [
+            ("plus", "New Invoice", lambda: self.new_invoice_for(client_id)),
+            ("", "-", None),
+            ("trash", "Delete Client…", lambda: self.delete_client(client_id)),
+        ]
         menu(self, items).exec(pos)
 
     # ------------------------------------------------------------------ misc

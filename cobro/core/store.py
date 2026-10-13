@@ -295,6 +295,16 @@ class Library:
         """The saved client an invoice's copy belongs to: same id, or else the same name."""
         return self.clients.get(c.id) or self.find_client(c.name)
 
+    def invoices_by_client(self) -> dict[str, list[Invoice]]:
+        """Each saved client's invoices, newest first (an invoice's own copy names its client by id, or else
+        by name)."""
+        found: dict[str, list[Invoice]] = {c_id: [] for c_id in self.clients}
+        for inv in self.ordered():
+            c = self.match_client(inv.client)
+            if c is not None:
+                found[c.id].append(inv)
+        return found
+
     def save_client(self, c: Client) -> Client:
         """Add or update a saved client. Drafts billed to them pick up the change; sent and paid
         invoices keep the details they went out with."""

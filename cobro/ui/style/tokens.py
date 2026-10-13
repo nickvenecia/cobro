@@ -95,8 +95,20 @@ CHEVRON = 9  # a divider's open/closed chevron
 LINE_STROKE = 1.8  # drawn chevrons
 NAME_MIN = 200  # the table's Client column never gets narrower; other columns step aside
 # the invoice table's fixed column widths (Client takes the rest)
-COL_W = {"number": 150, "project": 220, "issued": 116, "due": 116, "status": 96, "total": 120, "balance": 120}
+COL_W = {
+    "number": 150,
+    "project": 220,
+    "issued": 116,
+    "due": 116,
+    "status": 96,
+    "total": 120,
+    "balance": 120,
+    "contact": 180,  # the clients table: Attention…
+    "email": 240,
+    "count": 90,  # …how many invoices
+}
 GIVE_WAY = ("project", "due", "issued", "total")  # columns that step aside first on a narrow window
+CLIENT_GIVE_WAY = ("email", "contact", "count")  # …and in the clients table
 DIALOG_W = 480
 DIALOG_W_WIDE = DIALOG_W + 2 * SPACE_5  # dialogs with a two-column form (client, profile)
 DIALOG_W_XWIDE = DIALOG_W + 6 * SPACE_5  # the update window

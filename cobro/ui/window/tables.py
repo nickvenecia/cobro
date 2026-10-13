@@ -1,4 +1,4 @@
-"""The big table in the middle: your invoices. Click a row to edit it on the right.
+"""The big tables in the middle: your invoices (or your clients). Click a row to edit it on the right.
 
 Every column sorts (newest first to start). The list is divided by month or by client (or not at all), each
 band with its total; click a band to fold it. Status reads at a glance: Draft grey, Sent amber, Overdue red,
@@ -50,6 +50,14 @@ COLUMNS = [
     ("total", "Amount", tokens.COL_W["total"], RIGHT),
 ]
 COL = {key: n for n, (key, *_rest) in enumerate(COLUMNS)}
+CLIENT_COLUMNS = [
+    ("name", "Client", 0, None),
+    ("contact", "Attention", tokens.COL_W["contact"], None),
+    ("email", "Email", tokens.COL_W["email"], None),
+    ("count", "Invoices", tokens.COL_W["count"], RIGHT),
+    ("owed", "Unpaid", tokens.COL_W["balance"], RIGHT),
+    ("billed", "Billed", tokens.COL_W["total"], RIGHT),
+]
 DIVIDES = [("month", "Month", ""), ("client", "Client", ""), ("none", "No Dividers", "")]
 
 
@@ -195,21 +203,35 @@ def _month_name(key: str) -> str:
         return "No Date"
 
 
-class InvoiceTable(QTreeWidget):
+class Table(QTreeWidget):
+    """What every table in the middle shares: its columns (COLUMNS: key, title, width, alignment), rows that
+    sort by their hidden keys, one rounded highlight per row, picking (one row, or many with `many`), a click on
+    empty space to pick nothing, Delete, search, and columns that step aside on a narrow window (GIVE_WAY)."""
+
     picked = Signal(str)
     menu_wanted = Signal(str, QPoint)
     delete_wanted = Signal(list)  # Delete / Backspace on the picked rows
     cleared = Signal()  # a click on empty space: nothing picked
 
-    def __init__(self, parent: QWidget | None = None):
+    COLUMNS: list[tuple[str, str, int, object]] = []
+    GIVE_WAY: tuple[str, ...] = ()
+    NAME = ""  # the column that never gets narrower than NAME_MIN
+
+    def __init__(self, many: bool = True, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("Table")
-        self.setColumnCount(len(COLUMNS))
-        self.setHeaderLabels([c[1] for c in COLUMNS])
+        self.col = {key: n for n, (key, *_rest) in enumerate(self.COLUMNS)}
+        self.many = many
+        self.setColumnCount(len(self.COLUMNS))
+        self.setHeaderLabels([c[1] for c in self.COLUMNS])
         self.setRootIsDecorated(False)
         self.setIndentation(0)
         self.setUniformRowHeights(True)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+            if many
+            else QAbstractItemView.SelectionMode.SingleSelection
+        )
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setSortingEnabled(True)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
@@ -222,7 +244,7 @@ class InvoiceTable(QTreeWidget):
         h.setSectionsMovable(False)
         h.setHighlightSections(False)
         h.setMinimumSectionSize(tokens.SMALL_H)
-        for i, (_k, _t, w, align) in enumerate(COLUMNS):
+        for i, (_k, _t, w, align) in enumerate(self.COLUMNS):
             if w:
                 h.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
                 self.setColumnWidth(i, w)
@@ -230,14 +252,10 @@ class InvoiceTable(QTreeWidget):
                 h.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
             if align is not None:
                 self.headerItem().setTextAlignment(i, align)
-        self.sortByColumn(COL["issued"], Qt.SortOrder.DescendingOrder)  # newest first
         self.setItemDelegate(RowPainter(self))
         self.setMouseTracking(True)
         self.currentItemChanged.connect(self._current)
-        self.itemClicked.connect(self._band_clicked)
         self._quiet = False
-        self.folded: set[str] = set()
-        self.divide = "month"
 
     # ------------------------------------------------------------------ picking
     def _current(self, cur, _prev) -> None:
@@ -248,14 +266,6 @@ class InvoiceTable(QTreeWidget):
         it = self.itemAt(pos)
         if it is not None and it.data(0, ID):
             self.menu_wanted.emit(it.data(0, ID), self.viewport().mapToGlobal(pos))
-
-    def _band_clicked(self, row, _col) -> None:
-        key = row.data(0, FOLD)
-        if key is None:
-            return
-        row.setExpanded(not row.isExpanded())
-        row.setData(0, OPEN, row.isExpanded())
-        (self.folded.discard if row.isExpanded() else self.folded.add)(key)
 
     def mousePressEvent(self, e):
         if self.itemAt(e.position().toPoint()) is None:
@@ -270,12 +280,13 @@ class InvoiceTable(QTreeWidget):
                 self.delete_wanted.emit(ids)
             return
         if e.matches(QKeySequence.StandardKey.SelectAll):
-            self.select_showing()
+            if self.many:
+                self.select_showing()
             return
         super().keyPressEvent(e)
 
     def rows(self):
-        """Every invoice row (not the bands)."""
+        """Every row with something in it (not the bands)."""
         stack = [self.invisibleRootItem()]
         while stack:
             r = stack.pop()
@@ -333,13 +344,91 @@ class InvoiceTable(QTreeWidget):
         self._quiet = False
 
     # ------------------------------------------------------------------ filling
-    def fill(self, lib: Library, invoices: list[Invoice], divide: str = "month") -> None:
-        """Show these invoices, divided by month, client or nothing."""
+    def _fill_start(self) -> tuple[str, int, Qt.SortOrder]:
+        """Before filling: what was picked and how it sorted, to put back after."""
         keep = self.current_id()
         col, order = self.sortColumn(), self.header().sortIndicatorOrder()
         self._quiet = True
         self.setSortingEnabled(False)
         self.clear()
+        return keep, col, order
+
+    def _fill_end(self, keep: str, col: int, order: Qt.SortOrder) -> None:
+        self.setSortingEnabled(True)
+        self.sortItems(max(0, col), order)
+        self._quiet = False
+        if keep:
+            self.select_id(keep)
+
+    def _cells(self, row: Row, cells: list[tuple[str, object]]) -> None:
+        """A row's words and sort keys, column by column, aligned as the columns are."""
+        for i, (text, sort) in enumerate(cells):
+            row.setText(i, text)
+            row.setData(i, SORT, sort)
+            align = self.COLUMNS[i][3]
+            if align is not None:
+                row.setTextAlignment(i, align)
+        row.setSizeHint(0, QSize(0, tokens.TABLE_ROW_H))
+
+    def show_only(self, text: str) -> list[str]:
+        """Hide rows that don't match every word of `text`. Returns the ids of the rows left showing."""
+        words = text.casefold().split()
+        shown: list[str] = []
+        for row in self.rows():
+            ok = all(w in (row.data(0, HAY) or "") for w in words)
+            row.setHidden(not ok)
+            if ok:
+                shown.append(row.data(0, ID))
+        root = self.invisibleRootItem()
+        for i in range(root.childCount()):
+            d = root.child(i)
+            if d.data(0, HEAD) is not None:
+                any_shown = any(not d.child(k).isHidden() for k in range(d.childCount()))
+                d.setHidden(not any_shown)
+                if words and any_shown and not d.isExpanded():
+                    d.setExpanded(True)
+                    d.setData(0, OPEN, True)
+        return shown
+
+    def fit(self, width: int) -> None:
+        """On a narrow window, columns step aside (in GIVE_WAY's order) so the names keep NAME_MIN."""
+        fixed = sum(w for _k, _t, w, _a in self.COLUMNS if w)
+        for key in self.GIVE_WAY:
+            self.setColumnHidden(self.col[key], False)
+        room = width - tokens.SCROLL_W
+        for key in self.GIVE_WAY:
+            if room - fixed >= tokens.NAME_MIN:
+                break
+            self.setColumnHidden(self.col[key], True)
+            fixed -= tokens.COL_W[key]
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.fit(self.viewport().width())
+
+
+class InvoiceTable(Table):
+    COLUMNS = COLUMNS
+    GIVE_WAY = tokens.GIVE_WAY
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(True, parent)
+        self.sortByColumn(COL["issued"], Qt.SortOrder.DescendingOrder)  # newest first
+        self.itemClicked.connect(self._band_clicked)
+        self.folded: set[str] = set()
+        self.divide = "month"
+
+    def _band_clicked(self, row, _col) -> None:
+        key = row.data(0, FOLD)
+        if key is None:
+            return
+        row.setExpanded(not row.isExpanded())
+        row.setData(0, OPEN, row.isExpanded())
+        (self.folded.discard if row.isExpanded() else self.folded.add)(key)
+
+    def fill(self, lib: Library, invoices: list[Invoice], divide: str = "month") -> None:
+        """Show these invoices, divided by month, client or nothing."""
+        keep, col, order = self._fill_start()
         self.divide = divide if divide in {k for k, _l, _t in DIVIDES} else "month"
         today = dates.today()
 
@@ -427,47 +516,57 @@ class InvoiceTable(QTreeWidget):
             d.setText(COL["total"], money.fmt(sums[key], cur))
             d.setExpanded(d.data(0, FOLD) not in self.folded)
             d.setData(0, OPEN, d.isExpanded())
-        self.setSortingEnabled(True)
-        self.sortItems(max(0, col), order)
-        self._quiet = False
-        if keep:
-            self.select_id(keep)
+        self._fill_end(keep, col, order)
 
-    def show_only(self, text: str) -> list[str]:
-        """Hide rows that don't match every word of `text`. Returns the ids of the rows left showing."""
-        words = text.casefold().split()
-        shown: list[str] = []
-        for row in self.rows():
-            ok = all(w in (row.data(0, HAY) or "") for w in words)
-            row.setHidden(not ok)
-            if ok:
-                shown.append(row.data(0, ID))
-        root = self.invisibleRootItem()
-        for i in range(root.childCount()):
-            d = root.child(i)
-            if d.data(0, HEAD) is not None:
-                any_shown = any(not d.child(k).isHidden() for k in range(d.childCount()))
-                d.setHidden(not any_shown)
-                if words and any_shown and not d.isExpanded():
-                    d.setExpanded(True)
-                    d.setData(0, OPEN, True)
-        return shown
 
-    def fit(self, width: int) -> None:
-        """On a narrow window, columns step aside (in GIVE_WAY's order) so the client names keep NAME_MIN."""
-        fixed = sum(w for _k, _t, w, _a in COLUMNS if w)
-        for key in tokens.GIVE_WAY:
-            self.setColumnHidden(COL[key], False)
-        room = width - tokens.SCROLL_W
-        for key in tokens.GIVE_WAY:
-            if room - fixed >= tokens.NAME_MIN:
-                break
-            self.setColumnHidden(COL[key], True)
-            fixed -= tokens.COL_W[key]
+class ClientTable(Table):
+    """Your saved clients: who they are, how many invoices you've made them, what they owe (amber while it's
+    waiting, red once something's overdue) and what you've billed them in all. Click one to edit it."""
 
-    def resizeEvent(self, e):
-        super().resizeEvent(e)
-        self.fit(self.viewport().width())
+    COLUMNS = CLIENT_COLUMNS
+    GIVE_WAY = tokens.CLIENT_GIVE_WAY
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(False, parent)
+        self.sortByColumn(0, Qt.SortOrder.AscendingOrder)  # A to Z
+
+    def fill(self, lib: Library) -> None:
+        keep, col, order = self._fill_start()
+        today = dates.today()
+        cur = next((b.currency for b in lib.businesses.values() if b.currency), "$")
+        mine = lib.invoices_by_client()
+        for c in lib.clients.values():
+            invoices = mine.get(c.id, [])
+            owed = billed = money.ZERO
+            late = False
+            for inv in invoices:
+                t = billing.totals(inv)
+                st = document.status_of(inv, today)
+                billed += t.total
+                if st in ("sent", "overdue"):
+                    owed += t.balance
+                late = late or st == "overdue"
+            row = Row(self)
+            row.setData(0, ID, c.id)
+            n = len(invoices)
+            self._cells(
+                row,
+                [
+                    (c.name, c.name.casefold()),
+                    (c.contact, c.contact.casefold() or "~"),
+                    (c.email, c.email.casefold() or "~"),
+                    (str(n) if n else "", n),
+                    (money.fmt(owed, cur) if owed else "", float(owed)),
+                    (money.fmt(billed, cur) if billed else "", float(billed)),
+                ],
+            )
+            for k in ("contact", "email", "count"):
+                row.setForeground(self.col[k], theme.qcolor(tokens.MUTED))
+            if owed:
+                row.setForeground(self.col["owed"], theme.qcolor(tokens.BAD if late else tokens.WARN))
+            words = [c.name, c.contact, c.email, c.address, c.code]
+            row.setData(0, HAY, " ".join(words).casefold())
+        self._fill_end(keep, col, order)
 
 
 def menu(parent: QWidget, items: list[tuple[str, str, object]]) -> QMenu:

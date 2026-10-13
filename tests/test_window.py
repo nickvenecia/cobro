@@ -291,12 +291,8 @@ def test_the_paper_changes_with_the_profile(win, data_folder):
     assert win.page_list()[0].steps[0].color == "#7A2E2E"  # the band
 
 
-def test_new_client_from_the_menu_only_saves_it(win, monkeypatch):
+def test_new_client_under_bill_to_fills_in_the_invoice(win, monkeypatch):
     from cobro.ui.window import editing
-
-    paid = next(i for i in win.lib.invoices.values() if i.status == "paid")
-    win.open(paid.id)
-    before = paid.client.name
 
     class Saved:
         DialogCode = editing.ClientDialog.DialogCode
@@ -309,14 +305,120 @@ def test_new_client_from_the_menu_only_saves_it(win, monkeypatch):
             return self.DialogCode.Accepted
 
     monkeypatch.setattr(editing, "ClientDialog", Saved)
-    win.edit_client(True, assign=False)
-    assert paid.client.name == before  # the open (paid) invoice is untouched
-    assert win.lib.find_client("Brand New Co") is not None
-    assert win.panel.client.findText("Brand New Co") >= 0  # and it's ready to pick
     draft = next(i for i in win.lib.invoices.values() if i.status == "draft")
     win.open(draft.id)
-    win.edit_client(True)  # New Client… under Bill To fills in the open invoice
-    assert draft.client.name == "Brand New Co"
+    win.edit_client(True)  # New Client… under Bill To
+    assert draft.client.name == "Brand New Co" and win.lib.find_client("Brand New Co") is not None
+    assert "client:" + draft.client.id in win.sidebar.rows  # and it's in the sidebar
+
+
+def test_all_invoices_folds_its_places_and_remembers(qapp, data_folder):
+    from cobro.ui.window.main_window import MainWindow
+
+    lib = sample.fill(Library(data_folder).load())
+    w = MainWindow(lib)
+    sb = w.sidebar
+    for key in ("drafts", "unpaid", "paid"):
+        assert sb.rows[key].label.objectName() == "NavSub"  # rows under All Invoices
+        assert sb.rows[key].parentWidget() is sb.boxes["all"]
+    assert sb.rows["all"].count.text() == "4" and sb.rows["all"].count.property("tone") == ""
+    sb.rows["all"].fold_wanted.emit("all")  # its arrow
+    assert not sb.boxes["all"].isVisibleTo(sb) and "all" in lib.settings["sidebar_folded"]
+    assert sb.rows["all"].count.property("tone") == "overdue"  # folded, it still says something's late
+    w.go("unpaid")  # the places still work from the menu (⌘3)
+    assert w.view_key == "unpaid"
+    w.shutdown()
+    again = MainWindow(Library(data_folder).load())
+    assert again.sidebar.rows["all"].folded and not again.sidebar.boxes["all"].isVisibleTo(again.sidebar)
+    again.shutdown()
+
+
+def test_clients_their_table_and_their_panel(win, data_folder):
+    from PySide6.QtCore import Qt
+
+    lib, sb = win.lib, win.sidebar
+    names = [sb.rows[k].label.text() for k in sb.rows if k.startswith("client:")]
+    assert names == ["Desert Sun Records", "Mesa Coffee Co.", "Northwind Media"]
+    assert sb.rows["clients"].count.text() == "3"
+    desert = lib.find_client("Desert Sun Records")
+    assert sb.rows[f"client:{desert.id}"].count.text() == "2"  # its invoices
+    win.go("clients")
+    assert win.pages.currentWidget() is win.client_table and win.title.text() == "All Clients"
+    assert not win.view_menu.isVisibleTo(win) and not win.btn_export.isVisibleTo(win)
+    rows = list(win.client_table.showing_rows())
+    assert [r.text(0) for r in rows] == names  # A to Z
+    owed = {r.text(0): r.text(win.client_table.col["owed"]) for r in rows}
+    assert owed["Northwind Media"] == ""  # a draft owes nothing yet
+    win.search.setText("jordan")  # the contact person
+    assert [r.text(0) for r in win.client_table.showing_rows()] == ["Mesa Coffee Co."]
+    win.search.clear()
+
+    sb.pick(f"client:{desert.id}")  # its row in the sidebar opens it
+    cp = win.client_panel
+    assert win.dock.opened and win.inspector.currentWidget() is cp and cp.c.id == desert.id
+    assert sb.rows[f"client:{desert.id}"].property("selected")
+    assert cp.lines_lay.count() == 2 and cp.sums.isVisibleTo(cp)
+    cp.email.textEdited.emit("hello@desertsun.example")
+    win.flush()
+    assert Library(data_folder).load().clients[desert.id].email == "hello@desertsun.example"
+    paid = next(i for i in lib.invoices.values() if i.status == "paid")
+    cp.name.textEdited.emit("Mesa Coffee Co.")  # another client's name: not kept
+    assert cp.name_hint.isVisibleTo(cp) and not cp.can_save()
+    win.flush()
+    assert lib.clients[desert.id].name == "Desert Sun Records"
+    cp.name.textEdited.emit("Desert Sun Music")
+    win.flush()
+    assert lib.clients[desert.id].name == "Desert Sun Music"
+    assert paid.client.name == "Desert Sun Records"  # paid invoices keep what they said
+
+    line = cp.lines_lay.itemAt(0).widget()  # one of their invoices: opens it in All Invoices
+    line.clicked.emit(line.inv_id)
+    QApplication.processEvents()
+    assert win.view_key == "all" and win.panel.inv.id == line.inv_id
+    assert win.inspector.currentWidget() is win.panel
+    assert win.table.currentItem().data(0, Qt.ItemDataRole.UserRole) == line.inv_id
+
+
+def test_a_new_client_is_kept_once_it_has_a_name(win, data_folder):
+    lib = win.lib
+    n = len(lib.clients)
+    win.new_client()  # ⇧⌘N, the sidebar's +, or the round + in All Clients
+    cp = win.client_panel
+    assert win.on_clients() and win.dock.opened and cp.fresh and not cp.new_inv.isEnabled()
+    win.deselect()  # left without a name: nothing kept
+    assert len(lib.clients) == n
+    win.new_client()
+    cp.name.textEdited.emit("Sol Studio")
+    cp.contact.textEdited.emit("Ana")
+    win.flush()
+    saved = lib.find_client("Sol Studio")
+    assert saved is not None and saved.contact == "Ana" and not cp.fresh and cp.new_inv.isEnabled()
+    assert Library(data_folder).load().find_client("Sol Studio") is not None
+    win.refresh()
+    assert f"client:{saved.id}" in win.sidebar.rows and win.sidebar.rows[f"client:{saved.id}"].property(
+        "selected"
+    )
+
+
+def test_a_new_invoice_for_a_client_and_deleting_one(win, monkeypatch, data_folder):
+    from cobro.ui.window import editing
+
+    lib = win.lib
+    mesa = lib.find_client("Mesa Coffee Co.")
+    win.open_client(mesa.id)
+    n = len(lib.invoices)
+    win.new_invoice_for(mesa.id)
+    inv = win.panel.inv
+    assert inv.client.id == mesa.id and len(lib.invoices) == n + 1
+    win.deselect()  # left untouched: it goes, like any new invoice
+    assert len(lib.invoices) == n
+    monkeypatch.setattr(editing, "confirm", lambda *a, **k: True)
+    win.open_client(mesa.id)
+    before = {i.id: i.client.name for i in lib.invoices.values()}
+    win.delete_client(mesa.id)
+    assert mesa.id not in lib.clients and mesa.id not in Library(data_folder).load().clients
+    assert {i.id: i.client.name for i in lib.invoices.values()} == before  # every invoice as it was
+    assert not win.dock.opened and f"client:{mesa.id}" not in win.sidebar.rows
 
 
 def test_undo_and_redo(win, monkeypatch, data_folder):

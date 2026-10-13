@@ -49,7 +49,7 @@ and keep the picture, and never load image files for UI icons. An icon on the ac
 window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NUM_FIELD_W`, `QTY_FIELD_W`,
 `LOGO_THUMB`, `PAGE_GAP`, `PAGE_SHADOW`, `DIALOG_W` (and `DIALOG_W_WIDE`, `DIALOG_W_XWIDE`), `PROFILE_DIALOG_H`,
 `PAGE_DIALOG_SIZE`, `ALERT_W`, `ALERT_ICON`, `REVIEW_W`, `REVIEW_COL_W`, `START_TILE_W`, `START_BADGE`, `NOTES_H`,
-`NOTES_LINE`, `GRIP_W`, `GRIP_GAP`, `GRIP_DOT`, `LIFT_STEP_MS`, `LIFT_EASE`, `LIFT_SHADOW_STEPS`, `TOAST_MAX_W`,
+`NOTES_LINE`, `CLIENT_GIVE_WAY`, `GRIP_W`, `GRIP_GAP`, `GRIP_DOT`, `LIFT_STEP_MS`, `LIFT_EASE`, `LIFT_SHADOW_STEPS`, `TOAST_MAX_W`,
 `TOAST_RISE`, `TOAST_LIFT`, `WINDOW_SIZE`, `WINDOW_MIN`. Timings too: `DOCK_MS`, `FADE_MS`, `SAVE_DELAY_MS`,
 `TABLE_DELAY_MS`, `DRAW_DELAY_MS`, `TOAST_MS` (and `TOAST_MS_PER_CHAR`, `TOAST_IN_MS`, `TOAST_OUT_MS`),
 `UPDATE_CHECK_DELAY_MS`, `UPDATE_WAIT_MS`, `QUIT_WAIT_MS`. Use these names, never the numbers.
@@ -178,11 +178,11 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Link | `LinkBtn` | Inline text links (Get a Key ↗, Forgot your password?) |
 | Round icon button | `#Circle`, `#CirclePrimary` (the +) | Every icon button in the toolbar or a panel header (✕, ⋯, filter, share, the bubble, the moon). **Must** have a tooltip |
 | Small icon button | `widgets.icon_button()` (`#IconBtn`) | Icon buttons inside a row or card (a line item's ⋯, an adjustment's ×) |
-| Left panel | `panels.LeftPanel` (+ `NavRow`) | Every list of places on the left (the sidebar, Settings) |
-| Right panel | `panels.SidePanel` | Every panel on the right (the invoice, the assistant); `header_icon()` for its own round buttons |
+| Left panel | `panels.LeftPanel` (+ `NavRow`) | Every list of places on the left (the sidebar, Settings). A row with rows under it (All Invoices, All Clients) has an arrow that folds them; the rows under it (`NavRow.as_child()`, `#NavSub`) drop their icon so their names start where its icon is. The picked row is tinted, its name in the accent |
+| Right panel | `panels.SidePanel` | Every panel on the right (the invoice, a client, the assistant); `header_icon()` for its own round buttons |
 | Panel header | `widgets.PanelHeader` + `add_close()` | Title at the left; round ⋯ (or ⚙), then the round ✕ at the far right |
 | Profile card | `sidebar.ProfileCard` | The bottom of the sidebar: initials in a circle and the profile's name; click for its menu |
-| Table | `tables.InvoiceTable` (`QTreeWidget#Table`) | The invoices: `TABLE_ROW_H` rows, sortable columns, bands that fold; a delegate paints every row |
+| Table | `tables.Table` (`QTreeWidget#Table`): `InvoiceTable`, `ClientTable` | `TABLE_ROW_H` rows, sortable columns, one rounded highlight per row (a delegate paints it), columns that step aside on a narrow window. The invoices also have bands that fold and pick many; the clients sort A to Z and are picked one at a time |
 | Filter | `filters.FilterButton` | Right after the search: just the icon, the accent while a filter hides something |
 | Dropdown | `widgets.combo(items, current)` | **Every** pick-one setting, however few choices. Extra detail in the item's tooltip |
 | On/off setting | `widgets.ToggleRow` | Every on/off setting: one full-width row, label left, switch right, whole row clickable |
@@ -191,7 +191,9 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | How many | `widgets.qty_field()` | A line item's Qty: typed (2.5 is fine), arrow keys count up and down |
 | Money | `widgets.MoneyField` | Rates, discount, deposit |
 | Date | `widgets.date_field()` | Every date (calendar popup, "Tue, Oct 13, 2026") |
-| Fold-away group | `widgets.Disclosure` | Every group in the invoice panel and the profile: folded, it says what's inside |
+| Fold-away group | `widgets.Disclosure` | Every group in the invoice and client panels and the profile: folded, it says what's inside |
+| Big name | `widgets.TitleEdit` (`#BigName`) | A client's name as their panel's title: edited in place, wraps onto a second line instead of being cut off |
+| A client's invoice | `client.InvoiceLine` (`#InvoiceLine`) | One of their invoices in their panel: number, date and project, its status in its color (`#LineStatus`), its amount; click to open it |
 | Your own things | `widgets.picker()` + an `Edit…` button | From (your profiles) and Bill To (your clients) |
 | Line item | `invoice.LineEditor` | A header row (grip, what it is, its amount, ⋯) that folds its fields away. One open at a time |
 | Drag to reorder | `lift.Grip` + `lift.StackLift` | The six dots on a line item (only with two or more): the item lifts onto a raised card with a soft shadow and an accent edge, the others ease apart (`LIFT_EASE` every `LIFT_STEP_MS`) to show its slot, the panel scrolls near its edges, Esc puts it back |
@@ -243,35 +245,44 @@ Cobro talks like a helpful person, not like software.
 │ cobro.           │ │ All Invoices 4    [ Search            ] (≡)   (⇪) (☺) (+) │ │ Invoice       (⋯) (✕)│
 │                  │ ├──────────────────────────────────────────────────────────┤ │ ▾ From & Bill To     │
 │ Invoices      +  │ │ Invoice   Client          Issued   Due    Status  Amount │ │ ▾ Invoice            │
-│  All Invoices  4 │ │ ▾ October 2026                                 $5,400.00 │ │ ▾ Project            │
-│  Drafts        1 │ │   JLF-001 Northwind Media Oct 13   Oct 28  Draft  $2,700 │ │ ▾ Line Items         │
-│  Unpaid        2 │ │   JLF-002 Desert Sun …    Oct 8    Oct 23  Sent   $2,700 │ │   › Production  ⋯    │
-│  Paid          1 │ │ ▾ September 2026                               $1,500.00 │ │   + Add Line Item    │
-│                  │ │   JLF-003 Mesa Coffee Co. Sep 3    Sep 18  Overdue $1,500│ │ ▸ Adjustments        │
-│                  │ │                                                          │ │ ▸ Payment & Terms    │
+│ ⌄ All Invoices 4 │ │ ▾ October 2026                                 $5,400.00 │ │ ▾ Project            │
+│     Drafts     1 │ │   JLF-001 Northwind Media Oct 13   Oct 28  Draft  $2,700 │ │ ▾ Line Items         │
+│     Unpaid     2 │ │   JLF-002 Desert Sun …    Oct 8    Oct 23  Sent   $2,700 │ │   › Production  ⋯    │
+│     Paid       1 │ │ ▾ September 2026                               $1,500.00 │ │   + Add Line Item    │
+│ Clients       +  │ │   JLF-003 Mesa Coffee Co. Sep 3    Sep 18  Overdue $1,500│ │ ▸ Adjustments        │
+│ › All Clients  3 │ │                                                          │ │ ▸ Payment & Terms    │
 │ (JL) Juniper …   │ │            Unpaid $4,200 · Overdue $1,500 · Paid · Total │ │ [     Invoice…     ] │
 ╰──────────────────╯ └──────────────────────────────────────────────────────────┘ ╰──────────────────────╯
 ```
 
-- **Left: where you are.** The sidebar's places filter the table: All Invoices, Drafts, Unpaid (sent and overdue;
-  its count turns amber while invoices wait and red once one is overdue), Paid. Its section heading has its own +.
+- **Left: where you are.** The sidebar's places filter the table: All Invoices, with Drafts, Unpaid (sent and
+  overdue; its count turns amber while invoices wait and red once one is overdue) and Paid under it; then All
+  Clients, with each client under it (click one to open it). The arrow beside All Invoices or All Clients folds
+  what's under it (folded, All Invoices' count takes Unpaid's color), a click on a heading folds the whole
+  section, and every fold is remembered. Each section heading has its own + (New Invoice, New Client).
 - **Middle: everything at once.** One table, sortable by every column. Bands by month (the newest on top) or by
   client, each with its total, fold with a click (remembered). Columns step aside on a narrow window
-  (`GIVE_WAY`) so client names keep `NAME_MIN`. The totals underneath add up what's showing.
+  (`GIVE_WAY`) so client names keep `NAME_MIN`. The totals underneath add up what's showing. In All Clients the
+  table is your clients (Attention, Email, how many invoices, what's unpaid in Sent's or Overdue's color, what
+  you've billed in all; `CLIENT_GIVE_WAY` on a narrow window); the filter, share and totals step aside there.
 - **Right: the one you picked.** It slides in over `DOCK_MS` (and the table slides with it); Esc, ✕ or a click on
   empty space puts it away. The invoice panel reads like the invoice, top to bottom, and **every part folds away**
   (`widgets.Disclosure`), each remembered; a folded header says what's inside ("JLF-2026-001 · Draft", "3 items ·
-  $2,700.00"). Basic groups start open; Adjustments and Payment && Terms start folded.
-- **The toolbar, right to left**: the round + (New Invoice) at the far right, then the assistant's bubble, then
+  $2,700.00"). Basic groups start open; Adjustments and Payment && Terms start folded. A client's panel has their
+  name as its title (`TitleEdit`), then Contact, Invoice Numbers (only when a profile counts per client) and
+  their Invoices (what's unpaid and billed, then each one; click to open it), and New Invoice across the bottom.
+- **The toolbar, right to left**: the round + (New Invoice; New Client in All Clients) at the far right, then the assistant's bubble, then
   share (Invoice…, Export as CSV…, Back Up…). The filter sits right after the search. Nothing else.
 - **Nothing to save by hand.** Edits save themselves a moment after you stop typing (`SAVE_DELAY_MS`), when you
   switch invoices and when you quit. The only "save" is the PDF.
 - **An empty place shows the ways to start**, as tiles (`EmptyPage`): Add Your Profile… the first time, then New
-  Invoice (with the place's icon), or Clear Filters when a filter hides everything.
+  Invoice (with the place's icon), New Client in All Clients, or Clear Filters when a filter hides everything.
 - **A new invoice you leave empty isn't kept** (Esc, or opening something else), and leaves no undo step.
 - **Fill it in once.** Your **profile** (name, logo, addresses, payment text, terms, numbering, the paper's look; a
   `Business` in the code) lives in Settings › Profiles and is picked under From. Your **clients** are saved once
-  (New Client… under Bill To) and picked under Bill To. Typing never saves a client by itself.
+  (New Client in All Clients, or New Client… under Bill To) and picked under Bill To; change one in their panel
+  (or Edit… beside Bill To) and drafts follow. Typing under Bill To never saves a client by itself, and a new
+  client in All Clients is kept only once it has a name no other client has.
 - **Numbers count up on their own**, per profile: PREFIX-YEAR-001, or one count per client (PREFIX-CODE-YEAR-001,
   or CODE-YEAR-001). A draft's number follows its client until you type your own; sent and paid invoices never
   change number.

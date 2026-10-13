@@ -69,6 +69,7 @@ class MenusMixin:
         v = bar.addMenu("View")
         for n, (key, (title, _icon)) in enumerate(PLACES.items(), start=1):
             act(v, title, lambda _c=False, k=key: self.go(k), f"Ctrl+{n}")
+        act(v, "All Clients", lambda: self.go("clients"), f"Ctrl+{len(PLACES) + 1}")
         act(v, "Close Panel", self.deselect)
         v.addSeparator()
         self.look_actions = {}
@@ -82,7 +83,7 @@ class MenusMixin:
         b = bar.addMenu("Profile")
         act(b, "Edit Profile…", lambda: self.edit_business(not self.lib.businesses))
         act(b, "Add a Profile…", lambda: self.edit_business(True))
-        act(b, "New Client…", lambda: self.edit_client(True, assign=False), "Ctrl+Shift+N")
+        act(b, "New Client", self.new_client, "Ctrl+Shift+N")
         ai = bar.addMenu("AI")
         act(ai, "Assistant", self.toggle_assistant, "Ctrl+J")
         ai.addSeparator()
@@ -181,15 +182,22 @@ class MenusMixin:
         self.act_redo.setEnabled(self._text_can_undo(redo=True) or (h is not None and h.can_redo()))
 
     def _after_history(self) -> None:
-        """Undo/redo put new copies of everything in the library: open the invoice again in the panel."""
+        """Undo/redo put new copies of everything in the library: open the invoice (or client) again."""
         cur = self.panel.inv
         self.panel.inv = None
-        if cur is not None and self.dock.opened:
+        if cur is not None and self.dock.opened and self.inspector.currentWidget() is self.panel:
             again = self.lib.invoices.get(cur.id)
             if again is not None:
                 self.panel.load(again)
             else:
                 self.dock.set_open(False)
+        c = self.client_panel.c
+        if c is not None and self.dock.opened and self.inspector.currentWidget() is self.client_panel:
+            again = self.lib.clients.get(c.id)
+            if again is not None:
+                self.client_panel.load(again)
+            elif not self.client_panel.fresh:
+                self._inspector_empty()
         self.sidebar.show_who()
         self.refresh()
 
@@ -199,7 +207,7 @@ class MenusMixin:
             self._text_do("copy")
             return
         lines = []
-        for i in self.table.chosen_ids():
+        for i in [] if self.on_clients() else self.table.chosen_ids():
             inv = self.lib.invoices.get(i)
             if inv is not None:
                 b = self.lib.businesses.get(inv.business_id)
@@ -212,12 +220,18 @@ class MenusMixin:
     def select_all(self) -> None:
         if self._text_widget() is not None:
             self._text_do("selectAll")
-        else:
+        elif not self.on_clients():  # (clients are picked one at a time)
             self.table.setFocus()
             self.table.select_showing()
 
     def delete_selected(self) -> None:
         """⌘⌫: delete what's picked (after asking)."""
+        if self.on_clients():
+            c = self.client_panel.c
+            picked = self.client_table.chosen_ids() or ([c.id] if c is not None and self.dock.opened else [])
+            if picked:
+                self.delete_client(picked[0])
+            return
         ids = self.table.chosen_ids() or ([self.panel.inv.id] if self.panel.inv is not None else [])
         if ids:
             self.delete_invoices(ids)

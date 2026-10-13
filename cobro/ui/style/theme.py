@@ -231,10 +231,12 @@ QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::su
 #Nav:hover {{ background: {tokens.CARD_HOVER}; }}
 #Nav[selected="true"] {{ background: {tokens.ACCENT_TINT}; }}
 #NavLabel {{ color: {tokens.TEXT}; font-weight: {WEIGHT_MEDIUM}; }}
+#NavSub {{ color: {tokens.TEXT}; }}
 QToolButton#NavArrow {{ background: transparent; border: none; padding: 0; }}
 QToolButton#NavArrow:hover {{ background: {tokens.CARD_HOVER}; border-radius: {RADIUS_XS}px; }}
 #NavHead {{ background: transparent; }}
 #NavHead:hover #SectionLabel {{ color: {tokens.TEXT}; }}
+#Nav[selected="true"] #NavLabel, #Nav[selected="true"] #NavSub {{ color: {tokens.ACCENT_HOVER}; }}
 #NavCount {{ color: {tokens.FAINT}; font-size: {TEXT_SM}px; }}
 #NavCount[tone="sent"] {{ color: {tokens.WARN}; font-weight: {WEIGHT_SEMIBOLD}; }}
 #NavCount[tone="overdue"] {{ color: {tokens.BAD}; font-weight: {WEIGHT_SEMIBOLD}; }}
@@ -274,6 +276,18 @@ QHeaderView::down-arrow {{ image: url(__CHEVRON__); width: {SORT_ARROW}px; heigh
 #ItemTitle {{ font-weight: {WEIGHT_MEDIUM}; }}
 #ItemTitle[blank="true"] {{ color: {tokens.FAINT}; }}
 #ItemAmount {{ color: {tokens.MUTED}; font-size: {TEXT_SM}px; }}
+QPlainTextEdit#BigName {{ font-size: {TEXT_XL}px; font-weight: {WEIGHT_BOLD}; color: {tokens.TEXT};
+    background: transparent; border: 1px solid transparent; border-radius: {RADIUS}px; padding: 0 {SPACE_1}px;
+    selection-background-color: {tokens.ACCENT}; selection-color: {tokens.ON_ACCENT}; }}
+QPlainTextEdit#BigName:hover {{ background: {tokens.FILL}; }}
+QPlainTextEdit#BigName:focus {{ background: {tokens.FIELD}; border-color: {tokens.ACCENT}; }}
+#InvoiceLine {{ background: {tokens.BLOCK}; border-radius: {RADIUS}px; }}
+#InvoiceLine:hover {{ background: {tokens.CARD_HOVER}; }}
+#LineStatus {{ font-size: {TEXT_SM}px; font-weight: {WEIGHT_SEMIBOLD}; }}
+#LineStatus[tone="draft"] {{ color: {tokens.MUTED}; }}
+#LineStatus[tone="sent"] {{ color: {tokens.WARN}; }}
+#LineStatus[tone="overdue"] {{ color: {tokens.BAD}; }}
+#LineStatus[tone="paid"] {{ color: {tokens.GOOD}; }}
 QPlainTextEdit#Field {{ background: {tokens.FIELD}; border: 1px solid {tokens.FIELD_BORDER}; border-radius: {RADIUS}px;
     font-family: inherit; font-size: {TEXT_MD}px; color: {tokens.TEXT}; padding: {SPACE_1}px {SPACE_2}px;
     selection-background-color: {tokens.ACCENT}; selection-color: {tokens.ON_ACCENT}; }}
@@ -359,6 +373,7 @@ _SVG = {
     "trash": '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/>',
     "updown": '<path d="m8 9 4-4 4 4M8 15l4 4 4-4"/>',
     "user": '<circle cx="12" cy="8" r="4"/><path d="M5 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/>',
+    "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-.5A5.5 5.5 0 0 1 8 14h2a5.5 5.5 0 0 1 5.5 5.5v.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a5.5 5.5 0 0 1 3.5 5.3v.5"/>',
     "x": '<path d="M18 6 6 18M6 6l12 12"/>',
 }
 

@@ -1,5 +1,5 @@
-"""What the main window's parts share: the places in the sidebar and their titles, and which invoices
-each place shows."""
+"""What the main window's parts share: the places in the sidebar and their titles (the invoice places, then
+All Clients), and which invoices each place shows."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ PLACES = {
     "unpaid": ("Unpaid", "clock"),
     "paid": ("Paid", "check"),
 }
-TITLES = {k: v[0] for k, v in PLACES.items()}
+TITLES = {**{k: v[0] for k, v in PLACES.items()}, "clients": "All Clients"}  # every place in the sidebar
 STATUS_WORDS = {"draft": "Draft", "sent": "Sent", "overdue": "Overdue", "paid": "Paid"}
 STATUS_COLORS = {"draft": "MUTED", "sent": "WARN", "overdue": "BAD", "paid": "GOOD"}  # token names
 

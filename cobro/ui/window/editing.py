@@ -6,8 +6,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from PySide6.QtCore import Qt
+
 from cobro.core.log import get_logger
-from cobro.core.model import Business, Invoice, now_iso
+from cobro.core.model import Business, Client, Invoice, now_iso
 from cobro.ui.dialogs.client import ClientDialog
 from cobro.ui.dialogs.common import confirm
 from cobro.ui.dialogs.profile import ProfileDialog
@@ -112,6 +114,13 @@ class EditingMixin:
     def flush(self) -> None:
         """Write anything edited, now."""
         try:
+            cp = self.client_panel
+            if self._dirty_client and cp.c is not None and cp.can_save():
+                self.lib.save_client(cp.c)  # drafts billed to them follow
+                if cp.fresh:  # kept now: it gets its row, and can have invoices
+                    cp.kept()
+                    self._table_timer.start()
+            self._dirty_client = False
             if self._dirty_businesses:
                 self.lib.save_businesses()
                 self._dirty_businesses = False
@@ -133,10 +142,89 @@ class EditingMixin:
         self.lib.settings["groups"] = groups
 
     # ------------------------------------------------------------------ clients
-    def edit_client(self, new: bool, assign: bool = True) -> None:
+    def new_client(self) -> None:
+        """A new client in All Clients, on the right: kept once it has a name (until then, nothing's saved)."""
+        if not self.on_clients():
+            self.go("clients")
+        self.flush()
+        t = self.client_table  # nothing picked in the table: this one isn't there yet
+        t._quiet = True
+        t.clearSelection()
+        t.setCurrentItem(None)
+        t._quiet = False
+        self.sidebar.select("clients")
+        self.client_panel.load(Client(), fresh=True)
+        self.inspector.setCurrentWidget(self.client_panel)
+        self.dock.set_open(True)
+        self.client_panel.name.setFocus()
+
+    def open_client(self, client_id: str) -> None:
+        """Open a saved client on the right (moving to All Clients if needed)."""
+        c = self.lib.clients.get(client_id)
+        if c is None:
+            self.toast("That's been deleted.")
+            return
+        cp = self.client_panel
+        if cp.c is not None and cp.c.id == c.id and self.dock.opened and self.inspector.currentWidget() is cp:
+            return
+        self.flush()
+        self._drop_fresh()
+        if not self.on_clients():
+            self._set_place("clients")
+            self.refresh()
+        elif c.id not in {r.data(0, Qt.ItemDataRole.UserRole) for r in self.client_table.showing_rows()}:
+            self.search.clear()
+        self.client_table.select_id(c.id)
+        cp.load(c)
+        self.inspector.setCurrentWidget(cp)
+        self.sidebar.select(f"client:{c.id}" if f"client:{c.id}" in self.sidebar.rows else "clients")
+        self.dock.set_open(True)
+
+    def _client_edited(self, _c: Client) -> None:
+        self._dirty_client = True
+        self._save_timer.start()
+        self._table_timer.start()
+        self._draw_timer.start()  # an open page billed to them (a draft) follows
+
+    def delete_client(self, client_id: str) -> None:
+        """Take a client off your list, after an alert. Every invoice keeps its own copy of them."""
+        cp = self.client_panel
+        if cp.c is not None and cp.c.id == client_id and cp.fresh:  # never kept: nothing to delete
+            self.deselect()
+            return
+        self.flush()
+        c = self.lib.clients.get(client_id)
+        if c is None:
+            return
+        if not confirm(
+            self,
+            f"Delete {c.name}?",
+            f"{c.name} will be taken off your clients. Invoices you already made keep their details.",
+            "Delete Client",
+        ):
+            return
+        self.lib.delete_client(client_id)
+        log.info("deleted a client")
+        if cp.c is not None and cp.c.id == client_id and self.inspector.currentWidget() is cp:
+            self._inspector_empty()
+        self.refresh()
+        self.toast(f"Deleted {c.name}. Invoices you already made keep their details.", "done")
+
+    def new_invoice_for(self, client_id: str) -> None:
+        """New Invoice for a client (their panel, or a right-click): a new invoice billed to them."""
+        c = self.lib.clients.get(client_id)
+        if c is None:
+            return
+        self.new_invoice()
+        if self.panel.inv is None or self.inspector.currentWidget() is not self.panel:
+            return  # no profile yet: the profile came first
+        self.panel.use_client(c)
+        self.flush()
+        self._fresh = (self.panel.inv.id, _blank(self.panel.inv))  # still goes if you leave it untouched
+
+    def edit_client(self, new: bool) -> None:
         """New Client… or Edit… under Bill To: the saved client goes on the open invoice, and drafts billed
-        to them follow the change (sent and paid invoices keep what they said). From the menus
-        (`assign=False`) a new client is only saved, for picking later."""
+        to them follow the change (sent and paid invoices keep what they said)."""
         inv = self.panel.inv if self.dock.opened else None
         current = None
         saved = None
@@ -156,12 +244,10 @@ class EditingMixin:
                 self.panel.refresh_clients()
         else:
             client = self.lib.save_client(d.client)
-            if inv is not None and assign:
+            if inv is not None:
                 self.panel.use_client(client)  # saves through changed
             else:
                 self.toast(f"Saved {client.name}. Pick them under Bill To.", "done")
-                if inv is not None:
-                    self.panel.refresh_clients()
         self.refresh()
 
     # ------------------------------------------------------------------ profiles

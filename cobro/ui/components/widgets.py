@@ -475,6 +475,84 @@ class Toast(QWidget):
         p.end()
 
 
+class TitleEdit(QPlainTextEdit):
+    """A big, editable title that wraps onto a second line instead of being cut off. One line of text (Return
+    finishes, pasted line breaks become spaces); it grows to fit. Works like a QLineEdit: text(), setText(),
+    textEdited (typing only)."""
+
+    textEdited = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("BigName")
+        self.setTabChangesFocus(True)
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._quiet = False
+        self.textChanged.connect(self._changed)
+
+    def _changed(self) -> None:
+        self._fit()
+        if self._quiet:
+            return
+        t = self.toPlainText()
+        if "\n" in t:  # a pasted line break
+            pos = self.textCursor().position()
+            self.setText(" ".join(t.split()))
+            self.setCursorPosition(min(pos, len(self.toPlainText())))
+            t = self.toPlainText()
+        self.textEdited.emit(t)
+
+    def _fit(self) -> None:
+        doc = self.document()
+        lines = 0
+        block = doc.begin()
+        while block.isValid():
+            lines += max(1, block.layout().lineCount())
+            block = block.next()
+        m = self.contentsMargins()
+        h = lines * self.fontMetrics().lineSpacing() + 2 * doc.documentMargin() + m.top() + m.bottom()
+        self.setFixedHeight(int(h) + 2)
+
+    def text(self) -> str:
+        return self.toPlainText()
+
+    def setText(self, text: str) -> None:
+        self._quiet = True
+        self.setPlainText(text)
+        self._quiet = False
+        self._fit()
+
+    def setCursorPosition(self, n: int) -> None:
+        c = self.textCursor()
+        c.setPosition(n)
+        self.setTextCursor(c)
+
+    def keyPressEvent(self, e):
+        if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.clearFocus()
+            return
+        super().keyPressEvent(e)
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self._fit()
+
+    def changeEvent(self, e):
+        super().changeEvent(e)
+        if e.type() in (e.Type.FontChange, e.Type.StyleChange):
+            self._fit()
+
+
+def set_tone(lbl: QLabel, tone: str, text: str) -> None:
+    if lbl.property("tone") != tone:
+        lbl.setProperty("tone", tone)
+        repolish(lbl)
+    lbl.setText(text)
+    lbl.setVisible(bool(text))
+
+
 # ------------------------------------------------------------------ dropdowns
 def combo(items: list[tuple[str, str, str]], current: str) -> QComboBox:
     """The standard dropdown. items: (key, label, tooltip); the key is the item's data."""

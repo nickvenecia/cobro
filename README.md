@@ -4,7 +4,7 @@
 <p align="center"><b>Make an invoice. Send it. Get paid.</b><br>
 Clean, good-looking invoices as PDFs, with your logo and your colors. Runs on Mac, Windows and Linux.</p>
 
-<p align="center"><img src="docs/screenshot.png" width="860" alt="Cobro: places on the left, your invoices in the middle, the one you picked on the right"></p>
+<p align="center"><img src="docs/screenshot.png" width="860" alt="Cobro: your invoices and clients on the left, your invoices in the middle, the one you picked on the right"></p>
 
 ---
 
@@ -32,9 +32,9 @@ Everything comes bundled, fonts included. There's no Python or terminal needed.
 
 ## What it does
 
-**Everything in one window.** On the left, where you are: All Invoices, Drafts, Unpaid and Paid. In the middle, all your invoices in one table, by month or by client, with what's unpaid, overdue and paid added up underneath. Click one and it opens on the right, ready to edit. It saves itself as you type.
+**Everything in one window.** On the left, where you are: All Invoices (with Drafts, Unpaid and Paid under it) and your clients. In the middle, all your invoices in one table, by month or by client, with what's unpaid, overdue and paid added up underneath. Click one and it opens on the right, ready to edit. It saves itself as you type.
 
-**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`JLF-2026-001`, `JLF-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
+**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`JLF-2026-001`, `JLF-2026-002`…). Save your clients once too (in **All Clients**, or **Bill To → New Client…**), then just pick them: no more typing the same address every time. Each client's page shows their details, every invoice you've made them and what they still owe.
 
 **Numbers your way.** One count for all your invoices (`JLF-2026-001`), or a separate count for each client with their code in it (`JLF-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
 

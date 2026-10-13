@@ -28,14 +28,19 @@ class TransferMixin:
         self.btn_export.setMenu(m)
 
     def export_csv(self) -> None:
-        """The invoices showing (this place, the filter and the search), one row each."""
+        """The invoices showing (this place, the filter and the search), one row each; from All Clients,
+        every invoice."""
         self.flush()
-        ids = set(self.table.show_only(self.search.text()))
-        invoices = [inv for inv in self._showing() if inv.id in ids]
+        if self.on_clients():
+            invoices = self.lib.ordered()
+        else:
+            ids = set(self.table.show_only(self.search.text()))
+            invoices = [inv for inv in self._showing() if inv.id in ids]
         if not invoices:
             self.toast("No invoices to export.", "problem")
             return
-        name = f"Cobro {self.title.text()} {dates.iso(dates.today())}.csv"
+        place = "All Invoices" if self.on_clients() else self.title.text()
+        name = f"Cobro {place} {dates.iso(dates.today())}.csv"
         path, _ = QFileDialog.getSaveFileName(
             self, "Export as CSV", str(self._export_folder() / name), "CSV (*.csv)"
         )
