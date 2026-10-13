@@ -128,7 +128,12 @@ AVATAR = 32  # your profile's initials, bottom of the sidebar
 PROFILE_CARD_H = 48
 ASSISTANT_ICON = 28  # the assistant's face next to its title
 ASSISTANT_ICON_BIG = 64  # and saying hi in an empty chat
-REVIEW_COL_W = (180, 64, 150, 0, 130)  # the AI Review window's columns (0: takes the room)
+REVIEW_COL_W = (
+    170,
+    64,
+    240,
+    0,
+)  # the AI Review window's columns: Line, What, Now, Suggested (0: takes the room)
 REVIEW_W = 900
 TOAST_MAX_W = 520
 

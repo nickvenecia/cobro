@@ -23,7 +23,8 @@ class ServicesMixin:
         self.sidebar.show_who()
 
     def after_settings(self) -> None:
-        """Settings closed: anything it changed shows (the assistant adds its own part)."""
+        """Settings closed: anything it changed shows."""
+        self._ai_state()
 
     def open_account(self) -> None:
         """Sign in or out, in Settings › Account."""
@@ -131,6 +132,7 @@ class ServicesMixin:
             a.setChecked(k == current)
         self.sidebar.word.setText(theme.wordmark())
         self.sidebar.recolor()
+        self.assistant.recolor()
         if self.titlebar is not None:
             self.titlebar.word.setText(theme.wordmark())
         self.refresh()

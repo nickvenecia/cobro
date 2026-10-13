@@ -74,6 +74,10 @@ def shots(out: Path, suffix: str) -> None:
     wait()
     w.panel.scroll.verticalScrollBar().setValue(w.panel.scroll.verticalScrollBar().maximum())
     shot(w, out / f"4-line-items{suffix}.png")
+    w.open_ai_assistant()
+    w.assistant.say("You", "Is anything spelled wrong?")
+    w.assistant.say("AI", "No, everything reads well. The details could be shorter.")
+    shot(w, out / f"4b-assistant{suffix}.png")
     w.deselect()
     w.go("unpaid")
     shot(w, out / f"5-unpaid{suffix}.png")
@@ -103,7 +107,7 @@ def shots(out: Path, suffix: str) -> None:
     d.show()
     shot(d, out / f"8-alert{suffix}.png")
     d.close()
-    for pane in ("general", "profiles", "account", "shortcuts", "data"):
+    for pane in ("general", "profiles", "ai", "account", "shortcuts", "data"):
         d = SettingsDialog(w.lib, w, pane)
         d.show()
         shot(d, out / f"9-settings-{pane}{suffix}.png")

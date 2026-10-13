@@ -7,6 +7,7 @@
 - **Settings** (⌘,): Appearance (Match System, Light or Dark), Accent Color (Cobro's turquoise or seven others), your Profiles, Account, Keyboard Shortcuts, and Your Data (Show Folder, Back Up…)
 - **Light and dark**: Cobro follows your computer's setting and switches with it while it's open, or you pick one in Settings. The invoice's own Dark Page (the moon) is separate, and PDFs, PNGs and prints always stay white
 - **Undo and redo** (⌘Z, ⇧⌘Z) for invoices, clients and profiles
+- **AI, with your own key** (optional): connect Anthropic, OpenAI, Google Gemini, Kimi, OpenRouter, DeepSeek, Mistral, xAI, Groq or a model on your own computer in Settings › AI. The assistant (⌘J, or the bubble in the toolbar) tidies up an invoice's line items or answers questions about them. Only the line items' words are sent, never amounts or clients, and nothing changes until you approve it
 - **Pick many**: ⌘A, or Shift- and ⌘-click, then Delete. One alert names what goes
 - **Export as CSV…**: the invoices showing, one row each, for your bookkeeping or taxes. **Back Up…** saves everything as one zip file
 - **Profiles**: your name, logo, contact details and payment text live in your profile (what used to be "Business"). Pick one under From, with **Edit…** right next to it; keep as many as you invoice from

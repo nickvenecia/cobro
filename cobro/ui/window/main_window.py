@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtCore import QByteArray, QSize, Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -35,6 +35,7 @@ from cobro.ui.components.widgets import ElidedLabel, SearchField, Toast, hbox, v
 from cobro.ui.dialogs.preview import PageDialog
 from cobro.ui.panels.invoice import InvoicePanel
 from cobro.ui.style import theme, tokens
+from cobro.ui.window.ai import AIMixin
 from cobro.ui.window.common import TITLES, in_place
 from cobro.ui.window.editing import EditingMixin
 from cobro.ui.window.filters import FilterButton
@@ -48,7 +49,7 @@ from cobro.ui.window.transfer import TransferMixin
 log = get_logger(__name__)
 
 
-class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMixin, QMainWindow):
+class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMixin, QMainWindow):
     def __init__(self, lib: Library | None = None):
         super().__init__()
         self.lib = lib or Library().load()
@@ -81,6 +82,8 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
         self.panel = InvoicePanel(self.lib)
         self.inspector = glass(QStackedWidget())  # the glass panel on the right…
         self.inspector.addWidget(self.panel)
+        self.assistant = self._build_assistant()
+        self.inspector.addWidget(self.assistant)
         self.dock = Dock(self.inspector, root, self.sidebar, body)  # …which slides in when something's picked
         self.dock.follower = lambda: self.pages.currentWidget()
         outer.addLayout(body, 1)
@@ -161,7 +164,14 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
         self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_export.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         right.addWidget(self.btn_export)
-        self.ai_slot = right  # the assistant's button goes here (window/ai.py)
+        self.btn_ai = QToolButton()
+        self.btn_ai.setObjectName("Circle")
+        self.btn_ai.setIcon(theme.icon("assistant", theme.ACCENT, tokens.ICON_LG))
+        self.btn_ai.setIconSize(QSize(tokens.ICON_LG, tokens.ICON_LG))
+        self.btn_ai.setToolTip("AI Assistant (⌘J)")
+        self.btn_ai.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai.clicked.connect(self.toggle_assistant)
+        right.addWidget(self.btn_ai)
         self.btn_new = QToolButton()
         self.btn_new.setObjectName("CirclePrimary")
         self.btn_new.setIcon(theme.icon("plus", theme.ON_ACCENT))
@@ -273,6 +283,9 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
         self.sidebar.select(view)
         self.title.setText(TITLES[view])
         self.refresh()
+        if self.assistant_showing():  # the assistant stays while you move around
+            self._ai_state()
+            return
         cur = self.panel.inv
         if cur is not None and self.dock.opened and cur.id in self._shown_ids():
             self.table.select_id(cur.id)
@@ -299,7 +312,7 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
             self.pages.setCurrentWidget(self.table)
         else:
             self.pages.setCurrentWidget(self._empty_page())
-            if not self.lib.businesses or not self.lib.invoices:
+            if (not self.lib.businesses or not self.lib.invoices) and not self.assistant_showing():
                 self.dock.set_open(False)
         self._apply_search()
         if self.history is not None:
@@ -401,7 +414,7 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
         if inv is None:
             self.toast("That's been deleted.")
             return
-        if self.panel.inv is inv and self.dock.opened:
+        if self.panel.inv is inv and self.dock.opened and self.inspector.currentWidget() is self.panel:
             return
         self.flush()
         self._drop_fresh(keep=inv_id)
@@ -421,6 +434,7 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
             inv.business_id = next(iter(self.lib.businesses))  # its profile was deleted
         self.panel.load(inv)
         self.lib.settings["current"] = inv.id
+        self.inspector.setCurrentWidget(self.panel)
         self.dock.set_open(True)
 
     def _row_menu(self, inv_id: str, pos) -> None:
@@ -502,6 +516,7 @@ class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMi
     def shutdown(self) -> None:
         """Save everything before quitting (and the window's size and place for next time)."""
         self.flush()
+        self.assistant.shutdown()
         if not self._restored:
             self.lib.settings["geometry"] = bytes(self.saveGeometry().toHex()).decode()
         self._let_work_finish()

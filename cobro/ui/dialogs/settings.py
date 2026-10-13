@@ -38,6 +38,7 @@ LOOKS = [("system", "Match System"), ("light", "Light"), ("dark", "Dark")]
 PANES = [
     ("general", "General", "cog"),
     ("profiles", "Profiles", "user"),
+    ("ai", "AI", "assistant"),
     ("account", "Account", "key"),
     ("shortcuts", "Keyboard Shortcuts", "keyboard"),
     ("data", "Your Data", "box"),
@@ -94,6 +95,7 @@ class SettingsDialog(QDialog):
             self.panes[key] = holder
         self._build_general()
         self._build_profiles()
+        self._build_ai()
         self._build_account()
         self._build_shortcuts()
         self._build_data()
@@ -230,6 +232,17 @@ class SettingsDialog(QDialog):
         self.win.toast("Profile deleted." if not saved else "Profile saved.")
 
     # ------------------------------------------------------------------ Account
+    def _build_ai(self) -> None:
+        from cobro.ui.dialogs.ai_setup import AISetupDialog
+
+        d = AISetupDialog(self.lib)
+        d.embed()
+        d.layout().setContentsMargins(0, 0, tokens.SPACE_3, tokens.SPACE_4)
+        d.layout().addStretch(1)  # packed at the top, like the other sections
+        d.accepted.connect(self.win._ai_state)
+        self.ai_editor = d
+        self._fill("ai", d)
+
     def _build_account(self) -> None:
         from cobro.ui.dialogs.account import SignInDialog
 
