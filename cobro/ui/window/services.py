@@ -32,7 +32,8 @@ class ServicesMixin:
             self.toast(
                 "Thanks! Sent."
                 if d.sent_now
-                else "Thanks! It's saved and goes out once sending is switched on."
+                else "Thanks! It's saved and goes out once sending is switched on.",
+                "done",
             )
 
     def open_data_folder(self) -> None:
@@ -56,7 +57,9 @@ class ServicesMixin:
         self._check.found.connect(lambda rel: self._found_release(rel, quiet))
         self._check.failed.connect(
             lambda _m: (
-                None if quiet else self.toast("Couldn't reach GitHub. Check your internet and try again.")
+                None
+                if quiet
+                else self.toast("Couldn't reach GitHub. Check your internet and try again.", "problem")
             )
         )
         self._check.start()
@@ -71,7 +74,7 @@ class ServicesMixin:
             else:
                 self.show_update()
         elif not quiet:
-            self.toast(f"You have the newest Cobro ({__version__}).")
+            self.toast(f"You have the newest Cobro ({__version__}).", "done")
 
     def _offer_update(self) -> None:
         """Show the update window once Cobro is free: never on top of another window or an open menu."""

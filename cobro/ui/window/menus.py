@@ -161,7 +161,7 @@ class MenusMixin:
             self.toast("Nothing to undo.")
             return
         self._after_history()
-        self.toast(f"Undid the last change to {what}.")
+        self.toast(f"Undid the last change to {what}.", "done")
 
     def redo(self) -> None:
         if self._text_can_undo(redo=True):
@@ -173,7 +173,7 @@ class MenusMixin:
             self.toast("Nothing to redo.")
             return
         self._after_history()
-        self.toast(f"Redid the change to {what}.")
+        self.toast(f"Redid the change to {what}.", "done")
 
     def _edit_menu_state(self) -> None:
         h = self.history
@@ -207,7 +207,7 @@ class MenusMixin:
                 lines.append("\t".join([inv.number, inv.client.name, total]))
         if lines:
             QApplication.clipboard().setText("\n".join(lines))
-            self.toast(f"Copied {len(lines)} invoice{'s' if len(lines) != 1 else ''}.")
+            self.toast(f"Copied {len(lines)} invoice{'s' if len(lines) != 1 else ''}.", "done")
 
     def select_all(self) -> None:
         if self._text_widget() is not None:

@@ -141,6 +141,8 @@ REVIEW_COL_W = (
 )  # the AI Review window's columns: Line, What, Now, Suggested (0: takes the room)
 REVIEW_W = 900
 TOAST_MAX_W = 520
+TOAST_RISE = 10  # how far a toast rises as it comes in
+TOAST_LIFT = SPACE_4  # its gap above the bottom of the page
 
 # ---------------------------------------------------------------- timing (ms)
 LIFT_STEP_MS = 16  # dragging a line item: how often the others move (about 60 a second)
@@ -152,6 +154,9 @@ SAVE_DELAY_MS = 400  # save this long after the last keystroke
 TABLE_DELAY_MS = 350  # refresh the table this long after an edit
 DRAW_DELAY_MS = 90  # redraw an open invoice page this long after the last change
 TOAST_MS = 3500  # how long a toast stays up
+TOAST_MS_PER_CHAR = 60  # …or longer, for a long one: time to read it
+TOAST_IN_MS = 220  # it rises and fades in…
+TOAST_OUT_MS = 180  # …and fades away
 UPDATE_CHECK_DELAY_MS = 1500  # the automatic update check, just after the window is up (every launch)
 UPDATE_WAIT_MS = 1500  # a found update waits this long between looks while another window is open
 QUIT_WAIT_MS = 1500  # how long quitting waits for a running web job, then goes anyway
@@ -203,6 +208,14 @@ DARK = {
     "GLASS_STROKE": "rgba(255, 255, 255, 0.10)",  # its one hairline: faintly lighter than the panel
     "GLASS_EDGE": "rgba(255, 255, 255, 0.18)",  # …a little brighter along the top, where light catches it
     "GLASS_SHADOW": "rgba(0, 0, 0, 0.35)",  # soft and wide
+    "TOAST": "#3A393C",  # a toast: a step lighter than the panels, so it stands out over anything
+    "TOAST_TEXT": "#F4F2F1",
+    "TOAST_EDGE": "rgba(255, 255, 255, 0.12)",
+    "TOAST_SHADOW": "rgba(0, 0, 0, 0.60)",  # …lifted by a deeper shadow than the panels'
+    "TOAST_DONE": "#4CC362",  # its icon: it worked (Paid's green)
+    "TOAST_PROBLEM": "#E9B949",  # …it didn't (amber: red means overdue or delete)
+    "TOAST_PROBLEM_FILL": "#4A3F25",  # a problem's toast is tinted amber, so it's never missed
+    "TOAST_PROBLEM_EDGE": "rgba(233, 185, 73, 0.45)",
     "FIELD": "rgba(255, 255, 255, 0.07)",  # a text field or dropdown: lightly frosted
     "FIELD_BORDER": "rgba(255, 255, 255, 0.08)",
     "BLOCK": "rgba(255, 255, 255, 0.045)",  # a card inside a glass panel: a soft tint, no outline
@@ -252,6 +265,14 @@ LIGHT = {
     "GLASS_STROKE": "rgba(0, 0, 0, 0.06)",  # a very faint gray hairline
     "GLASS_EDGE": "rgba(0, 0, 0, 0.04)",  # (fainter still along the top)
     "GLASS_SHADOW": "rgba(0, 0, 0, 0.08)",  # soft and wide
+    "TOAST": "#2C2C2E",  # dark on the white page: easy to spot
+    "TOAST_TEXT": "#FFFFFF",
+    "TOAST_EDGE": "rgba(255, 255, 255, 0.10)",
+    "TOAST_SHADOW": "rgba(0, 0, 0, 0.30)",
+    "TOAST_DONE": "#4CC362",  # (the dark look's: these sit on the dark toast)
+    "TOAST_PROBLEM": "#E9B949",
+    "TOAST_PROBLEM_FILL": "#4A3F25",
+    "TOAST_PROBLEM_EDGE": "rgba(233, 185, 73, 0.45)",
     "FIELD": "rgba(255, 255, 255, 1.0)",
     "FIELD_BORDER": "rgba(0, 0, 0, 0.10)",
     "BLOCK": "rgba(255, 255, 255, 0.85)",  # white cards on the gray glass

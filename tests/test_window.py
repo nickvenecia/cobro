@@ -117,6 +117,33 @@ def test_a_new_invoice_left_blank_goes_away(win, data_folder):
     assert len(win.history.undos) == steps - 1  # and it left no undo step
 
 
+def test_toasts(win):
+    import time
+
+    t = win.toaster
+    win.toast("Copied 3 invoices.", "done")
+    assert t.isVisible() and (t.text, t.tone) == ("Copied 3 invoices.", "done")
+    pill = t._pill.translated(t.pos().x(), t.pos().y())
+    area = win._toast_area()  # over the list, above the totals
+    assert area.contains(pill.toRect()) and pill.center().x() == pytest.approx(area.center().x(), abs=2)
+    win.toast("Something odd.", "sparkly")  # an unknown tone is plain news
+    assert t.tone == ""
+
+    def wait(ms):
+        stop = time.monotonic() + ms / 1000
+        while time.monotonic() < stop:
+            QApplication.processEvents()
+            time.sleep(0.01)
+
+    t.dismiss()
+    win.toast("Saved.", "done")  # a new one while the last fades away stays up
+    wait(500)
+    assert t.isVisible() and t.text == "Saved."
+    t.dismiss()
+    wait(500)
+    assert not t.isVisible()
+
+
 def test_the_invoice_window_and_its_dark_page(win, monkeypatch):
     from cobro.ui.dialogs.preview import PageDialog
 

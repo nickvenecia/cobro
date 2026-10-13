@@ -28,7 +28,7 @@ class PagesMixin:
         """Open an invoice (the one picked, by default) in its own window."""
         inv_id = inv_id or (self.panel.inv.id if self.panel.inv is not None else "")
         if inv_id not in self.lib.invoices:
-            self.toast("Pick an invoice first.")
+            self.toast("Pick an invoice first.", "problem")
             return
         self.flush()
         self.page_inv = inv_id
@@ -121,7 +121,7 @@ class PagesMixin:
             export.to_pdf(pages, path, title=f"Invoice {self._page_invoice().number}")
         except OSError as e:
             log.warning("PDF not saved", exc_info=True)
-            self.toast(str(e) or "Couldn't save the PDF.")
+            self.toast(str(e) or "Couldn't save the PDF.", "problem")
             return
         self._exported(path)
 
@@ -136,7 +136,7 @@ class PagesMixin:
             files = export.to_png(pages, path)
         except OSError as e:
             log.warning("PNG not saved", exc_info=True)
-            self.toast(str(e) or "Couldn't save the picture.")
+            self.toast(str(e) or "Couldn't save the picture.", "problem")
             return
         self._exported(files[0])
 
@@ -147,7 +147,7 @@ class PagesMixin:
         try:
             from PySide6.QtPrintSupport import QPrintDialog, QPrinter
         except ImportError:
-            self.toast("Printing isn't available here. Save a PDF and print that instead.")
+            self.toast("Printing isn't available here. Save a PDF and print that instead.", "problem")
             return
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         printer.setDocName(f"Invoice {self._page_invoice().number}")
@@ -158,9 +158,9 @@ class PagesMixin:
             export.print_pages(printer, pages)
         except OSError as e:
             log.warning("print failed", exc_info=True)
-            self.toast(str(e))
+            self.toast(str(e), "problem")
             return
-        self.toast("Sent to the printer.")
+        self.toast("Sent to the printer.", "done")
 
     def print_current(self) -> None:
         """⌘P: the invoice's window, ready to print (or print right away from inside it)."""
@@ -175,7 +175,7 @@ class PagesMixin:
         if inv is None or b is None:
             return
         QGuiApplication.clipboard().setText(document.summary_text(document.build(inv, b)))
-        self.toast("Copied. Paste it into an email or a message.")
+        self.toast("Copied. Paste it into an email or a message.", "done")
 
     def email_client(self) -> None:
         """A new email to the client with the summary in it; the saved PDF is shown, ready to drag in."""

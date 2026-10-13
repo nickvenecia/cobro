@@ -81,8 +81,10 @@ cobro/
   ui/
     style/         tokens.py (every number and color, DARK and LIGHT, the accent choices), theme.py (the
                    stylesheet, the SVG icons in _SVG, fonts)
-    components/    widgets.py, panels.py (LeftPanel, SidePanel), glass.py (backdrop, Dock), titlebar.py (Mac),
-                   worker.py (background jobs), empty.py (EmptyPage, StartTile), lift.py (drag to reorder)
+    components/    widgets.py (Disclosure, Section, fields…, Toast: MainWindow.toast(text, tone) with "done" /
+                   "problem" / "" for news), panels.py (LeftPanel, SidePanel), glass.py (backdrop, Dock),
+                   titlebar.py (Mac), worker.py (background jobs), empty.py (EmptyPage, StartTile), lift.py
+                   (drag to reorder)
     window/        main_window.py and its parts: menus.py, editing.py, pages.py (the page window, exports),
                    transfer.py (CSV, Back Up), services.py (settings, account, feedback, updates, light/dark),
                    ai.py, sidebar.py, tables.py, filters.py, common.py (places, status words and colors)

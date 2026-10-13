@@ -70,7 +70,7 @@ class EditingMixin:
         copy = self.lib.duplicate(src)
         self.refresh()
         self.open(copy.id)
-        self.toast(f"Made {copy.number} from {src.number}.")
+        self.toast(f"Made {copy.number} from {src.number}.", "done")
 
     def delete_invoices(self, ids: list[str]) -> None:
         """Delete one invoice or many (⌘A, Shift or ⌘-click, then Delete), after an alert that names them."""
@@ -99,7 +99,7 @@ class EditingMixin:
         if self.panel.inv is not None and self.panel.inv.id in {i.id for i in picked}:
             self.panel.inv = None
         self.go(self.view_key)
-        self.toast("Deleted it." if len(picked) == 1 else f"Deleted {len(picked)} invoices.")
+        self.toast("Deleted it." if len(picked) == 1 else f"Deleted {len(picked)} invoices.", "done")
 
     # ------------------------------------------------------------------ edits
     def _invoice_edited(self, inv: Invoice) -> None:
@@ -122,7 +122,7 @@ class EditingMixin:
                 self._dirty.discard(inv_id)
         except OSError:
             log.warning("couldn't save", exc_info=True)
-            self.toast("Couldn't save. Check that there's free space on this computer.")
+            self.toast("Couldn't save. Check that there's free space on this computer.", "problem")
         if self.history is not None:
             self.history.mark()
 
@@ -151,7 +151,7 @@ class EditingMixin:
         if d.deleted:
             self.lib.delete_client(d.client.id)
             log.info("deleted a client")
-            self.toast(f"Deleted {d.client.name}. Invoices you already made keep their details.")
+            self.toast(f"Deleted {d.client.name}. Invoices you already made keep their details.", "done")
             if inv is not None:
                 self.panel.refresh_clients()
         else:
@@ -159,7 +159,7 @@ class EditingMixin:
             if inv is not None and assign:
                 self.panel.use_client(client)  # saves through changed
             else:
-                self.toast(f"Saved {client.name}. Pick them under Bill To.")
+                self.toast(f"Saved {client.name}. Pick them under Bill To.", "done")
                 if inv is not None:
                     self.panel.refresh_clients()
         self.refresh()
@@ -230,4 +230,4 @@ class EditingMixin:
     def _defaults_saved(self, b: Business) -> None:
         self._dirty_businesses = True
         self.flush()
-        self.toast(f"New invoices from {b.name} will start with this payment text and terms.")
+        self.toast(f"New invoices from {b.name} will start with this payment text and terms.", "done")

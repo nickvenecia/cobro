@@ -123,4 +123,4 @@ class AIMixin:
             self.panel.load(self.panel.inv)
             self._draw_timer.start()
         self.refresh()
-        self.toast(f"Updated {n} line item{'s' if n != 1 else ''}. Undo (⌘Z) takes it back.")
+        self.toast(f"Updated {n} line item{'s' if n != 1 else ''}. Undo (⌘Z) takes it back.", "done")

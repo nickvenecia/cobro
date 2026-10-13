@@ -33,7 +33,7 @@ class TransferMixin:
         ids = set(self.table.show_only(self.search.text()))
         invoices = [inv for inv in self._showing() if inv.id in ids]
         if not invoices:
-            self.toast("No invoices to export.")
+            self.toast("No invoices to export.", "problem")
             return
         name = f"Cobro {self.title.text()} {dates.iso(dates.today())}.csv"
         path, _ = QFileDialog.getSaveFileName(
@@ -48,10 +48,10 @@ class TransferMixin:
             spreadsheet.write_csv(invoices, self.lib.businesses, p)
         except OSError:
             log.warning("CSV not saved", exc_info=True)
-            self.toast("Couldn't save the CSV.")
+            self.toast("Couldn't save the CSV.", "problem")
             return
         self.last_export = p
-        self.toast(f"Saved {p.name}.")
+        self.toast(f"Saved {p.name}.", "done")
 
     def back_up(self) -> None:
         """Save everything (invoices, clients, profiles, logos, settings) as one zip file."""
@@ -69,4 +69,4 @@ class TransferMixin:
         except OSError as e:
             notice(self, "Couldn't back up", str(e))
             return
-        self.toast("Backed up.")
+        self.toast("Backed up.", "done")

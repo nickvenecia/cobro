@@ -300,8 +300,7 @@ QCalendarWidget QToolButton:hover {{ background: {tokens.RAISED_HOVER}; border-r
 
 /* ---------- the assistant */
 
-/* ---------- popups, toasts */
-#Toast {{ background: {tokens.RAISED}; border: 1px solid {tokens.BORDER_STRONG}; border-radius: {RADIUS_LG}px; padding: {SPACE_2}px {SPACE_4}px; }}
+/* ---------- popups */
 QTextBrowser#Notes {{ background: {tokens.WELL}; color: {tokens.TEXT}; border: 1px solid {tokens.BORDER}; border-radius: {RADIUS}px;
     padding: {SPACE_2}px; }}
 QTextBrowser#WhatsNew {{ background: {tokens.FILL}; color: {tokens.TEXT}; border: none; border-radius: {RADIUS_LG}px; }}
@@ -321,6 +320,7 @@ QMenu::section {{ color: {tokens.FAINT}; padding: {SPACE_2}px {SPACE_2}px 0 {SPA
 # `{fill}` becomes the icon's color (filled dots), `{on}` the color on the accent.
 _SVG = {
     "alert": '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+    "info": '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
     "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
     "arrow-up": '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
     "assistant": '<path d="M5.49 16.46A8.5 8.5 0 1 1 7.75 18.36L5.2 19.7Z"/><path d="M9.3 8.2v1.4M14.7 8.2v1.4"/><path d="M8.9 12.6a4.4 4.4 0 0 0 6.2 0"/>',

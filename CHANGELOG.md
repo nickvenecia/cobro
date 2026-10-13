@@ -19,6 +19,7 @@
 - **Only what applies**: Discount, Deposit and Sales Tax show when an invoice has them (**+ Discount** adds one, × takes an empty one off), and a line item's details box appears once it has details (**+ Details**)
 - **Ways to start**: a page with nothing on it shows what you can do as tiles (Add Your Profile…, New Invoice, Clear Filters)
 - **Updates read better**: the update window shows what's new in plain words, straight from these notes
+- **Messages are easier to notice.** They float over your list, just above the totals, and rise in and fade away: a green check when something worked, an amber sign on an amber card when it didn't, and a dark card on the white page in the light look. Long ones stay up long enough to read, resting the pointer on one keeps it up, and they never get in the way of a click
 - A new invoice you leave without filling anything in isn't kept
 - Scrolling over a date or a dropdown never changes it
 - A name next to a logo no longer leaves an empty line above the tagline; the logo and name line up in the middle

@@ -109,6 +109,11 @@ def shots(out: Path, suffix: str) -> None:
     w.deselect()
     w.go("unpaid")
     shot(w, out / f"5-unpaid{suffix}.png")
+    w.toast("Saved Cobro Unpaid 2026-10-13.csv.", "done")
+    shot(w, out / f"13-toast{suffix}.png")
+    w.toast("Couldn't save the CSV. Check that there's free space on this computer.", "problem")
+    shot(w, out / f"13b-toast-problem{suffix}.png")
+    w.toaster.dismiss()
     w.go("all")
     for name, menu in (("6-filter-menu", w.view_menu.m), ("6b-share-menu", w.btn_export.menu())):
         menu.popup(w.mapToGlobal(w.rect().center()))

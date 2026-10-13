@@ -49,8 +49,10 @@ and keep the picture, and never load image files for UI icons. An icon on the ac
 window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NUM_FIELD_W`, `QTY_FIELD_W`,
 `LOGO_THUMB`, `PAGE_GAP`, `PAGE_SHADOW`, `DIALOG_W` (and `DIALOG_W_WIDE`, `DIALOG_W_XWIDE`), `PROFILE_DIALOG_H`,
 `PAGE_DIALOG_SIZE`, `ALERT_W`, `ALERT_ICON`, `REVIEW_W`, `REVIEW_COL_W`, `START_TILE_W`, `START_BADGE`, `NOTES_H`,
-`NOTES_LINE`, `GRIP_W`, `GRIP_GAP`, `GRIP_DOT`, `LIFT_STEP_MS`, `LIFT_EASE`, `LIFT_SHADOW_STEPS`, `WINDOW_SIZE`, `WINDOW_MIN`.
-Use these names, never the numbers.
+`NOTES_LINE`, `GRIP_W`, `GRIP_GAP`, `GRIP_DOT`, `LIFT_STEP_MS`, `LIFT_EASE`, `LIFT_SHADOW_STEPS`, `TOAST_MAX_W`,
+`TOAST_RISE`, `TOAST_LIFT`, `WINDOW_SIZE`, `WINDOW_MIN`. Timings too: `DOCK_MS`, `FADE_MS`, `SAVE_DELAY_MS`,
+`TABLE_DELAY_MS`, `DRAW_DELAY_MS`, `TOAST_MS` (and `TOAST_MS_PER_CHAR`, `TOAST_IN_MS`, `TOAST_OUT_MS`),
+`UPDATE_CHECK_DELAY_MS`, `UPDATE_WAIT_MS`, `QUIT_WAIT_MS`. Use these names, never the numbers.
 
 **Fonts:** one family, Inter (`looks.FONT`, shared with the paper), loaded once in `app.py`. Every size is a
 `TEXT_*` token and every weight a `WEIGHT_*` token; make a font with `theme.font(size, weight)`, never `QFont()` or
@@ -150,6 +152,8 @@ neutral gray.
 | `DIVIDER` / `DIVIDER_HOVER` / `DIVIDER_TEXT` | The table's month or client bands |
 | `GOOD` / `WARN` / `BAD` (+ `BAD_TINT`, `BAD_EDGE`) | Paid / sent and waiting / overdue, delete |
 | `PAPER` / `SHADOW` | The paper and its shadow in the page window |
+| `TOAST` / `TOAST_TEXT` / `TOAST_EDGE` / `TOAST_SHADOW` | A toast: a lighter card in dark, a dark card on the white page in light, so it's never missed |
+| `TOAST_DONE` / `TOAST_PROBLEM` (+ `_FILL`, `_EDGE`) | Its icon when something worked (Paid's green); when it didn't (amber icon on an amber-tinted toast) |
 
 - The accent means "selected" or "do this". **One** Primary button per view (Save PDF…, Save, Invoice…).
 - **Status reads at a glance**: Draft `MUTED`, Sent `WARN`, Overdue `BAD`, Paid `GOOD`
@@ -193,7 +197,7 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Drag to reorder | `lift.Grip` + `lift.StackLift` | The six dots on a line item (only with two or more): the item lifts onto a raised card with a soft shadow and an accent edge, the others ease apart (`LIFT_EASE` every `LIFT_STEP_MS`) to show its slot, the panel scrolls near its edges, Esc puts it back |
 | Long one-line text | `widgets.ElidedLabel` | Text that may not fit: cut short with "…", the full text in its tooltip |
 | Alert | `dialogs.common.Alert` (`confirm`, `notice`) | Every "are you sure", and every error that needs more than a toast |
-| Toast | `widgets.Toast` | A few words saying what just happened; never a question |
+| Toast | `widgets.Toast`, through `MainWindow.toast(text, tone)` | A few words saying what just happened, never a question: centred over the page just above the totals, it rises and fades in, the pointer resting on it keeps it, and it never takes a click (what's under it still works). `tone`: "done" (a green check: Copied, Saved, Deleted), "problem" (amber: it didn't work, and the words say what to do), or "" for news (an info sign: Nothing to undo) |
 | Wrapping row | `widgets.FlowLayout` | A row of + buttons that wraps onto a second line in a narrow panel |
 | Empty page | `empty.EmptyPage` | Where the table would be with nothing in it: only its start tiles, centred (no headline; the page title says where you are). Search and the filter hide while it shows |
 | Start tile | `empty.StartTile` (`#StartTile`) | Every way to begin on an empty page (Add Your Profile…, New Invoice with the place's sidebar icon, Clear Filters): a raised `RADIUS_LG` tile, its icon in a small tinted circle, a name and a few words, all centred |
