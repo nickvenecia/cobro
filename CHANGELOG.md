@@ -14,6 +14,7 @@
 - **Numbers per client** (optional): `JLF-NRTH-2026-001` or `NRTH-2026-001`, each client with its own count, picked under the profile's Number Style. A draft's number follows its client until you type your own
 - **Everything folds away**: every group on the right (and in your profile) folds, remembers how you left it, and says what's inside while folded. Line items fold to one row each, one open at a time; Duplicate, Move Up, Move Down and Remove are in each item's ⋯ menu
 - **The paper**: every invoice is set in Inter, with the invoice number in IBM Plex Mono. Invoices that used one of the older type styles now print in Inter too; their color, header, logo and paper size stay as you picked them. A new profile's paper starts in turquoise
+- **Only what applies**: Discount, Deposit and Sales Tax show when an invoice has them (**+ Discount** adds one, × takes an empty one off), and a line item's details box appears once it has details (**+ Details**)
 - A new invoice you leave without filling anything in isn't kept
 - Scrolling over a date or a dropdown never changes it
 - A name next to a logo no longer leaves an empty line above the tagline; the logo and name line up in the middle

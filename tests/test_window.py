@@ -538,3 +538,39 @@ def test_a_data_folder_from_cobro_1_opens_and_nothing_in_it_is_lost(qapp, data_f
     assert saved[0]["look"]["type_style"] == "classic" and saved[0]["look"]["color"] == "sage"
     settings = json.loads((data_folder / "settings.json").read_text(encoding="utf-8"))
     assert settings["splitter"] == "abc"  # settings the new window doesn't use are kept too
+
+
+def test_only_the_adjustments_an_invoice_has_show(win):
+    def on(w) -> bool:  # shown (the group they're in may be folded)
+        return not w.isHidden()
+
+    win.new_invoice()
+    p = win.panel
+    assert not any(on(part) for part in p.parts.values())
+    assert all(on(b) for b in p.add_parts.values())  # + Discount, + Deposit, + Sales Tax
+    p.add_parts["discount"].click()
+    part = p.parts["discount"]
+    assert on(part) and on(part.x) and not on(p.add_parts["discount"])
+    part.x.click()  # still empty: × takes it off again
+    assert not on(part) and on(p.add_parts["discount"])
+    p.add_parts["deposit"].click()
+    p.deposit.setText("500")
+    p.deposit.textEdited.emit("500")
+    assert p.inv.deposit == "500" and not on(p.parts["deposit"].x)  # it holds something now
+    inv = p.inv
+    win.deselect()
+    win.open(inv.id)
+    assert on(p.parts["deposit"]) and not on(p.parts["discount"])
+
+
+def test_a_line_items_details_show_once_it_has_some(win):
+    win.new_invoice()
+    ed = win.panel.items[0]
+    assert ed.is_open() and not ed.details.isVisibleTo(ed) and ed.add_details.isVisibleTo(ed)
+    ed.add_details.click()
+    assert ed.details.isVisibleTo(ed) and not ed.add_details.isVisibleTo(ed)
+    filled = next(i for i in win.lib.invoices.values() if i.items and i.items[0].details)
+    win.open(filled.id)
+    first = win.panel.items[0]
+    first.head.clicked.emit()
+    assert first.details.isVisibleTo(first) and not first.add_details.isVisibleTo(first)

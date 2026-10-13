@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
-from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QMenu, QToolButton, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QMenu, QPushButton, QToolButton, QWidget
 
 from cobro.core import dates, document, money
 from cobro.core.log import get_logger
@@ -34,6 +34,7 @@ from cobro.ui.components.widgets import (
     picker,
     qty_field,
     repolish,
+    section_label,
     set_combo,
     to_qdate,
     vbox,
@@ -52,6 +53,31 @@ STATUS_TIPS = {
     "sent": "Sent and waiting to be paid; Overdue once it's past due",
     "paid": "The money's in",
 }
+
+
+# the adjustments you add to an invoice: key (an Invoice field) -> label
+ADJUSTMENTS = {"discount": "Discount", "deposit": "Deposit Paid", "tax_rate": "Sales Tax %"}
+ADD_LABELS = {"discount": "Discount", "deposit": "Deposit", "tax_rate": "Sales Tax"}
+
+
+class _Part(Section):
+    """An adjustment on the invoice (Discount, Deposit Paid, Sales Tax %). It shows when it holds something or
+    you add it; an empty one has an × to take it off again."""
+
+    removed = Signal(str)
+
+    def __init__(self, key: str, title: str, field: QWidget, parent: QWidget | None = None):
+        super().__init__("", parent)
+        self.key = key
+        head = hbox(spacing=tokens.SPACE_1)
+        head.addWidget(section_label(title))
+        head.addStretch(1)
+        self.x = icon_button("x", f"Take {title.replace(' %', '')} off this invoice")
+        self.x.clicked.connect(lambda: self.removed.emit(self.key))
+        head.addWidget(self.x)
+        self.lay.addLayout(head)
+        self.lay.addWidget(field)
+        self.field = field
 
 
 class _ItemHead(QFrame):
@@ -114,9 +140,15 @@ class LineEditor(QFrame):
         self.desc = QLineEdit(item.description)
         self.desc.setPlaceholderText("What you did (Production, Edit…)")
         bl.addWidget(self.desc)
-        self.details = TextBox("Details (optional)")
+        self.details = TextBox("What's included, dates, hours")
         self.details.set_text(item.details)
         bl.addWidget(self.details)
+        self.add_details = add_chip("Details")
+        self.add_details.clicked.connect(self._show_details)
+        row = hbox()
+        row.addWidget(self.add_details)
+        row.addStretch(1)
+        bl.addLayout(row)
         row = hbox(spacing=tokens.SPACE_2)
         sec = Section("Qty")
         self.qty = qty_field(item.qty)
@@ -148,7 +180,15 @@ class LineEditor(QFrame):
     def is_open(self) -> bool:
         return self.body.isVisibleTo(self)
 
+    def _show_details(self) -> None:
+        self.details.show()
+        self.add_details.hide()
+        self.details.setFocus()
+
     def set_open(self, on: bool) -> None:
+        has = bool(self.item.details.strip())  # details show once there are some (or + Details is clicked)
+        self.details.setVisible(has)
+        self.add_details.setVisible(not has)
         self.body.setVisible(on)
         self.chevron.set_icon("chevron" if on else "chevron-right")
         self.head.setToolTip("Fold away" if on else "Show the details")
@@ -284,24 +324,29 @@ class InvoicePanel(DetailsBase):
         add_row.addStretch(1)
         g["items"].add(add_row)
 
-        # Adjustments
-        row = hbox(spacing=tokens.SPACE_2)
-        sec = Section("Discount")
+        # Adjustments: only the ones this invoice has (or you add)
         self.discount = MoneyField()
-        self.discount.setPlaceholderText("None")
-        sec.add(self.discount)
-        row.addWidget(sec, 1)
-        sec = Section("Deposit Paid")
         self.deposit = MoneyField()
-        self.deposit.setPlaceholderText("None")
-        sec.add(self.deposit)
-        row.addWidget(sec, 1)
-        g["adjustments"].add(row)
-        sec = Section("Sales Tax %")
         self.tax = QLineEdit()
-        self.tax.setPlaceholderText("None")
-        sec.add(self.tax)
-        g["adjustments"].add(sec)
+        self.tax.setPlaceholderText("8.25")
+        self.parts: dict[str, _Part] = {}
+        self.add_parts: dict[str, QPushButton] = {}
+        self._added: set[str] = set()  # added to this invoice but still empty
+        for key, field in (("discount", self.discount), ("deposit", self.deposit), ("tax_rate", self.tax)):
+            part = _Part(key, ADJUSTMENTS[key], field)
+            part.removed.connect(self._remove_part)
+            self.parts[key] = part
+            g["adjustments"].add(part)
+        add_row = hbox(spacing=tokens.SPACE_2)
+        for key in ADJUSTMENTS:
+            b = add_chip(ADD_LABELS[key])
+            b.clicked.connect(lambda _c=False, k=key: self._add_part(k))
+            self.add_parts[key] = b
+            add_row.addWidget(b)
+        add_row.addStretch(1)
+        self.add_row = QWidget()
+        self.add_row.setLayout(add_row)
+        g["adjustments"].add(self.add_row)
 
         # Payment && Terms
         sec = Section("How to Pay")
@@ -368,9 +413,9 @@ class InvoicePanel(DetailsBase):
         self.show_delivered.toggled.connect(self._toggle_delivered)
         self.delivered.dateChanged.connect(lambda q: self._edit("delivered", from_qdate(q)))
         self.add_item.clicked.connect(self._add_item)
-        self.discount.textEdited.connect(lambda t: self._edit("discount", self._plain(t)))
-        self.deposit.textEdited.connect(lambda t: self._edit("deposit", self._plain(t)))
-        self.tax.textEdited.connect(text("tax_rate"))
+        self.discount.textEdited.connect(lambda t: (self._edit("discount", self._plain(t)), self._parts()))
+        self.deposit.textEdited.connect(lambda t: (self._edit("deposit", self._plain(t)), self._parts()))
+        self.tax.textEdited.connect(lambda t: (self._edit("tax_rate", t), self._parts()))
         self.payment.edited.connect(lambda: self._edit("payment", self.payment.text()))
         self.terms.edited.connect(lambda: self._edit("terms", self.terms.text()))
         self.note.textEdited.connect(text("note"))
@@ -412,6 +457,8 @@ class InvoicePanel(DetailsBase):
         self.discount.set_value(inv.discount)
         self.deposit.set_value(inv.deposit)
         self.tax.setText(inv.tax_rate)
+        self._added = set()
+        self._parts()
         self.payment.set_text(inv.payment)
         self.terms.set_text(inv.terms)
         self.note.setText(inv.note)
@@ -558,6 +605,32 @@ class InvoicePanel(DetailsBase):
             self._open_only(self._add_editor(self.inv.items[0], self._currency()))
         self._positions()
         self._changed()
+
+    # ------------------------------------------------------------------ adjustments you add
+    def _has(self, key: str) -> bool:
+        return self.inv is not None and bool(str(getattr(self.inv, key)).strip())
+
+    def _parts(self) -> None:
+        """Show the adjustments this invoice has (or you added); offer the rest as + Discount and so on."""
+        missing = 0
+        for key, part in self.parts.items():
+            shown = self._has(key) or key in self._added
+            part.setVisible(shown)
+            part.x.setVisible(shown and not self._has(key))
+            self.add_parts[key].setVisible(not shown)
+            missing += not shown
+        self.add_row.setVisible(missing > 0)
+
+    def _add_part(self, key: str) -> None:
+        self._added.add(key)
+        self._parts()
+        self.parts[key].field.setFocus()
+
+    def _remove_part(self, key: str) -> None:
+        if self._has(key):
+            return
+        self._added.discard(key)
+        self._parts()
 
     # ------------------------------------------------------------------ edits
     def _changed(self) -> None:

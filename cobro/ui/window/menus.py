@@ -74,7 +74,7 @@ class MenusMixin:
         v.addSeparator()
         self.look_actions = {}
         looks = v.addMenu("Appearance")
-        for key, label in (("system", "Match the System"), ("light", "Light"), ("dark", "Dark")):
+        for key, label in (("system", "Match System"), ("light", "Light"), ("dark", "Dark")):
             a = looks.addAction(label)
             a.setCheckable(True)
             a.triggered.connect(lambda _c=False, k=key: self.set_look(k))
