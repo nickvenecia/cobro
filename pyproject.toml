@@ -13,7 +13,7 @@ authors = [{ name = "Nick Venecia" }]
 dependencies = ["PySide6-Essentials>=6.7", "certifi>=2024.2", "keyring>=25"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "pyinstaller>=6.10", "Pillow>=10.3"]
+dev = ["pytest>=8", "ruff>=0.17.0", "pyinstaller>=6.10", "Pillow>=10.3"]
 
 [project.scripts]
 saldo-cli = "saldo.cli:main"
