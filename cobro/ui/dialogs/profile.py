@@ -14,7 +14,8 @@ from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QLabel, QLineEdit, QPushButton, QWidget
 
 from cobro.core import numbering
-from cobro.core.dates import terms_label, today
+from cobro.core.billing import terms_label
+from cobro.core.dates import today
 from cobro.core.log import get_logger
 from cobro.core.looks import COLORS, CUSTOM, HEADERS, LOGO_SIZES, PAPERS, accent_of
 from cobro.core.model import TERMS_DAYS, Business

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from cobro.core import dates, document, money, update
+from cobro.core import billing, dates, document, money, update
 from cobro.core.history import History
 from cobro.core.log import get_logger
 from cobro.core.model import Business, Invoice
@@ -340,7 +340,7 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         today = dates.today()
         sums = {k: money.ZERO for k in ("unpaid", "overdue", "paid", "all")}
         for inv in invoices:
-            t = money.totals(inv)
+            t = billing.totals(inv)
             st = document.status_of(inv, today)
             sums["all"] += t.total
             if st in ("sent", "overdue"):

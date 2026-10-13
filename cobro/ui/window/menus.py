@@ -11,7 +11,7 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QPlainTextEdit, QTextEdit
 
 from cobro import __version__
-from cobro.core import money
+from cobro.core import billing, money
 from cobro.core.fileutil import reveal
 from cobro.core.paths import data_dir, log_dir
 from cobro.ui.dialogs.common import about
@@ -203,7 +203,7 @@ class MenusMixin:
             inv = self.lib.invoices.get(i)
             if inv is not None:
                 b = self.lib.businesses.get(inv.business_id)
-                total = money.fmt(money.totals(inv).total, (b.currency if b else "$") or "$")
+                total = money.fmt(billing.totals(inv).total, (b.currency if b else "$") or "$")
                 lines.append("\t".join([inv.number, inv.client.name, total]))
         if lines:
             QApplication.clipboard().setText("\n".join(lines))

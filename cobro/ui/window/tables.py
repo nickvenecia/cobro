@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from cobro.core import dates, document, money
+from cobro.core import billing, dates, document, money
 from cobro.core.model import Invoice
 from cobro.core.store import Library
 from cobro.ui.style import theme, tokens
@@ -381,9 +381,9 @@ class InvoiceTable(QTreeWidget):
         for inv in invoices:
             b = lib.businesses.get(inv.business_id)
             cur = (b.currency if b else "$") or "$"
-            t = money.totals(inv)
+            t = billing.totals(inv)
             tone = document.status_of(inv, today)
-            due = dates.due(inv.issued, inv.terms_days)
+            due = billing.due(inv.issued, inv.terms_days)
             who = inv.client.name.strip()
             parent = bands.get(key_of(inv), self)
             row = Row(parent)

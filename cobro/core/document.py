@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from cobro.core import dates, money
+from cobro.core import billing, dates, money
 from cobro.core.model import Business, Invoice
 
 
@@ -53,7 +53,7 @@ class InvoiceView:
 def status_of(inv: Invoice, today=None) -> str:
     """draft / sent / overdue / paid."""
     if inv.status == "sent":
-        due = dates.due(inv.issued, inv.terms_days)
+        due = billing.due(inv.issued, inv.terms_days)
         if due is not None and due < (today or dates.today()):
             return "overdue"
     return inv.status
@@ -61,8 +61,8 @@ def status_of(inv: Invoice, today=None) -> str:
 
 def build(inv: Invoice, b: Business, today=None) -> InvoiceView:
     sym = b.currency or "$"
-    t = money.totals(inv)
-    due = dates.due(inv.issued, inv.terms_days)
+    t = billing.totals(inv)
+    due = billing.due(inv.issued, inv.terms_days)
     issued = dates.fmt(dates.parse(inv.issued))
     due_s = dates.fmt(due)
 
@@ -90,7 +90,7 @@ def build(inv: Invoice, b: Business, today=None) -> InvoiceView:
         if it.is_blank():
             continue
         q, r = money.parse(it.qty), money.parse(it.rate)
-        amount = money.line_amount(it.qty, it.rate)
+        amount = billing.line_amount(it.qty, it.rate)
         rows.append(
             Row(
                 it.description.strip(),
@@ -137,7 +137,7 @@ def build(inv: Invoice, b: Business, today=None) -> InvoiceView:
         bill_lines=bill_lines,
         number=inv.number,
         issued=issued,
-        terms=dates.terms_label(inv.terms_days),
+        terms=billing.terms_label(inv.terms_days),
         due=due_s if inv.terms_days > 0 else "On Receipt",
         status=status,
         big_label=big_label,
@@ -157,7 +157,7 @@ def build(inv: Invoice, b: Business, today=None) -> InvoiceView:
         meta=[
             ("Invoice", inv.number),
             ("Issued", issued),
-            ("Terms", dates.terms_label(inv.terms_days)),
+            ("Terms", billing.terms_label(inv.terms_days)),
             ("Due", due_s if inv.terms_days > 0 else "On Receipt"),
         ],
     )

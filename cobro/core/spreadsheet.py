@@ -14,7 +14,7 @@ import tempfile
 from decimal import Decimal
 from pathlib import Path
 
-from cobro.core import dates, document, money
+from cobro.core import billing, dates, document
 from cobro.core.model import Business, Invoice
 
 COLUMNS = [
@@ -40,8 +40,8 @@ def rows(invoices: list[Invoice], businesses: dict[str, Business], today=None) -
     out = [COLUMNS]
     for inv in invoices:
         b = businesses.get(inv.business_id)
-        t = money.totals(inv)
-        due = dates.due(inv.issued, inv.terms_days)
+        t = billing.totals(inv)
+        due = billing.due(inv.issued, inv.terms_days)
         status = document.status_of(inv, today)
         out.append(
             [

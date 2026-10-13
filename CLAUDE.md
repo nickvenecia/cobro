@@ -49,8 +49,9 @@ cobro/
   core/            Invoices. No Qt imports.
     model.py       Business (a "profile" in the app, + Look), Client, LineItem, Invoice; from_dict() tolerates
                    old and new files
-    money.py       exact Decimal parsing / formatting, totals() (subtotal, discount, tax, deposit, balance)
-    dates.py       "Oct 10, 2026", due dates, terms labels (English on every computer)
+    billing.py     an invoice's totals() (subtotal, discount, tax, total, deposit, balance), due(), terms labels
+    money.py, dates.py   the shared helpers (the same files in every app; keep them that way): exact decimals
+                   (a typo too big to be real counts as 0), "Oct 10, 2026" on every computer
     numbering.py   PREFIX-YEAR-001 numbers (or one count per client: PREFIX-CODE-YEAR-001 / CODE-YEAR-001)
     looks.py       the paper: colors (default turquoise), headers, logo sizes, paper sizes, FONT (Inter) and MONO
                    (IBM Plex Mono, for the invoice number); resolve(Look, dark=) -> Resolved; LIGHT (every export)

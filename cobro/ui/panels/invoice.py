@@ -14,7 +14,7 @@ from dataclasses import replace
 from PySide6.QtCore import QDate, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QMenu, QPushButton, QToolButton, QWidget
 
-from cobro.core import dates, document, money
+from cobro.core import billing, dates, document, money
 from cobro.core.log import get_logger
 from cobro.core.model import STATUSES, TERMS_DAYS, Business, Client, Invoice, LineItem
 from cobro.core.store import Library
@@ -226,7 +226,7 @@ class LineEditor(QFrame):
         elif money.parse(self.item.rate) == 0:
             self.amount.setText("Included")
         else:
-            self.amount.setText(money.fmt(money.line_amount(self.item.qty, self.item.rate), self.currency))
+            self.amount.setText(money.fmt(billing.line_amount(self.item.qty, self.item.rate), self.currency))
 
 
 # ---------------------------------------------------------------------------- the panel
@@ -309,7 +309,7 @@ class InvoicePanel(DetailsBase):
         row.addWidget(sec, 1)
         g["invoice"].add(row)
         sec = Section("Payment Terms")
-        self.terms_days = combo([(str(d), dates.terms_label(d), "") for d in TERMS_DAYS], "15")
+        self.terms_days = combo([(str(d), billing.terms_label(d), "") for d in TERMS_DAYS], "15")
         sec.add(self.terms_days)
         g["invoice"].add(sec)
 
@@ -459,7 +459,7 @@ class InvoicePanel(DetailsBase):
         self.issued.setDate(to_qdate(inv.issued))
         set_combo(self.terms_days, str(inv.terms_days))
         if self.terms_days.currentData() != str(inv.terms_days):
-            self.terms_days.addItem(dates.terms_label(inv.terms_days), str(inv.terms_days))
+            self.terms_days.addItem(billing.terms_label(inv.terms_days), str(inv.terms_days))
             set_combo(self.terms_days, str(inv.terms_days))
         self.project.setText(inv.project)
         self.work_dates.setText(inv.work_dates)
@@ -808,7 +808,7 @@ class InvoicePanel(DetailsBase):
         g["invoice"].set_summary(f"{inv.number} · {STATUS_LABELS.get(document.status_of(inv), '')}")
         g["project"].set_summary(inv.project.strip())
         n = sum(1 for it in inv.items if not it.is_blank())
-        total = money.fmt(money.totals(inv).subtotal, self._currency())
+        total = money.fmt(billing.totals(inv).subtotal, self._currency())
         g["items"].set_summary(f"{n} {'item' if n == 1 else 'items'} · {total}" if n else "")
         n = sum(1 for v in (inv.discount, inv.deposit, inv.tax_rate) if money.parse(v))
         g["adjustments"].set_summary(f"{n} set" if n else "")

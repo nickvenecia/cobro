@@ -1,15 +1,13 @@
-"""Amounts and totals, in exact decimals (never floats, so cents always add up)."""
+"""Amounts in exact decimals (never floats, so cents always add up)."""
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
-
-from cobro.core.model import Invoice
 
 CENT = Decimal("0.01")
 ZERO = Decimal(0)
+LIMIT = Decimal("1e12")  # a trillion: anything bigger is a typo, and too big to round to the cent
 MINUS = "−"  # a real minus sign, the width of a digit
 
 
@@ -23,13 +21,17 @@ def parse(text: str | int | float | Decimal | None) -> Decimal:
     if s in ("", "-", ".", "-."):
         return ZERO
     try:
-        return Decimal(s)
+        d = Decimal(s)
     except InvalidOperation:
         return ZERO
+    return d if d.is_finite() and abs(d) < LIMIT else ZERO
 
 
 def cents(d: Decimal) -> Decimal:
-    return d.quantize(CENT, rounding=ROUND_HALF_UP)
+    try:
+        return d.quantize(CENT, rounding=ROUND_HALF_UP)
+    except InvalidOperation:  # too big to have cents (only reachable by building a Decimal by hand)
+        return ZERO
 
 
 def fmt(d: Decimal, symbol: str = "$") -> str:
@@ -51,25 +53,23 @@ def fmt_rate(text: str) -> str:
     return f"{fmt_qty(parse(text))}%"
 
 
-@dataclass(frozen=True)
-class Totals:
-    subtotal: Decimal
-    discount: Decimal
-    tax: Decimal
-    total: Decimal
-    deposit: Decimal
-    balance: Decimal
+def whole(d: Decimal) -> Decimal:
+    """Round to whole dollars (day rates read best that way)."""
+    try:
+        return d.quantize(Decimal(1), rounding=ROUND_HALF_UP)
+    except InvalidOperation:
+        return ZERO
 
 
-def line_amount(qty: str, rate: str) -> Decimal:
-    return cents(parse(qty) * parse(rate))
+def fmt_short(d: Decimal, symbol: str = "$") -> str:
+    """Whole amounts without cents: 24 -> "$24", 24.5 -> "$24.50"."""
+    d = cents(d)
+    if d == d.to_integral_value():
+        sign = MINUS if d < 0 else ""
+        return f"{sign}{symbol}{abs(int(d)):,}"
+    return fmt(d, symbol)
 
 
-def totals(inv: Invoice) -> Totals:
-    subtotal = sum((line_amount(i.qty, i.rate) for i in inv.items), ZERO)
-    discount = cents(max(ZERO, parse(inv.discount)))
-    taxable = max(ZERO, subtotal - discount)
-    tax = cents(taxable * max(ZERO, parse(inv.tax_rate)) / 100)
-    total = taxable + tax
-    deposit = cents(max(ZERO, parse(inv.deposit)))
-    return Totals(subtotal, discount, tax, total, deposit, total - deposit)
+def pct(text: str) -> Decimal:
+    """A percent as typed ("4", "8.25%") -> 0.04, 0.0825. Never negative."""
+    return max(ZERO, parse(text)) / 100

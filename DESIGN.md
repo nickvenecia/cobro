@@ -102,8 +102,7 @@ labels and the primary button, `WEIGHT_BOLD` 700 for the wordmark and page title
 | `RADIUS_LG` | 12 | Cards on the glass, line item boxes, alerts |
 | `GLASS_R` | 18 | The glass panels (sidebar, right panel, Settings' sidebar) |
 
-**Every list of choices looks the same as the sidebar and Settings**: menus, dropdown lists and type-ahead
-suggestions. The list's corners are `LIST_R` (= `GLASS_R`), rows sit `LIST_INSET` (10) inside it with corners
+**Every list of choices looks the same as the sidebar and Settings**: menus and dropdown lists. The list's corners are `LIST_R` (= `GLASS_R`), rows sit `LIST_INSET` (10) inside it with corners
 `LIST_ROW_R` (8, concentric), `LIST_ROW_H` (30) tall, `LIST_GAP` (2) apart. Hover is `CARD_HOVER`; the highlighted or
 picked row is `ACCENT_TINT` with its words and icon in `ACCENT_HOVER`. Never give a list its own sizes.
 `app._RoundPopups` makes every menu and dropdown window see-through, opens it just below its button with
@@ -149,7 +148,7 @@ neutral gray.
 | `ACCENT_TINT` / `ACCENT_EDGE` | Accent wash and outline (a picked list row, the filter while it's on) |
 | `CHIP` / `CHIP_HOVER` | "+ Add" capsules (Add Line Item, + Discount) |
 | `DIVIDER` / `DIVIDER_HOVER` / `DIVIDER_TEXT` | The table's month or client bands |
-| `GOOD` / `WARN` / `BAD` (+ `ON_GOOD`, `BAD_TINT`, `BAD_EDGE`) | Paid / sent and waiting / overdue, delete |
+| `GOOD` / `WARN` / `BAD` (+ `BAD_TINT`, `BAD_EDGE`) | Paid / sent and waiting / overdue, delete |
 | `PAPER` / `SHADOW` | The paper and its shadow in the page window |
 
 - The accent means "selected" or "do this". **One** Primary button per view (Save PDF…, Save, Invoice…).

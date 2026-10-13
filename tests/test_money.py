@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from cobro.core import money
+from cobro.core import billing, money
 from cobro.core.model import Invoice, LineItem
 
 
@@ -26,7 +26,7 @@ def test_formatting():
 
 def test_cents_add_up_exactly():
     inv = Invoice(items=[LineItem("a", "", "3", "0.10"), LineItem("b", "", "1", "0.20")])
-    assert money.totals(inv).total == Decimal("0.50")  # floats would give 0.5000000000000001
+    assert billing.totals(inv).total == Decimal("0.50")  # floats would give 0.5000000000000001
 
 
 def test_discount_tax_and_deposit():
@@ -39,7 +39,7 @@ def test_discount_tax_and_deposit():
         tax_rate="8.25",
         deposit="500",
     )
-    t = money.totals(inv)
+    t = billing.totals(inv)
     assert t.subtotal == Decimal("2700.00")
     assert t.tax == Decimal("206.25")  # 8.25% of 2,500
     assert t.total == Decimal("2706.25")
@@ -48,4 +48,10 @@ def test_discount_tax_and_deposit():
 
 def test_a_discount_bigger_than_the_work_never_goes_negative():
     inv = Invoice(items=[LineItem("x", "", "1", "100")], discount="500")
-    assert money.totals(inv).total == 0
+    assert billing.totals(inv).total == 0
+
+
+def test_a_number_too_big_to_be_real_counts_as_zero():
+    """A 40-digit rate (a stuck key, a paste gone wrong) used to crash rounding to the cent."""
+    assert money.parse("9" * 40) == 0 and money.fmt(money.parse("9" * 40)) == "$0.00"
+    assert billing.line_amount("1", "9" * 40) == 0
