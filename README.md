@@ -2,9 +2,9 @@
 
 <h1 align="center">cobro.</h1>
 <p align="center"><b>Make an invoice. Send it. Get paid.</b><br>
-Clean, good-looking invoices as PDFs, with your logo, your fonts and your colors. Runs on Mac, Windows and Linux.</p>
+Clean, good-looking invoices as PDFs, with your logo and your colors. Runs on Mac, Windows and Linux.</p>
 
-<p align="center"><img src="docs/screenshot.png" width="860" alt="Cobro: invoices on the left, details in the middle, the invoice on the right"></p>
+<p align="center"><img src="docs/screenshot.png" width="860" alt="Cobro: places on the left, your invoices in the middle, the one you picked on the right"></p>
 
 ---
 
@@ -28,34 +28,37 @@ Not sure which Mac you have? Apple menu → About This Mac: "Chip: Apple M…" m
 
 Everything comes bundled, fonts included. There's no Python or terminal needed.
 
-**Updates:** Cobro checks for a new version once a day. When there is one, an **Update to …** button appears under the invoice list: it shows what's new, downloads the right file for your computer, swaps it in and reopens Cobro. You can also use **⋯ → Check for Updates…** (or turn the daily check off there).
+**Updates:** Cobro checks for a new version once a day. When there is one, an **Update to …** button appears in the sidebar: it shows what's new, downloads the right file for your computer, swaps it in and reopens Cobro. You can also click your profile at the bottom of the sidebar → **Check for Updates…**, or turn the daily check off in **Settings › General**.
 
 ## What it does
+
+**Everything in one window.** On the left, where you are: All Invoices, Drafts, Unpaid and Paid. In the middle, all your invoices in one table, by month or by client, with what's unpaid, overdue and paid added up underneath. Click one and it opens on the right, ready to edit. It saves itself as you type.
 
 **Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`JLF-2026-001`, `JLF-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
 
 **Numbers your way.** One count for all your invoices (`JLF-2026-001`), or a separate count for each client with their code in it (`JLF-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
 
-**Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date, line items with details, quantities and rates (a rate of 0 prints as *Included*), discount, sales tax and a deposit already paid.
+**Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date, line items with details, quantities and rates (a rate of 0 prints as *Included*), and, only when you add them, a discount, sales tax and a deposit already paid.
 
 **Make it look like yours:**
 - **Logo** (PNG, JPG or SVG), in three sizes, with or without your name next to it
-- **Type styles**: Modern, Clean, Classic, Editorial, **Screenplay** (typed like a script page), Poster and Technical, or pick any two fonts yourself, including fonts installed on your computer
-- **Colors**: Ink Blue, Turquoise, Marigold, Oxblood, Sage, Plum, Graphite, or any color you pick
+- **Paper color**: Turquoise, Ink Blue, Marigold, Oxblood, Sage, Plum or Graphite, on the amount due, the balance and the header
 - **Header**: clean, or a full color band
 - **Paper**: Letter or A4
 
-The preview on the right is exactly what gets exported, and changes the moment you do.
+Every invoice is set in Inter, with the invoice number in IBM Plex Mono, so it looks the same on every computer.
 
-**Send it out:** **Save PDF…** (fonts embedded, text selectable, small files), **Print…**, **Save as PNG…**, or **Copy as Text** to paste into an email.
+**Send it out:** **Invoice…** opens the page exactly as it prints, with **Save PDF…** (fonts embedded, text selectable, small files), **Print…**, **Save as PNG…**, **Copy as Text** and **Email Client**. The moon turns on a **Dark Page** that's easier on the eyes; PDFs and prints always come out on white paper.
 
-**Keep track:** each invoice is a Draft, Sent or Paid (with the date it was paid). Sent invoices past their due date show as **Overdue**. The bottom of the list shows what's still unpaid and what came in this year. Filter the list to see only what's unpaid, overdue, drafts or paid. Right-click an invoice to **duplicate** it for the next job.
+**Keep track:** each invoice is a Draft, Sent or Paid (with the date it was paid). Sent invoices past their due date show as **Overdue**, in red. Filter by status, profile or year, search, and pick many at once. **Export as CSV…** gives you a spreadsheet of what's showing, for your bookkeeping or your taxes. Right-click an invoice to **duplicate** it for the next job. **⌘Z** undoes the last change.
 
-**More than one profile?** Add as many as you like (your own name, your production company…) and pick one under **From**. Each has its own details, logo, numbering and look.
+**More than one profile?** Add as many as you like (your own name, your production company…) in **Settings › Profiles** and pick one under **From**. Each has its own details, logo, numbering and paper.
 
-**Tidy while you work.** Every part of the details panel folds away and says what's inside. Line items fold to one row each (move, duplicate or remove them from their **⋯** menu). The moon above the preview turns on a **Dark Page** that's easier on the eyes; PDFs and prints always come out on white paper.
+**AI, if you want it.** Bring your own key (Anthropic, OpenAI, Google Gemini, Kimi, OpenRouter, DeepSeek, Mistral, xAI, Groq, or a model on your own computer) in **Settings › AI**. The assistant (⌘J) tidies up an invoice's line items or answers questions about them. Only the line items' words are sent, never amounts or clients, and nothing changes until you approve it. Your key stays in your computer's keychain.
 
-**Your data stays yours.** Invoices are saved as small files on your computer only, as you type. Nothing is uploaded. Long invoices flow onto more pages on their own.
+**Light or dark**, as your computer is set, or pick one in **Settings › General**, with the accent color of your choice.
+
+**Your data stays yours.** Invoices are saved as small files on your computer only. Nothing is uploaded. **Back Up…** saves everything as one zip file. Long invoices flow onto more pages on their own.
 
 ## Run from source
 
@@ -82,6 +85,9 @@ To get rid of the "can't check this app" warning you need an Apple Developer acc
 
 ## Changing the icon
 Run `python scripts/make_icon.py`, or replace `cobro/assets/icon.png` with a 1024×1024 PNG (transparent corners). The Mac and Windows icons are generated from it at build time.
+
+## Security
+Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.
 
 ## License
 Copyright © Nick Venecia.
