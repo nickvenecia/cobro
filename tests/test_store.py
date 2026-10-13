@@ -42,6 +42,8 @@ def test_new_invoices_start_from_the_business(data_folder):
     assert (first.number, second.number) == ("LHP-2026-001", "LHP-2026-002")
     assert second.terms_days == 30 and second.tax_rate == "8.25"
     assert second.payment == b.payment and second.issued == "2026-10-11"
+    assert second.delivered == ""  # not every job is a delivery: Show Delivery Date adds one
+    assert "delivered" not in b.terms
 
 
 def test_duplicate_is_a_fresh_draft(data_folder):

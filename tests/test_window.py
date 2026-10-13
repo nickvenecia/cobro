@@ -3,12 +3,15 @@ window, undo, filters, Settings, light and dark."""
 
 from __future__ import annotations
 
-import pytest
-from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QWheelEvent
-from PySide6.QtWidgets import QApplication
+from contextlib import contextmanager
 
-from saldo.core import sample
+import pytest
+from PySide6.QtCore import QPoint, QPointF, Qt, QThread, QTimer
+from PySide6.QtGui import QContextMenuEvent, QWheelEvent
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QWidget
+
+from saldo.core import dates, sample
 from saldo.core.model import Client, LineItem
 from saldo.core.store import Library
 
@@ -55,6 +58,51 @@ def row_of(w, inv_id: str):
     return next(r for r in w.table.rows() if r.data(0, Qt.ItemDataRole.UserRole) == inv_id)
 
 
+def when_open(kind, do) -> None:
+    """`do(window)` once a window of this kind shows (it may open from inside a click and wait there)."""
+    tries = [500]
+
+    def look() -> None:
+        shown = [w for w in QApplication.topLevelWidgets() if isinstance(w, kind) and w.isVisible()]
+        if shown:
+            do(shown[0])
+        elif tries[0]:
+            tries[0] -= 1
+            QTimer.singleShot(10, look)
+
+    QTimer.singleShot(0, look)
+
+
+def wait_for(done, ms: int = 5000) -> None:
+    for _ in range(ms // 10):
+        if done():
+            return
+        QTest.qWait(10)
+    raise AssertionError("never happened")
+
+
+@contextmanager
+def still_there_after(widget: QWidget):
+    """A click on `widget` may open a window or a menu; anything that window throws away while it's open is
+    gone before the click is over. If that's `widget` itself, Saldo crashes (on a Mac, at once). Fails if it
+    happens during the `with`."""
+    start = QThread.currentThread().loopLevel()
+    thrown = []
+    original = QWidget.deleteLater
+
+    def delete_later(w: QWidget) -> None:
+        if QThread.currentThread().loopLevel() > start and (w is widget or w.isAncestorOf(widget)):
+            thrown.append(type(widget).__name__)
+        original(w)
+
+    QWidget.deleteLater = delete_later
+    try:
+        yield
+    finally:
+        QWidget.deleteLater = original
+    assert not thrown, f"the {thrown[0]} was thrown away in the middle of its own click"
+
+
 def test_first_launch_asks_for_your_profile(qapp, data_folder):
     from saldo.ui.window.main_window import MainWindow
 
@@ -64,6 +112,55 @@ def test_first_launch_asks_for_your_profile(qapp, data_folder):
     assert not w.search.isVisibleTo(w) and not w.view_menu.isVisibleTo(w)  # nothing to search yet
     assert not w.dock.opened and w.panel.inv is None
     w.shutdown()
+
+
+def test_adding_your_first_profile_from_its_tile(qapp, data_folder):
+    """Add Your Profile… opens Settings; saving there swaps the tile for New Invoice. That used to crash."""
+    from saldo.ui.dialogs.settings import SettingsDialog
+    from saldo.ui.window.main_window import MainWindow
+
+    w = MainWindow(Library(data_folder).load())
+    w._restored = True
+    w.show()
+    tile = w.empty.tiles[0]
+
+    def add(settings) -> None:
+        settings.profile_editor.name.setText("Juniper Lane Films")
+        settings.profile_editor.save.click()
+        settings.close()
+
+    when_open(SettingsDialog, add)
+    with still_there_after(tile):
+        QTest.mouseClick(tile, Qt.MouseButton.LeftButton)
+    wait_for(lambda: w.panel.inv is not None)
+    assert [b.name for b in Library(data_folder).load().businesses.values()] == ["Juniper Lane Films"]
+    assert w.empty.titles() == ["New Invoice"] and w.dock.opened  # and the first invoice is open
+    w.shutdown()
+
+
+def test_deleting_a_client_from_their_row_in_the_sidebar(win, monkeypatch, data_folder):
+    """Right-click › Delete Client… takes away the very row that was right-clicked. That used to crash."""
+    from PySide6.QtWidgets import QMenu
+
+    from saldo.ui.window import editing
+
+    monkeypatch.setattr(editing, "confirm", lambda *a, **k: True)
+    mesa = win.lib.find_client("Mesa Coffee Co.")
+    row = win.sidebar.rows[f"client:{mesa.id}"]
+
+    def delete(menu) -> None:
+        next(a for a in menu.actions() if a.text() == "Delete Client…").trigger()
+        menu.close()
+
+    when_open(QMenu, delete)
+    at = row.rect().center()
+    with still_there_after(row):
+        QApplication.sendEvent(
+            row, QContextMenuEvent(QContextMenuEvent.Reason.Mouse, at, row.mapToGlobal(at))
+        )
+    wait_for(lambda: mesa.id not in win.lib.clients)
+    assert mesa.id not in Library(data_folder).load().clients
+    assert f"client:{mesa.id}" not in win.sidebar.rows
 
 
 def test_sidebar_places_and_counts(win):
@@ -222,6 +319,54 @@ def test_scrolling_never_changes_a_date_or_dropdown(win):
     wheel(win.panel.issued)
     wheel(win.panel.terms_days)
     assert win.panel.issued.date() == issued and win.panel.terms_days.currentData() == terms
+
+
+def test_dates_are_picked_in_a_calendar_never_typed(win, data_folder):
+    from PySide6.QtCore import QDate
+
+    p = win.panel
+    win.open(win.lib.ordered()[0].id)
+    inv = p.inv
+    issued = p.issued
+    before = inv.issued
+    QTest.keyClicks(issued, "2027")  # typing does nothing
+    assert inv.issued == before and issued.words.full_text() == dates.fmt_day(dates.parse(before))
+    QTest.mouseClick(issued, Qt.MouseButton.LeftButton)  # a click anywhere on it opens the calendar
+    cal = issued.popup
+    assert cal is not None and cal.isVisible() and cal.cal.selectedDate() == issued.date()
+    cal.cal.clicked.emit(QDate(2026, 10, 2))  # a day, picked
+    assert inv.issued == "2026-10-02" and issued.words.full_text() == "Fri, Oct 2, 2026"
+    wait_for(lambda: issued.popup is None)  # and the calendar is gone
+    QTest.keyClick(issued, Qt.Key.Key_Space)  # the keyboard opens it too; Esc puts it away unchanged
+    QTest.keyClick(issued.popup.cal, Qt.Key.Key_Escape)
+    wait_for(lambda: issued.popup is None)
+    assert inv.issued == "2026-10-02"
+
+
+def test_work_dates_are_two_days_picked_in_a_calendar(win, data_folder):
+    from PySide6.QtCore import QDate
+
+    p = win.panel
+    win.open(win.lib.ordered()[0].id)
+    inv = p.inv
+    inv.work_dates = "Sep 26–27, 2026"
+    p.load(inv)
+    assert p.show_work.isChecked() and not p.work_typed.isVisibleTo(p)
+    assert (p.work_first.date(), p.work_last.date()) == (QDate(2026, 9, 26), QDate(2026, 9, 27))
+    p.work_last.setDate(QDate(2026, 10, 2))
+    assert inv.work_dates == "Sep 26 – Oct 2, 2026"
+    p.work_first.setDate(QDate(2026, 10, 5))  # after the last day: the last day follows
+    assert inv.work_dates == "Oct 5, 2026" and p.work_last.date() == QDate(2026, 10, 5)
+    p.show_work.setChecked(False)
+    assert inv.work_dates == "" and not p.work_days.isVisibleTo(p)
+    inv.work_dates = "Sep 26, 27 and Oct 2"  # typed in an older Saldo: shown and printed as it is
+    p.load(inv)
+    assert p.work_typed.isVisibleTo(p) and p.work_typed.full_text() == "Sep 26, 27 and Oct 2"
+    assert inv.work_dates == "Sep 26, 27 and Oct 2"
+    p.work_first.setDate(QDate(2026, 9, 26))  # until you pick days
+    assert not p.work_typed.isVisibleTo(p) and inv.work_dates.startswith("Sep 26")
+    win.flush()
+    assert Library(data_folder).load().invoices[inv.id].work_dates == inv.work_dates
 
 
 def test_every_group_folds_and_is_remembered(qapp, data_folder):
@@ -384,20 +529,29 @@ def test_a_new_client_is_kept_once_it_has_a_name(win, data_folder):
     n = len(lib.clients)
     win.new_client()  # ⇧⌘N, the sidebar's +, or the round + in All Clients
     cp = win.client_panel
-    assert win.on_clients() and win.dock.opened and cp.fresh and not cp.new_inv.isEnabled()
+    assert win.on_clients() and win.dock.opened and cp.fresh
+    assert cp.save_btn.isVisibleTo(cp) and not cp.save_btn.isEnabled()  # Save Client, once it has a name
+    assert not cp.new_inv.isVisibleTo(cp)
     win.deselect()  # left without a name: nothing kept
     assert len(lib.clients) == n
     win.new_client()
     cp.name.textEdited.emit("Sol Studio")
     cp.contact.textEdited.emit("Ana")
-    win.flush()
+    assert cp.save_btn.isEnabled()
+    win.flush()  # kept as you type all the same: nothing's lost if you click away
     saved = lib.find_client("Sol Studio")
-    assert saved is not None and saved.contact == "Ana" and not cp.fresh and cp.new_inv.isEnabled()
+    assert saved is not None and saved.contact == "Ana" and not cp.fresh
     assert Library(data_folder).load().find_client("Sol Studio") is not None
-    win.refresh()
+    assert cp.save_btn.isVisibleTo(cp)  # still making it: Save Client stays until it's clicked
+    cp.email.textEdited.emit("ana@sol.example")
+    cp.save_btn.click()
+    assert Library(data_folder).load().find_client("Sol Studio").email == "ana@sol.example"
+    assert not cp.save_btn.isVisibleTo(cp) and cp.new_inv.isVisibleTo(cp) and cp.new_inv.isEnabled()
     assert f"client:{saved.id}" in win.sidebar.rows and win.sidebar.rows[f"client:{saved.id}"].property(
         "selected"
     )
+    win.open_client(lib.find_client("Mesa Coffee Co.").id)  # a saved client: New Invoice, never Save Client
+    assert not cp.save_btn.isVisibleTo(cp) and cp.new_inv.isVisibleTo(cp)
 
 
 def test_a_new_invoice_for_a_client_and_deleting_one(win, monkeypatch, data_folder):

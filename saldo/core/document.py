@@ -6,7 +6,9 @@ out); doc/render.py only places them. Keeping this here means it's tested withou
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from datetime import date
 
 from saldo.core import billing, dates, money
 from saldo.core.model import Business, Invoice
@@ -48,6 +50,51 @@ class InvoiceView:
     footer: str
     logo: str = ""
     meta: list[tuple[str, str]] = field(default_factory=list)  # the strip: Invoice / Issued / Terms / Due
+
+
+_MONTH = r"([A-Za-z]{3,9})"
+_DAY = r"(\d{1,2})"
+_YEAR = r"(\d{4})"
+_TO = r"\s*[–—-]\s*"
+_SPANS = [  # each as dates.span writes it, its parts in the order (first month, day, year, last month, day, year)
+    (re.compile(rf"{_MONTH} {_DAY}, {_YEAR}"), (0, 1, 2, 0, 1, 2)),  # Sep 26, 2026
+    (re.compile(rf"{_MONTH} {_DAY}{_TO}{_DAY}, {_YEAR}"), (0, 1, 3, 0, 2, 3)),  # Sep 26–27, 2026
+    (
+        re.compile(rf"{_MONTH} {_DAY}{_TO}{_MONTH} {_DAY}, {_YEAR}"),
+        (0, 1, 4, 2, 3, 4),
+    ),  # Sep 30 – Oct 2, 2026
+    (
+        re.compile(rf"{_MONTH} {_DAY}, {_YEAR}{_TO}{_MONTH} {_DAY}, {_YEAR}"),
+        (0, 1, 2, 3, 4, 5),
+    ),  # … – Jan 2, 2027
+]
+
+
+def _month(word: str) -> int:
+    """ "Sep" or "September" -> 9 (0 if it isn't a month)."""
+    w = word.casefold()
+    for n, name in enumerate(dates.MONTH_NAMES, start=1):
+        if len(w) >= 3 and name.casefold().startswith(w):
+            return n
+    return 0
+
+
+def work_days(text: str) -> tuple[date, date] | None:
+    """The first and last day of work dates as dates.span writes them ("Sep 26–27, 2026", "Sep 30 – Oct 2,
+    2026", "Dec 30, 2026 – Jan 2, 2027", "Sep 26, 2026"), or None for words typed in an older Saldo."""
+    t = " ".join(text.split())
+    for pattern, order in _SPANS:
+        m = pattern.fullmatch(t)
+        if m is None:
+            continue
+        g = m.groups()
+        try:
+            first = date(int(g[order[2]]), _month(g[order[0]]), int(g[order[1]]))
+            last = date(int(g[order[5]]), _month(g[order[3]]), int(g[order[4]]))
+        except ValueError:  # not a month, or a day it doesn't have
+            return None
+        return (first, last) if first <= last else None
+    return None
 
 
 def status_of(inv: Invoice, today=None) -> str:

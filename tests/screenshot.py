@@ -74,6 +74,13 @@ def shots(out: Path, suffix: str) -> None:
     w.open(first.id)
     wait()
     shot(w, out / f"3-invoice-open{suffix}.png")
+    w.panel.show_work.setChecked(True)  # work days, picked
+    w.panel.scroll.verticalScrollBar().setValue(w.panel.groups["project"].y())
+    shot(w, out / f"3b-project{suffix}.png")
+    w.panel.issued.open_calendar()  # the calendar every date opens
+    shot(w.panel.issued.popup, out / f"3c-calendar{suffix}.png")
+    w.panel.issued.popup.close()
+    w.panel.scroll.verticalScrollBar().setValue(0)
     w.panel.items[0].set_open(True)
     w.panel.groups["adjustments"].set_open(True)
     wait()

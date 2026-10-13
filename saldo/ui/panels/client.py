@@ -5,6 +5,9 @@ Every part folds away (Contact, Invoice Numbers, Invoices), each fold remembered
 what's inside. Invoice Numbers shows only while one of your profiles counts numbers per client. Edits go into
 the panel's own copy and fire `changed` once the client can be kept (a name, and not another client's); the
 window saves it, and drafts billed to them follow. Invoices you already sent keep what they said.
+
+Across the bottom: Save Client while you're making a new client (it's kept as you type all the same, so
+nothing's lost if you click away), then New Invoice once it's saved.
 """
 
 from __future__ import annotations
@@ -82,6 +85,7 @@ class ClientPanel(DetailsBase):
     }
 
     changed = Signal(object)  # Client, ready to keep
+    save_wanted = Signal()  # Save Client, under a new client
     open_invoice = Signal(str)  # invoice id
     new_invoice_wanted = Signal(str)  # client id
     delete_wanted = Signal(str)
@@ -91,8 +95,12 @@ class ClientPanel(DetailsBase):
         self.lib = lib
         self.c: Client | None = None  # the panel's own copy; the library's is replaced when it's saved
         self.fresh = False  # a new client, not kept until it has a name
+        self.making = False  # a new client, until Save Client (or another client opens)
         g = self.groups
         self.more.setToolTip("New invoice, delete")
+        self.save_btn = self.footer_button("Save Client", "check")
+        self.save_btn.setToolTip("Keep this client, to bill them now or pick them under Bill To")
+        self.save_btn.clicked.connect(self.save_wanted.emit)
         self.new_inv = self.footer_button("New Invoice", "plus")
         self.new_inv.setToolTip("An invoice billed to this client")
         self.new_inv.clicked.connect(lambda: self.c and self.new_invoice_wanted.emit(self.c.id))
@@ -167,6 +175,7 @@ class ClientPanel(DetailsBase):
         self._loading = True
         self.c = replace(c)
         self.fresh = fresh
+        self.making = fresh
         self.show_form()
         self.name.setText(c.name)
         self.contact.setText(c.contact)
@@ -183,6 +192,11 @@ class ClientPanel(DetailsBase):
         self.fresh = False
         self._check()
         self.refresh_invoices()
+
+    def saved(self) -> None:
+        """Save Client: done making this one. New Invoice takes its place across the bottom."""
+        self.making = False
+        self._check()
 
     def refresh_invoices(self) -> None:
         """The client's invoices and what they add up to (after any invoice changes)."""
@@ -231,7 +245,7 @@ class ClientPanel(DetailsBase):
             return
         other = self._taken()
         if not c.name.strip():
-            text = "Type a name to keep this client." if self.fresh else "A client needs a name to be saved."
+            text = "Type a name to save this client." if self.fresh else "A client needs a name to be saved."
         elif other is not None:
             text = f"{other.name} is already one of your clients."
         else:
@@ -239,6 +253,9 @@ class ClientPanel(DetailsBase):
         self.name_hint.setText(text)
         self.name_hint.setVisible(bool(text))
         self.code.setPlaceholderText(numbering.client_code(c.name))
+        self.save_btn.setVisible(self.making)
+        self.save_btn.setEnabled(self.can_save())
+        self.new_inv.setVisible(not self.making)
         self.new_inv.setEnabled(not self.fresh)
         g = self.groups
         g["contact"].set_summary(c.email.strip() or c.contact.strip())

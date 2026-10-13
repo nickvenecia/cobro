@@ -293,18 +293,19 @@ QPlainTextEdit#Field {{ background: {tokens.FIELD}; border: 1px solid {tokens.FI
     selection-background-color: {tokens.ACCENT}; selection-color: {tokens.ON_ACCENT}; }}
 QPlainTextEdit#Field:hover {{ border-color: {tokens.BORDER_HOVER}; }}
 QPlainTextEdit#Field:focus {{ border-color: {tokens.ACCENT}; }}
-QPlainTextEdit#Field:disabled, QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled {{ color: {tokens.FAINT}; border-color: {tokens.BORDER}; }}
-QDateEdit {{ background: {tokens.FIELD}; border: 1px solid {tokens.FIELD_BORDER}; border-radius: {RADIUS}px;
-    padding: 0 {SPACE_3}px; min-height: {_INNER}px; max-height: {_INNER}px;
-    selection-background-color: {tokens.ACCENT}; selection-color: {tokens.ON_ACCENT}; }}
-QDateEdit:hover {{ border-color: {tokens.BORDER_HOVER}; }}
-QDateEdit:focus {{ border-color: {tokens.ACCENT}; }}
-QDateEdit::drop-down {{ border: none; width: {SPACE_5}px; }}
-QDateEdit::down-arrow {{ image: url(__CHEVRON__); width: {SPACE_3}px; height: {SPACE_3}px; }}
+QPlainTextEdit#Field:disabled, QLineEdit:disabled, QComboBox:disabled, #DateField:disabled {{ color: {tokens.FAINT}; border-color: {tokens.BORDER}; }}
+#DateField {{ background: {tokens.FIELD}; border: 1px solid {tokens.FIELD_BORDER}; border-radius: {RADIUS}px; }}
+#DateField:hover {{ border-color: {tokens.BORDER_HOVER}; }}
+#DateField:focus, #DateField[open="true"] {{ border-color: {tokens.ACCENT}; }}
+#DateWords {{ color: {tokens.TEXT}; }}
+#DateWords:disabled {{ color: {tokens.FAINT}; }}
+#CalendarCard {{ background: {tokens.RAISED}; border: 1px solid {tokens.BORDER_STRONG}; border-radius: {tokens.LIST_R}px; }}
+#CalendarCard QToolButton#IconBtn:hover {{ background: {tokens.RAISED_HOVER}; }}
+#CalendarTitle {{ font-weight: {WEIGHT_SEMIBOLD}; }}
 QCalendarWidget QWidget {{ background: {tokens.RAISED}; color: {tokens.TEXT}; }}
-QCalendarWidget QAbstractItemView {{ background: {tokens.CARD}; selection-background-color: {tokens.ACCENT}; selection-color: {tokens.ON_ACCENT}; }}
-QCalendarWidget QToolButton {{ background: transparent; border: none; padding: {SPACE_1}px {SPACE_2}px; font-weight: {WEIGHT_SEMIBOLD}; }}
-QCalendarWidget QToolButton:hover {{ background: {tokens.RAISED_HOVER}; border-radius: {RADIUS_SM}px; }}
+QCalendarWidget QAbstractItemView {{ background: {tokens.RAISED}; alternate-background-color: {tokens.RAISED};
+    outline: none; selection-background-color: {tokens.ACCENT}; selection-color: {tokens.ON_ACCENT}; }}
+QCalendarWidget QAbstractItemView:disabled {{ color: {tokens.FAINT}; }}
 #LogoThumb {{ background: {tokens.PAPER}; border: 1px solid {tokens.BORDER_STRONG}; border-radius: {RADIUS_SM}px; }}
 
 /* ---------- the invoice's own window */
