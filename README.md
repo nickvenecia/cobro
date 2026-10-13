@@ -42,7 +42,7 @@ Everything comes bundled, fonts included. There's no Python or terminal needed.
 
 **Make it look like yours:**
 - **Logo** (PNG, JPG or SVG), in three sizes, with or without your name next to it
-- **Paper color**: Turquoise, Ink Blue, Marigold, Oxblood, Sage, Plum or Graphite, on the amount due, the balance and the header
+- **Paper color**: Turquoise, Ink Blue, Amber, Oxblood, Sage, Plum or Graphite, on the amount due, the balance and the header
 - **Header**: clean, or a full color band
 - **Paper**: Letter or A4
 

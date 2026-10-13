@@ -1,6 +1,6 @@
 """A release's notes: this version's part of CHANGELOG.md, then the table of downloads.
 
-    python scripts/release_notes.py 1.2.0 > notes.md
+    python scripts/release_notes.py 1.2.0 > notes.md     (or v1.2.0)
 
 The build (.github/workflows/build.yml) runs it on every push and pull request, so a mistake shows up before
 anything is merged: it stops with an error if CHANGELOG.md's top section isn't the version in
@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+CHANGELOG = ROOT / "CHANGELOG.md"
 HEADING = re.compile(r"^## +(.+?)\s*$", re.MULTILINE)
 
 DOWNLOADS = """## Download
@@ -58,8 +59,15 @@ def section(changelog: str, version: str) -> str:
     return notes
 
 
+def changes(changelog: str, version: str) -> str:
+    """This version's entries (checked: see section), for the update window to show."""
+    return section(changelog, version.lstrip("vV"))
+
+
 def notes(changelog: str, version: str) -> str:
-    return f"{section(changelog, version)}\n\n{DOWNLOADS}"
+    """The whole release text. The update window shows the What's New part (core/update.whats_new leaves the
+    downloads out), so the changelog's plain words are what people read before updating."""
+    return f"## What's New\n\n{changes(changelog, version)}\n\n{DOWNLOADS}"
 
 
 def main(argv: list[str]) -> int:
@@ -67,7 +75,7 @@ def main(argv: list[str]) -> int:
         print(__doc__.strip().splitlines()[2].strip(), file=sys.stderr)
         return 2
     try:
-        print(notes((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), argv[0]))
+        print(notes(CHANGELOG.read_text(encoding="utf-8"), argv[0]))
     except NotesError as e:
         print(f"::error file=CHANGELOG.md::{e}")
         return 1

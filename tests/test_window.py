@@ -60,7 +60,8 @@ def test_first_launch_asks_for_your_profile(qapp, data_folder):
 
     w = MainWindow(Library(data_folder).load())
     assert w.pages.currentWidget() is w.empty
-    assert w.empty_text.text() == "Add your profile to start." and w.empty_btn.text() == "Add Your Profile…"
+    assert w.empty.titles() == ["Add Your Profile…"]
+    assert not w.search.isVisibleTo(w) and not w.view_menu.isVisibleTo(w)  # nothing to search yet
     assert not w.dock.opened and w.panel.inv is None
     w.shutdown()
 
@@ -329,7 +330,13 @@ def test_delete_many_after_one_alert(win, monkeypatch):
     assert len(ids) == 4 and win.count.full_text() == "4 selected"
     win.delete_selected()
     assert asked == ["Delete 4 invoices?"] and not win.lib.invoices
-    assert win.empty_text.text() == "No invoices yet."
+    assert win.empty.titles() == ["New Invoice"] and not win.search.isVisibleTo(win)
+    win.empty.tiles[0].clicked.emit()  # New Invoice, open on the right
+    assert (
+        len(win.lib.invoices) == 1 and win.pages.currentWidget() is win.table and win.search.isVisibleTo(win)
+    )
+    win.deselect()  # left blank, so it goes
+    assert not win.lib.invoices and win.pages.currentWidget() is win.empty
 
 
 def test_search_filter_and_totals(win):
@@ -349,8 +356,8 @@ def test_search_filter_and_totals(win):
     assert not win.total_labels["overdue"].isVisibleTo(win)  # only what applies
     f.filter.year = "1999"
     f.changed.emit()
-    assert win.pages.currentWidget() is win.empty and win.empty_btn.text() == "Clear Filters"
-    win.empty_btn.click()
+    assert win.pages.currentWidget() is win.empty and win.empty.titles() == ["Clear Filters"]
+    win.empty.tiles[0].clicked.emit()
     assert f.is_default() and len(showing(win)) == 4
     f.m.aboutToShow.emit()  # the menu builds, with Divide By first
     texts = [a.text() for a in f.m.actions() if a.text()]

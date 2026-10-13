@@ -27,6 +27,8 @@ that slides in when something is picked.
 - **Toolbar**: the place's title and count; search, then the filter button (Divide By month / client / none;
   Show by status; From one profile; Year; Clear Filters); on the right the share button (Invoice…, Export as
   CSV…, Back Up…), the assistant's bubble, and the round + (New Invoice).
+- **Empty page**: with nothing to show, the table gives way to start tiles (`components/empty.py`): Add Your
+  Profile…, New Invoice (the place's icon) or Clear Filters; search and the filter hide.
 - **Table**: sorts by any column (newest first to start), bands by month (newest month on top) or client with their
   totals, each folding with a click; ⌘A, Shift and ⌘-click pick many; Delete deletes them after one alert.
   Underneath: Unpaid, Overdue (only when something is), Paid and Total of what's showing.
@@ -61,7 +63,8 @@ cobro/
     history.py     undo / redo of invoices, clients and profiles
     spreadsheet.py Export as CSV (plain numbers; nothing a spreadsheet would run as a formula)
     sample.py      the made-up Juniper Lane Films profile, clients and invoices (tests, smoke test, screenshots)
-    update.py      the updater, pointed at nickvenecia/cobro (asset names are a contract, see Releasing)
+    update.py      the updater, pointed at nickvenecia/cobro (asset names are a contract, see Releasing);
+                   whats_new() reads a release's notes for the update window
     web.py         the one way to reach an address (no redirects with a key on board)
     paths.py (data_dir, logo_path), log.py, net.py (certifi SSL), fileutil.py (reveal, zip_folder)
   doc/             Drawing the invoice. QtGui only, no widgets.
@@ -77,7 +80,7 @@ cobro/
     style/         tokens.py (every number and color, DARK and LIGHT, the accent choices), theme.py (the
                    stylesheet, the SVG icons in _SVG, fonts)
     components/    widgets.py, panels.py (LeftPanel, SidePanel), glass.py (backdrop, Dock), titlebar.py (Mac),
-                   worker.py (background jobs)
+                   worker.py (background jobs), empty.py (EmptyPage, StartTile)
     window/        main_window.py and its parts: menus.py, editing.py, pages.py (the page window, exports),
                    transfer.py (CSV, Back Up), services.py (settings, account, feedback, updates, light/dark),
                    ai.py, sidebar.py, tables.py, filters.py, common.py (places, status words and colors)
@@ -154,6 +157,8 @@ python scripts/make_icon.py             # redraw the app icon
   `cobro/__init__.py` (`scripts/release_notes.py`). Two quick merges can't release the same version twice: the
   release job runs one at a time and only one run can make the tag. A tag pushed by hand still works, but only
   if it matches the version.
+- The Release's text is `## What's New` with this version's CHANGELOG entries, then the downloads: the update
+  window shows the What's New part, so the CHANGELOG's plain words are what people read before updating.
 - CI attaches: Cobro-mac-apple-silicon.dmg, Cobro-mac-intel.dmg, Cobro-windows-setup.exe,
   Cobro-windows-portable.zip, Cobro-linux-x64.AppImage, Cobro-linux-x64.tar.gz. **These names are a contract**:
   the README's download links (releases/latest/download/<name>) and the in-app updater (update.asset_name) both

@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
-    QPushButton,
     QSizePolicy,
     QStackedWidget,
     QToolButton,
@@ -30,13 +29,14 @@ from cobro.core.log import get_logger
 from cobro.core.model import Business, Invoice
 from cobro.core.store import Library
 from cobro.ui.components import titlebar
+from cobro.ui.components.empty import EmptyPage
 from cobro.ui.components.glass import Dock, GlassRoot, glass
 from cobro.ui.components.widgets import ElidedLabel, SearchField, Toast, hbox, vbox
 from cobro.ui.dialogs.preview import PageDialog
 from cobro.ui.panels.invoice import InvoicePanel
 from cobro.ui.style import theme, tokens
 from cobro.ui.window.ai import AIMixin
-from cobro.ui.window.common import TITLES, in_place
+from cobro.ui.window.common import PLACES, TITLES, in_place
 from cobro.ui.window.editing import EditingMixin
 from cobro.ui.window.filters import FilterButton
 from cobro.ui.window.menus import MenusMixin
@@ -185,23 +185,7 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
 
         self.pages = QStackedWidget()
         self.table = InvoiceTable()
-        self.empty = QWidget()
-        el = vbox(self.empty, tokens.SPACE_5, tokens.SPACE_3)
-        el.addStretch(1)
-        self.empty_text = QLabel()
-        self.empty_text.setObjectName("EmptyTitle")
-        self.empty_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.empty_btn = QPushButton()
-        self.empty_btn.setObjectName("Primary")
-        self._empty_slot = None
-        self.empty_btn.clicked.connect(lambda: self._empty_slot and self._empty_slot())
-        row = hbox(spacing=tokens.SPACE_2)
-        row.addStretch(1)
-        row.addWidget(self.empty_btn)
-        row.addStretch(1)
-        el.addWidget(self.empty_text)
-        el.addLayout(row)
-        el.addStretch(2)
+        self.empty = EmptyPage()  # where the table would be, with nothing in it
         for w in (self.table, self.empty):
             self.pages.addWidget(w)
         lay.addWidget(self.pages, 1)
@@ -314,32 +298,31 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
             self.pages.setCurrentWidget(self._empty_page())
             if (not self.lib.businesses or not self.lib.invoices) and not self.assistant_showing():
                 self.dock.set_open(False)
+        empty = not invoices  # nothing to search or filter
+        self.search.setVisible(not empty)
+        self.view_menu.setVisible(not empty)
         self._apply_search()
         if self.history is not None:
             self.history.mark()
 
     def _empty_page(self) -> QWidget:
+        """The ways to start, as tiles, each with the place's own icon."""
         if not self.lib.businesses:
-            text, action, slot = (
-                "Add your profile to start.",
-                "Add Your Profile…",
-                lambda: self.edit_business(True),
-            )
-        elif not self.lib.invoices:
-            text, action, slot = "No invoices yet.", "New Invoice", self.new_invoice
-        elif self.view_menu.filter.active():
-            text, action, slot = "Nothing matches the filter.", "Clear Filters", self._clear_filters
+            tiles = (
+                ("user", "Add Your Profile…", "Your name, logo and how you get paid", "",
+                 lambda: self.edit_business(True)),
+            )  # fmt: skip
+        elif self.view_menu.filter.active() and self.lib.invoices:
+            tiles = (("filter", "Clear Filters", "Show every invoice again", "", self._clear_filters),)
         else:
-            text = {
-                "drafts": "No drafts.",
-                "unpaid": "Nothing waiting to be paid.",
-                "paid": "Nothing paid yet.",
-            }
-            text, action, slot = text.get(self.view_key, "No invoices yet."), "", None
-        self.empty_text.setText(text)
-        self.empty_btn.setText(action)
-        self.empty_btn.setVisible(bool(action))
-        self._empty_slot = slot
+            detail = {
+                "drafts": "A draft to fill in",
+                "unpaid": "Bill a client for your work",
+                "paid": "Bill a client for your work",
+            }.get(self.view_key, "Bill a client for your work")
+            icon = PLACES.get(self.view_key, PLACES["all"])[1]
+            tiles = ((icon, "New Invoice", detail, "", self.new_invoice),)
+        self.empty.show_for(tiles)
         return self.empty
 
     def _clear_filters(self) -> None:

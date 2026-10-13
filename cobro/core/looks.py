@@ -27,7 +27,7 @@ class Swatch:
 COLORS: dict[str, Swatch] = {
     "ink": Swatch("Ink Blue", "#284B63"),
     "turquoise": Swatch("Turquoise", "#11776E"),
-    "marigold": Swatch("Marigold", "#B8720B"),
+    "marigold": Swatch("Amber", "#B8720B"),  # (its key stays: saved profiles use it)
     "oxblood": Swatch("Oxblood", "#7A2E2E"),
     "sage": Swatch("Sage", "#4C6A55"),
     "plum": Swatch("Plum", "#5B3A6B"),

@@ -53,7 +53,7 @@ PROVIDERS: dict[str, Provider] = {
     for p in (
         Provider("anthropic", "Anthropic", "https://api.anthropic.com/v1", "anthropic",
                  "https://console.anthropic.com/settings/keys"),
-        Provider("openai", "OpenAI (ChatGPT)", "https://api.openai.com/v1", "openai",
+        Provider("openai", "OpenAI", "https://api.openai.com/v1", "openai",
                  "https://platform.openai.com/api-keys"),
         Provider("gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "openai",
                  "https://aistudio.google.com/apikey"),

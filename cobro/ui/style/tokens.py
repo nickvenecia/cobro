@@ -115,7 +115,8 @@ PAGE_DIALOG_INSET = 80  # it stays this far inside the main window
 PAGE_DIALOG_MIN_H = 600
 PAGE_GAP = 24  # space between pages in that window
 PAGE_SHADOW = 18  # the paper's shadow there
-NOTES_H = 220  # what's new, in the update window
+NOTES_H = 320  # what's new, in the update window: as tall as its words, up to this (then it scrolls)
+NOTES_LINE = 140  # what's new: the line height, in % of the font size
 MENU_GAP = 6  # between a button and the menu it opens
 # ---- every list of choices looks like the sidebar and Settings: menus, dropdown lists, pickers, suggestions.
 # Rows sit LIST_INSET inside a list whose corners are LIST_R, so their corners (LIST_ROW_R) run parallel to it.
@@ -125,6 +126,10 @@ LIST_ROW_R = NAV_R
 LIST_ROW_H = NAV_H
 LIST_GAP = NAV_GAP
 AVATAR = 32  # your profile's initials, bottom of the sidebar
+START_TILE_W = (
+    184  # one way to start on an empty page (three fit beside the right panel on the smallest window)
+)
+START_BADGE = 40  # the circle behind a start tile's icon
 PROFILE_CARD_H = 48
 ASSISTANT_ICON = 28  # the assistant's face next to its title
 ASSISTANT_ICON_BIG = 64  # and saying hi in an empty chat

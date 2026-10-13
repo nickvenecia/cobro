@@ -61,6 +61,11 @@ def shots(out: Path, suffix: str) -> None:
     w = window(Library(tmp).load())
     shot(w, out / f"1-first-launch{suffix}.png")
     w.close()
+    empty = Library(tmp).load()
+    empty.add_business(sample.business())
+    w = window(empty)
+    shot(w, out / f"1b-no-invoices{suffix}.png")
+    w.close()
 
     lib = sample.fill(Library(tmp).load())
     w = window(lib)
@@ -112,7 +117,23 @@ def shots(out: Path, suffix: str) -> None:
         d.show()
         shot(d, out / f"9-settings-{pane}{suffix}.png")
         d.close()
+    import importlib.util
+
+    from cobro.core import update
     from cobro.ui.dialogs.client import ClientDialog
+    from cobro.ui.dialogs.update import UpdateDialog
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("release_notes", root / "scripts" / "release_notes.py")
+    rn = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rn)
+    from cobro import __version__
+
+    notes = rn.notes(rn.CHANGELOG.read_text(encoding="utf-8"), __version__)  # what the release will say
+    d = UpdateDialog(update.Release(version=__version__, notes=notes), parent=w)
+    d.show()
+    shot(d, out / f"11-update{suffix}.png")
+    d.close()
 
     d = ClientDialog(first.client, lib, True, show_code=True, parent=w)
     d.show()

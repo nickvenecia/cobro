@@ -48,7 +48,8 @@ and keep the picture, and never load image files for UI icons. An icon on the ac
 `TABLE_ROW_H` (34), `COL_W` (every table column), `NAME_MIN`, `GIVE_WAY` (the columns that step aside on a narrow
 window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NUM_FIELD_W`, `QTY_FIELD_W`,
 `LOGO_THUMB`, `PAGE_GAP`, `PAGE_SHADOW`, `DIALOG_W` (and `DIALOG_W_WIDE`, `DIALOG_W_XWIDE`), `PROFILE_DIALOG_H`,
-`PAGE_DIALOG_SIZE`, `ALERT_W`, `ALERT_ICON`, `REVIEW_W`, `REVIEW_COL_W`, `WINDOW_SIZE`, `WINDOW_MIN`.
+`PAGE_DIALOG_SIZE`, `ALERT_W`, `ALERT_ICON`, `REVIEW_W`, `REVIEW_COL_W`, `START_TILE_W`, `START_BADGE`, `NOTES_H`,
+`NOTES_LINE`, `WINDOW_SIZE`, `WINDOW_MIN`.
 Use these names, never the numbers.
 
 **Fonts:** one family, Inter (`looks.FONT`, shared with the paper), loaded once in `app.py`. Every size is a
@@ -193,6 +194,9 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Long one-line text | `widgets.ElidedLabel` | Text that may not fit: cut short with "…", the full text in its tooltip |
 | Alert | `dialogs.common.Alert` (`confirm`, `notice`) | Every "are you sure", and every error that needs more than a toast |
 | Toast | `widgets.Toast` | A few words saying what just happened; never a question |
+| Empty page | `empty.EmptyPage` | Where the table would be with nothing in it: only its start tiles, centred (no headline; the page title says where you are). Search and the filter hide while it shows |
+| Start tile | `empty.StartTile` (`#StartTile`) | Every way to begin on an empty page (Add Your Profile…, New Invoice with the place's sidebar icon, Clear Filters): a raised `RADIUS_LG` tile, its icon in a small tinted circle, a name and a few words, all centred |
+| What's new | `update.Notes` (`#WhatsNew`) | The update window's notes, read from the release (this version's CHANGELOG): a soft `FILL` box only as tall as its words (up to `NOTES_H`, then it scrolls); each section a small label, each change an accent dot and its words at `NOTES_LINE` line height. Release text is escaped, never read as HTML; only https links open |
 | Dialog buttons | `widgets.button_row()` | The bottom row of every dialog: right-aligned, the main one last |
 
 Choosing a control:
@@ -257,6 +261,8 @@ Cobro talks like a helpful person, not like software.
   share (Invoice…, Export as CSV…, Back Up…). The filter sits right after the search. Nothing else.
 - **Nothing to save by hand.** Edits save themselves a moment after you stop typing (`SAVE_DELAY_MS`), when you
   switch invoices and when you quit. The only "save" is the PDF.
+- **An empty place shows the ways to start**, as tiles (`EmptyPage`): Add Your Profile… the first time, then New
+  Invoice (with the place's icon), or Clear Filters when a filter hides everything.
 - **A new invoice you leave empty isn't kept** (Esc, or opening something else), and leaves no undo step.
 - **Fill it in once.** Your **profile** (name, logo, addresses, payment text, terms, numbering, the paper's look; a
   `Business` in the code) lives in Settings › Profiles and is picked under From. Your **clients** are saved once
