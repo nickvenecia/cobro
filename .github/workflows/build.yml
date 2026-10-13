@@ -206,7 +206,18 @@ jobs:
           mkdir -p out dmg
           cp -R dist/Cobro.app dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create -volname "Cobro" -srcfolder dmg -ov -format UDZO "out/Cobro-${{ matrix.name }}.dmg"
+          # hdiutil on GitHub's Macs is sometimes "Resource busy" for a moment: wait and try again
+          for try in 1 2 3 4 5; do
+            if hdiutil create -volname "Cobro" -srcfolder dmg -ov -format UDZO "out/Cobro-${{ matrix.name }}.dmg"; then
+              break
+            fi
+            if [ "$try" = 5 ]; then
+              echo "::error::hdiutil couldn't make the disk image after 5 tries"
+              exit 1
+            fi
+            echo "hdiutil was busy (try $try of 5); trying again"
+            sleep $((try * 5))
+          done
 
       - name: Package (Windows .zip)
         if: runner.os == 'Windows'
