@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0
+## 2.0.0
 - **A new window.** The sidebar on the left takes you to All Invoices, Drafts, Unpaid and Paid. The middle is one table of your invoices. Click one and it opens on the right, ready to edit; Esc or ✕ puts it away
 - **The invoice table**: sort by any column; divided by month (newest first) or by client, each with its total, and each folds with a click; filter by status, profile and year; search. Unpaid, Overdue, Paid and Total add up underneath
 - **The invoice in its own window**: **Invoice…** shows the page exactly as it prints, with Save PDF…, Print…, Save as PNG…, Copy as Text, Email Client and Mark as Sent
@@ -9,12 +9,13 @@
 - **Undo and redo** (⌘Z, ⇧⌘Z) for invoices, clients and profiles
 - **AI, with your own key** (optional): connect Anthropic, OpenAI, Google Gemini, Kimi, OpenRouter, DeepSeek, Mistral, xAI, Groq or a model on your own computer in Settings › AI. The assistant (⌘J, or the bubble in the toolbar) tidies up an invoice's line items or answers questions about them. Only the line items' words are sent, never amounts or clients, and nothing changes until you approve it
 - **Pick many**: ⌘A, or Shift- and ⌘-click, then Delete. One alert names what goes
+- **Search** finds invoices by number, client, project, status, line items, amount or date ("Oct 13")
 - **Export as CSV…**: the invoices showing, one row each, for your bookkeeping or taxes. **Back Up…** saves everything as one zip file
 - **Profiles**: your name, logo, contact details and payment text live in your profile (what used to be "Business"). Pick one under From, with **Edit…** right next to it; keep as many as you invoice from
 - **Saved clients**: **New Client…** under Bill To saves a client once; after that just pick them. **Edit…** changes a client; drafts follow the change, invoices you already sent keep what they said
 - **Numbers per client** (optional): `JLF-NRTH-2026-001` or `NRTH-2026-001`, each client with its own count, picked under the profile's Number Style. A draft's number follows its client until you type your own
 - **Everything folds away**: every group on the right (and in your profile) folds, remembers how you left it, and says what's inside while folded. Line items fold to one row each, one open at a time; Duplicate, Move Up, Move Down and Remove are in each item's ⋯ menu
-- **The paper**: every invoice is set in Inter, with the invoice number in IBM Plex Mono. Invoices that used one of the older type styles now print in Inter too; their color, header, logo and paper size stay as you picked them. A new profile's paper starts in turquoise
+- **The paper**: every page says which page it is (Page 1 of 1), and every invoice is set in Inter, with the invoice number in IBM Plex Mono. Invoices that used one of the older type styles now print in Inter too; their color, header, logo and paper size stay as you picked them. A new profile's paper starts in turquoise
 - **Only what applies**: Discount, Deposit and Sales Tax show when an invoice has them (**+ Discount** adds one, × takes an empty one off), and a line item's details box appears once it has details (**+ Details**)
 - **Ways to start**: a page with nothing on it shows what you can do as tiles (Add Your Profile…, New Invoice, Clear Filters)
 - **Updates read better**: the update window shows what's new in plain words, straight from these notes

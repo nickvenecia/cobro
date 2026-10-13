@@ -1,6 +1,6 @@
 """A release's notes: this version's part of CHANGELOG.md, then the table of downloads.
 
-    python scripts/release_notes.py 1.2.0 > notes.md     (or v1.2.0)
+    python scripts/release_notes.py 2.0.0 > notes.md     (or v2.0.0)
 
 The build (.github/workflows/build.yml) runs it on every push and pull request, so a mistake shows up before
 anything is merged: it stops with an error if CHANGELOG.md's top section isn't the version in

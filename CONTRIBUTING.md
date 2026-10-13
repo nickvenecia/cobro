@@ -138,9 +138,10 @@ packaging/     Installer files per OS
 - One topic per commit. Message: a short plain summary line in the present tense ("Add A4 paper"), nothing
   added after it (no co-author or sign-off lines, no links).
 - **Merging is releasing.** A pull request with a change users will notice bumps `__version__` in
-  `cobro/__init__.py` once: the last number for fixes and polish (1.2.0 → 1.2.1), the middle one for a new
-  feature (1.2.1 → 1.3.0). Its notes go at the top of `CHANGELOG.md` under `## X.Y.Z`, that same number,
-  never under "Unreleased". Changes users won't notice don't bump it.
+  `cobro/__init__.py` once: the last number for fixes and polish (2.0.0 → 2.0.1), the middle one for a new
+  feature (2.0.1 → 2.1.0), the first for a big change (2.1.0 → 3.0.0). A released number is never used again.
+  Its notes go at the top of `CHANGELOG.md` under `## X.Y.Z`, that same number, never under "Unreleased".
+  Changes users won't notice don't bump it.
 - Merging it to main builds every platform, tags the commit `vX.Y.Z` and publishes the Release with the
   downloads, in one run of `.github/workflows/build.yml`. Never tag or release by hand.
 - Never commit `build/`, `dist/`, real invoices, personal details, or anything with a password or key in it.

@@ -37,6 +37,11 @@ def test_every_color_and_header_lays_out(qapp):
             assert len(pages) == 1, (key, header)
 
 
+def test_every_page_says_which_page_it_is(qapp):
+    texts = [s.text for s in _pages(qapp)[0].steps if isinstance(s, render.Text)]
+    assert "Page 1 of 1" in texts
+
+
 def test_inter_throughout_and_mono_for_the_number(qapp):
     steps = [s for s in _pages(qapp)[0].steps if isinstance(s, render.Text)]
     families = {s.font.family for s in steps}

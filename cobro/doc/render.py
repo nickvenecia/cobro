@@ -419,7 +419,7 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     total = len(out.pages)
     foot = FontSpec(FONT, 8)
     note_w = min(text_w(v.note, foot) + 2, cw * 0.45) if v.note else 0.0
-    page_w = text_w(f"Page {total} of {total}", foot) + 2 if total > 1 else 0.0
+    page_w = text_w(f"Page {total} of {total}", foot) + 2  # on every page, even a page of one
     # the last page is the fullest row: note, then the page number, then the contact line on the right
     used = note_w + (16 if note_w else 0) + page_w + (16 if page_w else 0)
     room = cw - used
@@ -435,16 +435,15 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
             note = metrics(foot).elidedText(v.note, Qt.TextElideMode.ElideRight, note_w)
             page.steps.append(Text(QRectF(x0, fy + 8, note_w, 14), note, foot, INK_SOFT, LEFT))
             px = x0 + note_w + 16
-        if total > 1:
-            page.steps.append(
-                Text(
-                    QRectF(px, fy + 8, page_w, 14),
-                    f"Page {n} of {total}",
-                    foot,
-                    INK_SOFT,
-                    LEFT,
-                )
+        page.steps.append(
+            Text(
+                QRectF(px, fy + 8, page_w, 14),
+                f"Page {n} of {total}",
+                foot,
+                INK_SOFT,
+                LEFT,
             )
+        )
         if footer:
             page.steps.append(
                 Text(

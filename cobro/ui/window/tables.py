@@ -409,7 +409,15 @@ class InvoiceTable(QTreeWidget):
                 row.setForeground(COL[k], theme.qcolor(tokens.MUTED))
             if not who:
                 row.setForeground(COL["client"], theme.qcolor(tokens.FAINT))
-            words = [inv.number, inv.client.name, inv.client.contact, inv.project, STATUS_WORDS[tone]]
+            words = [
+                inv.number,
+                inv.client.name,
+                inv.client.contact,
+                inv.project,
+                STATUS_WORDS[tone],
+                cells[3][0],
+            ]
+            words += [cells[4][0]]  # the dates as they show ("Oct 13, 2026")
             words += [it.description for it in inv.items] + [money.fmt(t.total, cur)]
             row.setData(0, HAY, " ".join(words).casefold())
             if key_of(inv) in sums:

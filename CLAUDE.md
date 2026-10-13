@@ -23,7 +23,7 @@ A glass sidebar on the left (where you are), a big table of invoices in the midd
 that slides in when something is picked.
 - **Sidebar**: the wordmark; Invoices (All Invoices, Drafts, Unpaid, Paid, with counts; its own small + makes a new
   invoice); the Update button when there is one; the profile card at the bottom (your profiles, Edit Profile…,
-  Add a Profile…, New Client…, Send Feedback…, Check for Updates…, Settings…).
+  Add a Profile…, Send Feedback…, Check for Updates…, Settings…).
 - **Toolbar**: the place's title and count; search, then the filter button (Divide By month / client / none;
   Show by status; From one profile; Year; Clear Filters); on the right the share button (Invoice…, Export as
   CSV…, Back Up…), the assistant's bubble, and the round + (New Invoice).
@@ -146,9 +146,11 @@ python scripts/make_icon.py             # redraw the app icon
 ## Releasing
 **Merging is releasing.** Nobody tags or releases by hand.
 - A pull request with a change users will notice (a fix, polish, a new feature) bumps `__version__` in
-  `cobro/__init__.py`, once per pull request: the last number for fixes and polish (1.2.0 → 1.2.1), the middle
-  one for a new feature (1.2.1 → 1.3.0). Its notes go at the top of CHANGELOG.md under `## X.Y.Z`, that same
-  number, never under "Unreleased". Changes users won't notice (tests, notes, code tidying) don't bump it.
+  `cobro/__init__.py`, once per pull request: the last number for fixes and polish (2.0.0 → 2.0.1), the middle
+  one for a new feature (2.0.1 → 2.1.0), the first for a big change (a new window, a new way of working:
+  2.1.0 → 3.0.0). A number that was released is never used again. Its notes go at the top of CHANGELOG.md under
+  `## X.Y.Z`, that same number, never under "Unreleased". Changes users won't notice (tests, notes, code
+  tidying) don't bump it.
 - When it's merged, the push to main runs `.github/workflows/build.yml`: it sees that `vX.Y.Z` has no tag yet,
   builds and tests every platform, tags that exact commit and publishes the GitHub Release with the downloads
   and the CHANGELOG notes, all in that one run (about 15-20 min). A merge that doesn't bump the version builds
