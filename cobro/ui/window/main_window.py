@@ -14,23 +14,24 @@ from PySide6.QtCore import QByteArray, QTimer, QUrl
 from PySide6.QtGui import QAction, QDesktopServices, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMenu, QWidget
 
-from .. import __version__
-from ..core import document, update
-from ..core.fileutil import reveal
-from ..core.log import get_logger
-from ..core.looks import resolve
-from ..core.model import Business, Invoice
-from ..core.paths import data_dir, documents_dir, log_dir, logos_dir
-from ..core.store import Library
-from ..doc import export, fonts, render
-from . import theme, titlebar, tokens
-from .client_dialog import ClientDialog
-from .details import DetailsPanel
-from .dialogs import about, confirm
-from .invoice_list import InvoiceList
-from .preview import PreviewPanel
-from .profile_dialog import ProfileDialog
-from .widgets import Toast, hbox, vbox
+from cobro import __version__
+from cobro.core import document, update
+from cobro.core.fileutil import reveal
+from cobro.core.log import get_logger
+from cobro.core.looks import resolve
+from cobro.core.model import Business, Invoice
+from cobro.core.paths import data_dir, documents_dir, log_dir, logos_dir
+from cobro.core.store import Library
+from cobro.doc import export, fonts, render
+from cobro.ui.components import titlebar
+from cobro.ui.components.widgets import Toast, hbox, vbox
+from cobro.ui.dialogs.client import ClientDialog
+from cobro.ui.dialogs.common import about, confirm
+from cobro.ui.dialogs.preview import PreviewPanel
+from cobro.ui.dialogs.profile import ProfileDialog
+from cobro.ui.panels.invoice import DetailsPanel
+from cobro.ui.style import theme, tokens
+from cobro.ui.window.invoice_list import InvoiceList
 
 log = get_logger(__name__)
 
@@ -509,7 +510,7 @@ class MainWindow(QMainWindow):
         self.check_updates(quiet=True)
 
     def check_updates(self, quiet: bool = False) -> None:
-        from .update_dialog import CheckThread
+        from cobro.ui.dialogs.update import CheckThread
 
         self._check = CheckThread(self)
         self._check.found.connect(lambda rel: self._found_release(rel, quiet))
@@ -534,7 +535,7 @@ class MainWindow(QMainWindow):
     def show_update(self) -> None:
         if self._release is None:
             return
-        from .update_dialog import UpdateDialog, restart_into
+        from cobro.ui.dialogs.update import UpdateDialog, restart_into
 
         d = UpdateDialog(self._release, parent=self)
         if d.exec() == UpdateDialog.DialogCode.Accepted and d.plan is not None:

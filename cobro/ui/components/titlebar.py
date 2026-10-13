@@ -18,8 +18,8 @@ import sys
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QMainWindow, QWidget
 
-from .tokens import TITLEBAR_H
-from .widgets import Wordmark, hbox
+from cobro.ui.components.widgets import Wordmark, hbox
+from cobro.ui.style.tokens import TITLEBAR_H
 
 
 def supported() -> bool:

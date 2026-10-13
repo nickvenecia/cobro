@@ -20,10 +20,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..doc import export
-from ..doc.render import Page
-from . import theme, tokens
-from .widgets import StepHeader, hbox, vbox
+from cobro.doc import export
+from cobro.doc.render import Page
+from cobro.ui.components.widgets import StepHeader, hbox, vbox
+from cobro.ui.style import theme, tokens
 
 
 class PageView(QWidget):

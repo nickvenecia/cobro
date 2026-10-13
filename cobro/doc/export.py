@@ -13,9 +13,9 @@ from pathlib import Path
 from PySide6.QtCore import QMarginsF, QSizeF
 from PySide6.QtGui import QImage, QPageLayout, QPageSize, QPainter, QPdfWriter
 
-from .. import APP_NAME, __version__
-from ..core.log import get_logger
-from .render import Page, paint
+from cobro import APP_NAME, __version__
+from cobro.core.log import get_logger
+from cobro.doc.render import Page, paint
 
 log = get_logger(__name__)
 

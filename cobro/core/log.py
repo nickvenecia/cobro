@@ -10,7 +10,7 @@ import logging
 import logging.handlers
 import sys
 
-from .paths import log_dir
+from cobro.core.paths import log_dir
 
 _configured = False
 

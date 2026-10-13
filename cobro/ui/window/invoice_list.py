@@ -9,11 +9,11 @@ from __future__ import annotations
 from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QMenu, QPushButton, QToolButton, QWidget
 
-from ..core import dates, document, money
-from ..core.model import Invoice
-from ..core.store import Library
-from . import theme, tokens
-from .widgets import FitScroll, StepHeader, combo, hbox, hint, repolish, vbox
+from cobro.core import dates, document, money
+from cobro.core.model import Invoice
+from cobro.core.store import Library
+from cobro.ui.components.widgets import FitScroll, StepHeader, combo, hbox, hint, repolish, vbox
+from cobro.ui.style import theme, tokens
 
 FILTERS = [
     ("all", "All Invoices", ""),

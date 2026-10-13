@@ -6,11 +6,11 @@ from dataclasses import replace
 
 from PySide6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QWidget
 
-from ..core import numbering
-from ..core.model import Client
-from ..core.store import Library
-from .tokens import DIALOG_W, NUM_FIELD_W, SPACE_2, SPACE_3, SPACE_4, SPACE_5
-from .widgets import Section, TextBox, hbox, hint, vbox
+from cobro.core import numbering
+from cobro.core.model import Client
+from cobro.core.store import Library
+from cobro.ui.components.widgets import Section, TextBox, hbox, hint, vbox
+from cobro.ui.style.tokens import DIALOG_W, NUM_FIELD_W, SPACE_2, SPACE_3, SPACE_4, SPACE_5
 
 
 class ClientDialog(QDialog):
@@ -121,7 +121,7 @@ class ClientDialog(QDialog):
         self.accept()
 
     def _delete(self) -> None:
-        from .dialogs import confirm
+        from cobro.ui.dialogs.common import confirm
 
         if confirm(
             self,

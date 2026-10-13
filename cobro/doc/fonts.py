@@ -9,13 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 
 from PySide6.QtGui import QFont, QFontDatabase, QFontMetricsF, QImage, QPaintDevice
 
-from ..core.looks import BUNDLED_FONTS, FALLBACK_FONT
+from cobro.core.looks import BUNDLED_FONTS, FALLBACK_FONT
+from cobro.core.paths import ASSETS
 
-ASSETS = Path(__file__).resolve().parent.parent / "assets"
 FONT_DIR = ASSETS / "fonts"
 
 # Some faces look much smaller or bigger than others at the same point size.

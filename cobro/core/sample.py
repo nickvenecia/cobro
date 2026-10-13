@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from .model import Business, Client, Invoice, LineItem, Look
-from .store import DEFAULT_NOTE, DEFAULT_TERMS
+from cobro.core.model import Business, Client, Invoice, LineItem, Look
+from cobro.core.store import DEFAULT_NOTE, DEFAULT_TERMS
 
 
 def business(look: Look | None = None) -> Business:

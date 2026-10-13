@@ -8,6 +8,8 @@ from pathlib import Path
 
 _override: Path | None = None
 
+ASSETS = Path(__file__).resolve().parent.parent / "assets"  # fonts, icon: shipped inside the app
+
 
 def use_data_dir(path: Path | None) -> None:
     """Point Cobro at another data folder (tests, the smoke test). None goes back to the normal one."""

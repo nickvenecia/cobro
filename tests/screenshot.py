@@ -49,9 +49,9 @@ def main(out: Path) -> int:
 def shots(out: Path, suffix: str) -> None:
     tmp = Path(tempfile.mkdtemp(prefix="cobro-shots-"))
     use_data_dir(tmp)
-    from cobro.ui.client_dialog import ClientDialog
-    from cobro.ui.main_window import MainWindow
-    from cobro.ui.profile_dialog import ProfileDialog
+    from cobro.ui.dialogs.client import ClientDialog
+    from cobro.ui.dialogs.profile import ProfileDialog
+    from cobro.ui.window.main_window import MainWindow
 
     # first launch: nothing set up yet
     w = MainWindow(Library(tmp).load())

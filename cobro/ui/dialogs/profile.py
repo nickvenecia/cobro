@@ -15,13 +15,14 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPainter, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QLabel, QLineEdit, QPushButton, QWidget
 
-from ..core import numbering
-from ..core.dates import terms_label, today
-from ..core.log import get_logger
-from ..core.model import TERMS_DAYS, Business
-from ..core.paths import logos_dir
-from ..core.store import DEFAULT_NOTE, DEFAULT_TERMS, suggested_payment
-from .tokens import (
+from cobro.core import numbering
+from cobro.core.dates import terms_label, today
+from cobro.core.log import get_logger
+from cobro.core.model import TERMS_DAYS, Business
+from cobro.core.paths import logos_dir
+from cobro.core.store import DEFAULT_NOTE, DEFAULT_TERMS, suggested_payment
+from cobro.ui.components.widgets import Disclosure, FitScroll, Section, TextBox, combo, hbox, hint, vbox
+from cobro.ui.style.tokens import (
     DIALOG_W,
     LOGO_THUMB,
     PROFILE_DIALOG_H,
@@ -31,7 +32,6 @@ from .tokens import (
     SPACE_5,
     TEXT_BOX_TALL,
 )
-from .widgets import Disclosure, FitScroll, Section, TextBox, combo, hbox, hint, vbox
 
 log = get_logger(__name__)
 
@@ -41,7 +41,7 @@ LOGO_MAX_PX = 1600  # bigger pictures are scaled down when added (keeps PDFs sma
 def import_logo(src: Path) -> str:
     """Copy a logo into Cobro's own folder (so moving or deleting the original never breaks an invoice).
     Returns the stored file name. Raises ValueError if it isn't a picture Cobro can read."""
-    from ..doc.render import logo_size
+    from cobro.doc.render import logo_size
 
     if logo_size(src) is None:
         raise ValueError(f"Cobro can't read {src.name}. Use a PNG, JPG or SVG file.")
@@ -348,7 +348,7 @@ class ProfileDialog(QDialog):
         self.accept()
 
     def _delete(self) -> None:
-        from .dialogs import confirm
+        from cobro.ui.dialogs.common import confirm
 
         if confirm(
             self,

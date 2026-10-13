@@ -34,7 +34,7 @@ def wheel(widget) -> None:
 
 
 def test_first_launch_asks_for_the_business(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     w = MainWindow(Library(data_folder).load())
     assert w.inv is None
@@ -44,7 +44,7 @@ def test_first_launch_asks_for_the_business(qapp, data_folder):
 
 
 def test_new_invoice_edit_and_save(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     lib.add_business(sample.business())
@@ -70,7 +70,7 @@ def test_new_invoice_edit_and_save(qapp, data_folder):
 
 
 def test_look_changes_redraw_and_save(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -84,7 +84,7 @@ def test_look_changes_redraw_and_save(qapp, data_folder):
 
 
 def test_paid_shows_its_date(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -97,8 +97,8 @@ def test_paid_shows_its_date(qapp, data_folder):
 
 
 def test_an_unsaved_client_still_shows_and_typing_never_saves_clients(qapp, data_folder):
-    from cobro.ui.details import THIS_CLIENT
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.panels.invoice import THIS_CLIENT
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -113,7 +113,7 @@ def test_an_unsaved_client_still_shows_and_typing_never_saves_clients(qapp, data
 
 
 def test_line_items_fold_one_at_a_time_and_move(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -144,7 +144,7 @@ def test_line_items_fold_one_at_a_time_and_move(qapp, data_folder):
 
 
 def test_scrolling_never_changes_a_date_or_dropdown(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -159,7 +159,7 @@ def test_scrolling_never_changes_a_date_or_dropdown(qapp, data_folder):
 
 
 def test_the_dark_page_is_only_for_the_preview(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -173,7 +173,7 @@ def test_the_dark_page_is_only_for_the_preview(qapp, data_folder):
 
 
 def test_every_group_folds_and_is_remembered(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -190,7 +190,7 @@ def test_every_group_folds_and_is_remembered(qapp, data_folder):
 
 
 def test_picking_a_client_gives_a_draft_its_number_when_counting_per_client(qapp, data_folder):
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = sample.business()
@@ -213,7 +213,7 @@ def test_picking_a_client_gives_a_draft_its_number_when_counting_per_client(qapp
 
 
 def test_the_profile_dialog_saves_a_copy_and_cancel_changes_nothing(qapp, data_folder):
-    from cobro.ui.profile_dialog import ProfileDialog
+    from cobro.ui.dialogs.profile import ProfileDialog
 
     b = sample.business()
     d = ProfileDialog(b, can_delete=False)
@@ -227,8 +227,8 @@ def test_the_profile_dialog_saves_a_copy_and_cancel_changes_nothing(qapp, data_f
 
 
 def test_new_client_from_the_menu_only_saves_it(qapp, data_folder, monkeypatch):
-    from cobro.ui import main_window
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window import main_window
+    from cobro.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -262,9 +262,9 @@ def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
     from PySide6.QtGui import QStyleHints
 
     from cobro.app import apply_scheme
-    from cobro.ui import theme, tokens
-    from cobro.ui.main_window import MainWindow
-    from cobro.ui.widgets import Wordmark
+    from cobro.ui.components.widgets import Wordmark
+    from cobro.ui.style import theme, tokens
+    from cobro.ui.window.main_window import MainWindow
 
     assert set(tokens.LIGHT) == set(tokens.DARK)  # every color has both versions
     lib = Library(data_folder)

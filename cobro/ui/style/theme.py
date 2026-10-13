@@ -9,7 +9,7 @@ from PySide6.QtCore import QByteArray, QRect, QRectF, QSize, Qt
 from PySide6.QtGui import QIcon, QIconEngine, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
-from .tokens import (
+from cobro.ui.style.tokens import (
     BAR_H,
     CONTROL_H,
     DARK,
@@ -43,7 +43,6 @@ from .tokens import (
     C,
 )
 
-ASSETS = Path(__file__).resolve().parent.parent / "assets"
 FONT_FAMILY = "Inter"
 MONO = '"Menlo", "Consolas", "DejaVu Sans Mono", monospace'
 
@@ -56,7 +55,7 @@ _SEG_INNER = CONTROL_H - 2 - 2 * SEG_INSET  # segmented control: 1px border + in
 
 def load_fonts() -> str:
     """Register the bundled fonts (the UI's Inter and every invoice font). Returns the UI family."""
-    from ..doc.fonts import load_bundled
+    from cobro.doc.fonts import load_bundled
 
     return FONT_FAMILY if FONT_FAMILY in load_bundled() else ""
 

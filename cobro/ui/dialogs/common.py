@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QWidget
 
-from .tokens import DIALOG_W, SPACE_2, SPACE_3, SPACE_5
-from .widgets import Wordmark, hbox, hint, vbox
+from cobro.ui.components.widgets import Wordmark, hbox, hint, vbox
+from cobro.ui.style.tokens import DIALOG_W, SPACE_2, SPACE_3, SPACE_5
 
 
 def confirm(parent: QWidget, title: str, text: str, action: str, danger: bool = True) -> bool:

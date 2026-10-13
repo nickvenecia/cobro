@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import dates, money
-from .model import Business, Invoice
+from cobro.core import dates, money
+from cobro.core.model import Business, Invoice
 
 
 @dataclass

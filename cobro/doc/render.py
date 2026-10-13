@@ -15,9 +15,9 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QImageReader, QPainter, QPen
 from PySide6.QtSvg import QSvgRenderer
 
-from ..core.document import InvoiceView
-from ..core.looks import PAPER, Resolved
-from .fonts import FontSpec, make, metrics
+from cobro.core.document import InvoiceView
+from cobro.core.looks import PAPER, Resolved
+from cobro.doc.fonts import FontSpec, make, metrics
 
 LEFT = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 RIGHT = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)

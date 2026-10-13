@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .model import Look
+from cobro.core.model import Look
 
 # Fonts that ship inside Cobro (cobro/assets/fonts), so every invoice looks the same on every computer.
 # (family, what it's like). Any other font installed on the computer can be picked too.

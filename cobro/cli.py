@@ -31,10 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     _app()
-    from .core import document, sample
-    from .core.looks import resolve
-    from .core.model import Look
-    from .doc import export, fonts, render
+    from cobro.core import document, sample
+    from cobro.core.looks import resolve
+    from cobro.core.model import Look
+    from cobro.doc import export, fonts, render
 
     fonts.load_bundled()
     look = Look(type_style=args.style, color=args.color, header=args.header)

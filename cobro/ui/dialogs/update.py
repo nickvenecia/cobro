@@ -20,11 +20,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__
-from ..core import update
-from ..core.log import get_logger
-from .tokens import DIALOG_W, SPACE_2, SPACE_3, SPACE_5
-from .widgets import hbox, hint, vbox
+from cobro import __version__
+from cobro.core import update
+from cobro.core.log import get_logger
+from cobro.ui.components.widgets import hbox, hint, vbox
+from cobro.ui.style.tokens import DIALOG_W, SPACE_2, SPACE_3, SPACE_5
 
 log = get_logger(__name__)
 

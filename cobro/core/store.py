@@ -21,10 +21,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from . import dates, numbering
-from .log import get_logger
-from .model import Business, Client, Invoice, LineItem, new_id, now_iso
-from .paths import data_dir
+from cobro.core import dates, numbering
+from cobro.core.log import get_logger
+from cobro.core.model import Business, Client, Invoice, LineItem, new_id, now_iso
+from cobro.core.paths import data_dir
 
 log = get_logger(__name__)
 

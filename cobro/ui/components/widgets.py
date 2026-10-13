@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import theme, tokens
+from cobro.ui.style import theme, tokens
 
 
 def section_label(text: str) -> QLabel:

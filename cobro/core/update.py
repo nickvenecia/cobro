@@ -39,9 +39,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .. import __version__
-from .log import get_logger
-from .net import ssl_context
+from cobro import __version__
+from cobro.core.log import get_logger
+from cobro.core.net import ssl_context
 
 log = get_logger(__name__)
 

@@ -185,7 +185,7 @@ def test_update_window(monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
 
-    from cobro.ui.update_dialog import UpdateDialog, _whats_new
+    from cobro.ui.dialogs.update import UpdateDialog, _whats_new
 
     app = QApplication.instance() or QApplication([])
     assert "Download" not in _whats_new(GITHUB_ANSWER["body"]) and "Faster glitches" in _whats_new(
@@ -200,7 +200,7 @@ def test_update_window(monkeypatch):
 
 def test_window_offers_the_update(qapp, data_folder):
     from cobro.core.store import Library
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     w = MainWindow(Library(data_folder).load())
     rel = update.parse_release(GITHUB_ANSWER)

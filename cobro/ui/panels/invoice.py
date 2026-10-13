@@ -28,9 +28,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..core import dates, document, money
-from ..core.log import get_logger
-from ..core.looks import (
+from cobro.core import dates, document, money
+from cobro.core.log import get_logger
+from cobro.core.looks import (
     BUNDLED_FONTS,
     COLORS,
     CUSTOM,
@@ -41,11 +41,10 @@ from ..core.looks import (
     TYPE_STYLES,
     accent_of,
 )
-from ..core.model import STATUSES, TERMS_DAYS, Business, Client, Invoice, LineItem, Look
-from ..core.paths import logos_dir
-from ..core.store import Library
-from . import theme, tokens
-from .widgets import (
+from cobro.core.model import STATUSES, TERMS_DAYS, Business, Client, Invoice, LineItem, Look
+from cobro.core.paths import logos_dir
+from cobro.core.store import Library
+from cobro.ui.components.widgets import (
     Disclosure,
     ElidedLabel,
     FitScroll,
@@ -61,6 +60,7 @@ from .widgets import (
     set_combo,
     vbox,
 )
+from cobro.ui.style import theme, tokens
 
 log = get_logger(__name__)
 

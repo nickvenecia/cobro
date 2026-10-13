@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
-from .model import Invoice
+from cobro.core.model import Invoice
 
 CENT = Decimal("0.01")
 ZERO = Decimal(0)

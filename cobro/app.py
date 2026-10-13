@@ -20,11 +20,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import APP_NAME, __version__
-from .core.log import get_logger, setup_logging
-from .core.paths import data_dir, log_dir, use_data_dir
-from .ui import theme, tokens
-from .ui.widgets import ComboItemDelegate
+from cobro import APP_NAME, __version__
+from cobro.core.log import get_logger, setup_logging
+from cobro.core.paths import ASSETS, data_dir, log_dir, use_data_dir
+from cobro.ui.components.widgets import ComboItemDelegate
+from cobro.ui.style import theme, tokens
 
 log = get_logger(__name__)
 
@@ -172,7 +172,7 @@ def setup_app(app: QApplication) -> None:
     app.setOrganizationName("Cobro")
     app.setApplicationVersion(__version__)
     app.setStyle("Fusion")
-    icon_path = theme.ASSETS / "icon.png"
+    icon_path = ASSETS / "icon.png"
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
     family = theme.load_fonts()
@@ -191,10 +191,10 @@ def setup_app(app: QApplication) -> None:
 def _smoke(app: QApplication) -> int:
     """Used by the build pipeline: open the window on a throwaway data folder, add a business and an
     invoice, save it as a PDF, check the file, quit."""
-    from .core import sample
-    from .core.store import Library
-    from .doc import export
-    from .ui.main_window import MainWindow
+    from cobro.core import sample
+    from cobro.core.store import Library
+    from cobro.doc import export
+    from cobro.ui.window.main_window import MainWindow
 
     tmp = Path(tempfile.mkdtemp(prefix="cobro-smoke-"))
     use_data_dir(tmp)
@@ -240,7 +240,7 @@ def main() -> int:
     if smoke:
         return _smoke(app)
 
-    from .ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     w = MainWindow()
     app.aboutToQuit.connect(w.shutdown)
