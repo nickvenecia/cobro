@@ -416,7 +416,6 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         if inv.business_id not in self.lib.businesses and self.lib.businesses:
             inv.business_id = next(iter(self.lib.businesses))  # its profile was deleted
         self.panel.load(inv)
-        self.lib.settings["current"] = inv.id
         self.inspector.setCurrentWidget(self.panel)
         self.dock.set_open(True)
 

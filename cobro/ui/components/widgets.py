@@ -144,32 +144,8 @@ class _FoldHeader(QPushButton):
         self._elide()
 
 
-class Card(QFrame):
-    """A titled group in a panel: a soft tinted card (the look every panel's groups share)."""
-
-    def __init__(self, title: str = "", parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setObjectName("Card")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.outer = vbox(self, tokens.SPACE_3, tokens.SPACE_2)
-        self.head = hbox(spacing=tokens.SPACE_2)
-        self.title = QLabel(title)
-        self.title.setObjectName("CardTitle")
-        self.title.setVisible(bool(title))
-        self.head.addWidget(self.title, 1)
-        self.outer.addLayout(self.head)
-        self.lay = vbox(spacing=tokens.SPACE_2)
-        self.outer.addLayout(self.lay)
-
-    def add(self, item: QWidget | QHBoxLayout | QVBoxLayout) -> None:
-        if isinstance(item, QWidget):
-            self.lay.addWidget(item)
-        else:
-            self.lay.addLayout(item)
-
-
 class Disclosure(QFrame):
-    """A fold-away group: a Card whose title opens and closes the controls under it.
+    """A fold-away group: a soft card whose title opens and closes the controls under it.
 
     Folded, the header says what's inside ("Line Items · 3 items · $2,700.00"), so nothing that changes
     the invoice is ever hidden silently."""
@@ -438,26 +414,6 @@ def set_combo(c: QComboBox, key: str) -> None:
     c.blockSignals(True)
     c.setCurrentIndex(max(0, c.findData(key)))
     c.blockSignals(False)
-
-
-def disable_item(c: QComboBox, key: str, why: str) -> None:
-    """Grey out one item and say why in its tooltip."""
-    i = c.findData(key)
-    item = c.model().item(i) if i >= 0 and hasattr(c.model(), "item") else None
-    if item is not None:
-        item.setEnabled(False)
-        item.setToolTip(why)
-
-
-def suggestions(c):
-    """A type-ahead list (QCompleter) in the shared list look: rounded, rows inset like the sidebar's."""
-    pop = c.popup()
-    pop.setObjectName("Suggestions")
-    pop.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
-    pop.setWindowFlag(Qt.WindowType.NoDropShadowWindowHint, True)
-    pop.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-    pop.setItemDelegate(ComboItemDelegate(pop))
-    return c
 
 
 class ComboItemDelegate(QStyledItemDelegate):
@@ -763,21 +719,6 @@ class QtyField(QLineEdit):
 
 def qty_field(value: str = "1") -> QtyField:
     return QtyField(value)
-
-
-def chip(text: str = "", tone: str = "") -> QLabel:
-    lbl = QLabel(text)
-    lbl.setObjectName("Chip")
-    lbl.setProperty("tone", tone)
-    return lbl
-
-
-def set_tone(lbl: QLabel, tone: str, text: str) -> None:
-    if lbl.property("tone") != tone:
-        lbl.setProperty("tone", tone)
-        repolish(lbl)
-    lbl.setText(text)
-    lbl.setVisible(bool(text))
 
 
 class MoneyField(QLineEdit):

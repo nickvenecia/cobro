@@ -88,7 +88,7 @@ class Resolved:
     ink: str = INK
     ink_soft: str = INK_SOFT
     rule: str = RULE
-    dark: bool = False  # the preview's Dark Page (never exported)
+    dark: bool = False  # the page window's Dark Page (never exported)
 
 
 def mix(a: str, b: str, t: float) -> str:

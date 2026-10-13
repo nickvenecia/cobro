@@ -4,8 +4,6 @@ A part of MainWindow (see main_window.py); it uses the window's widgets and the 
 
 from __future__ import annotations
 
-import time
-
 from cobro import __version__
 from cobro.core import update
 from cobro.ui.style import theme, tokens
@@ -25,10 +23,6 @@ class ServicesMixin:
     def after_settings(self) -> None:
         """Settings closed: anything it changed shows."""
         self._ai_state()
-
-    def open_account(self) -> None:
-        """Sign in or out, in Settings › Account."""
-        self.open_settings("account")
 
     def open_feedback(self) -> None:
         from cobro.ui.dialogs.feedback import FeedbackDialog
@@ -68,7 +62,6 @@ class ServicesMixin:
         self._check.start()
 
     def _found_release(self, rel: update.Release, quiet: bool) -> None:
-        self.lib.settings["last_update_check"] = time.time()
         if rel.newer:
             self._release = rel
             self.sidebar.btn_update.setText(f"Update to {rel.version}")

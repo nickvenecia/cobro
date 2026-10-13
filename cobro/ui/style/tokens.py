@@ -17,8 +17,6 @@ SPACE_5 = 24  # padding of dialogs and empty states
 CONTROL_H = 34  # EVERY button, dropdown, text field, segmented control and round icon button
 SMALL_H = 24  # small round icon buttons inside rows and cards
 SECTION_ADD = 20  # a sidebar section's plain + (a gray glyph, the Mac's size)
-CHIP_H = 28  # a tinted capsule button (+ Add Line Item)
-CHIP_SM_H = SMALL_H - 6  # a small status chip (Draft, Sent, Overdue, Paid)
 INDICATOR = 16  # a checkbox's box
 TOGGLE_ROW_H = 32  # an on/off setting: label left, switch right
 TOGGLE_W, TOGGLE_H = 36, 20  # the switch
@@ -131,7 +129,6 @@ START_TILE_W = (
 )
 START_BADGE = 40  # the circle behind a start tile's icon
 PROFILE_CARD_H = 48
-ASSISTANT_ICON = 28  # the assistant's face next to its title
 ASSISTANT_ICON_BIG = 64  # and saying hi in an empty chat
 REVIEW_COL_W = (
     170,
@@ -187,7 +184,6 @@ DARK = {
     "DIVIDER_TEXT": "#94E1D6",  # its name and totals
     "DIVIDER_HOVER": "#24403C",  # a band under the mouse: a step brighter
     "GOOD": "#4CC362",  # Paid (shifted away from the turquoise so the two never blur)
-    "ON_GOOD": "#0B1F10",  # words on a solid green chip
     "WARN": "#E9B949",  # Sent, waiting to be paid
     "BAD": "#F0616D",  # Overdue, failed, delete
     "BAD_TINT": "#2A1A1D",  # danger button hover
@@ -237,7 +233,6 @@ LIGHT = {
     "DIVIDER_TEXT": "#0D7163",
     "DIVIDER_HOVER": "#CAE4E0",
     "GOOD": "#1E9A35",
-    "ON_GOOD": "#FFFFFE",
     "WARN": "#A97A06",
     "BAD": "#D3374A",
     "BAD_TINT": "#FBEAEC",

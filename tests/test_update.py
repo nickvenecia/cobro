@@ -1,4 +1,4 @@
-"""Updates (core/update.py, ui/update_dialog.py): finding a newer release, downloading it safely and
+"""Updates (core/update.py, ui/dialogs/update.py): finding a newer release, downloading it safely and
 swapping it in once Cobro has quit."""
 
 from __future__ import annotations

@@ -28,7 +28,7 @@ Not sure which Mac you have? Apple menu → About This Mac: "Chip: Apple M…" m
 
 Everything comes bundled, fonts included. There's no Python or terminal needed.
 
-**Updates:** Cobro checks for a new version once a day. When there is one, an **Update to …** button appears in the sidebar: it shows what's new, downloads the right file for your computer, swaps it in and reopens Cobro. You can also click your profile at the bottom of the sidebar → **Check for Updates…**, or turn the daily check off in **Settings › General**.
+**Updates:** Cobro checks for a new version each time it opens. When there is one, an **Update to …** button appears in the sidebar: it shows what's new, downloads the right file for your computer, swaps it in and reopens Cobro. You can also click your profile at the bottom of the sidebar → **Check for Updates…**, or turn the check off in **Settings › General**.
 
 ## What it does
 

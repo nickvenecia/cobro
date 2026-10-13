@@ -32,7 +32,6 @@ VARIABLE = {
 }
 STATIC = {
     "IBMPlexMono-Regular.ttf": "ibmplexmono/IBMPlexMono-Regular.ttf",
-    "IBMPlexMono-Bold.ttf": "ibmplexmono/IBMPlexMono-Bold.ttf",
 }
 
 

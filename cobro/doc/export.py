@@ -1,4 +1,4 @@
-"""Turn laid-out pages into a PDF, PNG pictures, a printout, or a picture for the preview.
+"""Turn laid-out pages into a PDF, PNG pictures, a printout, or a picture for the page window.
 
 Files are written to a hidden temp file in the same folder and moved into place only when complete,
 so a failed export never leaves a broken file (or replaces a good one).

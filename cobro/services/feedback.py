@@ -10,7 +10,6 @@ version and the kind of computer. Never your invoices or clients.
 
 from __future__ import annotations
 
-import json
 import platform
 import time
 import uuid
@@ -101,38 +100,3 @@ def keep(fb: Feedback) -> Path:
     path = outbox() / f"{time.strftime('%Y%m%d-%H%M%S')}-{fb.kind}-{uuid.uuid4().hex[:6]}.json"
     write_json(path, asdict(fb))  # a temp file, then moved into place: never half a message
     return path
-
-
-def waiting() -> list[Path]:
-    folder = outbox()
-    return sorted(folder.glob("*.json")) if folder.is_dir() else []
-
-
-def send_waiting() -> int:
-    """Send what's in the outbox (once a sender is connected). Returns how many went."""
-    if not sender().connected:
-        return 0
-    n = 0
-    for path in waiting():
-        try:
-            d = json.loads(path.read_text(encoding="utf-8"))
-            sender().send(
-                Feedback(**{k: d[k] for k in ("kind", "message", "email", "details", "written") if k in d})
-            )
-            path.unlink()
-            n += 1
-        except (OSError, ValueError, TypeError, KeyError):
-            log.info("a waiting feedback message didn't send")
-            break
-    return n
-
-
-def mail_link(fb: Feedback) -> str:
-    """A mailto: link for ADDRESS with the message filled in ("" if there's no address)."""
-    from urllib.parse import quote
-
-    if not ADDRESS:
-        return ""
-    body = fb.message + ("\n\n" + "\n".join(f"{k}: {v}" for k, v in fb.details.items()) if fb.details else "")
-    subject = f"Cobro {dict(KINDS).get(fb.kind, 'Feedback')}"
-    return f"mailto:{quote(ADDRESS, safe='@')}?subject={quote(subject)}&body={quote(body)}"

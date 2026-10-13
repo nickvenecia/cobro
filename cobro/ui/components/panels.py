@@ -83,11 +83,6 @@ class NavRow(QFrame):
         self.folded = on
         self.recolor()
 
-    def as_child(self) -> None:
-        """A row under another: its name starts where the row above's icon is."""
-        self.icon.hide()
-        self.label.setObjectName("NavSub")
-
     def set_count(self, n: int | str, tone: str = "") -> None:
         self.count.setText(str(n) if n not in (0, "") else "")
         if self.count.property("tone") != tone:

@@ -12,7 +12,6 @@ so connecting one later means writing a class with these four methods and return
 Rules (whatever service it is):
 - the password is sent once, over https, and never kept anywhere
 - what comes back (a token) lives in the system keychain (services/secrets.py), never in a file
-- REQUIRED decides whether the sign-in window shows when Cobro opens (off until accounts exist)
 """
 
 from __future__ import annotations
@@ -26,7 +25,6 @@ from cobro.services import secrets
 
 log = get_logger(__name__)
 
-REQUIRED = False  # True: Cobro asks you to sign in when it opens (once an account service is connected)
 KEYCHAIN_ENTRY = "account:session"  # where the signed-in session is kept in the keychain
 EMAIL_OK = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

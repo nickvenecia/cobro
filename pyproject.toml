@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.11"
 authors = [{ name = "Nick Venecia" }]
-dependencies = ["PySide6-Essentials>=6.7", "certifi>=2024.2"]
+dependencies = ["PySide6-Essentials>=6.7", "certifi>=2024.2", "keyring>=25"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "pyinstaller>=6.10", "Pillow>=10.3"]

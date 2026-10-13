@@ -89,16 +89,6 @@ class DetailsBase(SidePanel):
         else:
             self.more_menu.addAction(theme.menu_icon(icon), text, lambda: self.later(slot))
 
-    def header_button(self, text: str, primary: bool = False) -> QPushButton:
-        """A button in the panel's header, shown only while something is open."""
-        b = QPushButton(text)
-        if primary:
-            b.setObjectName("Primary")
-        self.header.actions.addWidget(b)
-        self.header_buttons.append(b)
-        b.hide()
-        return b
-
     def open_groups(self) -> dict[str, bool]:
         return {k: d.is_open() for k, d in self.groups.items()}
 

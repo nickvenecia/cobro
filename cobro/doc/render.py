@@ -22,7 +22,6 @@ from cobro.doc.fonts import FontSpec, make, metrics
 
 LEFT = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 RIGHT = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-CENTER = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 WRAP = int(Qt.TextFlag.TextWordWrap)
 
 MARGIN = 44.0

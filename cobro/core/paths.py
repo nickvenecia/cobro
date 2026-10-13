@@ -32,10 +32,6 @@ def data_dir() -> Path:
     return Path(os.environ.get("XDG_DATA_HOME", home / ".local" / "share")) / "cobro"
 
 
-def invoices_dir() -> Path:
-    return data_dir() / "invoices"
-
-
 def logos_dir() -> Path:
     return data_dir() / "logos"
 
