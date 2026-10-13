@@ -11,7 +11,9 @@ The owner is a filmmaker (director/DP/editor/colorist), not a full-time develope
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: code rules. Layout, style (ruff), safety rules, tests, commits.
 - Before finishing any change: `ruff format . && ruff check . && python -m pytest -q`.
 - Commit messages: a short plain summary, nothing added after it (no co-author or sign-off lines, no links).
-  Commits are authored as Nick Venecia <nicholasvenecia@gmail.com> (this repo's git config).
+  Commits are authored as Nick Venecia (this repo's git config).
+- **Every pull request with a change users will notice bumps the version** (see Releasing), once per pull request,
+  with its CHANGELOG notes under that version. Merging it publishes the release.
 
 ## Layout
 ```
@@ -94,13 +96,23 @@ COBRO_DATA_DIR=/tmp/x python -m cobro   # run against a throwaway data folder
 ```
 
 ## Releasing
-Bump `__version__` in `cobro/__init__.py`, turn CHANGELOG's top heading into that version, commit, then tag
-`vX.Y.Z` (GitHub Desktop: History → right-click the commit → Create Tag…, then Push origin) or
-`git tag vX.Y.Z && git push --tags`. CI builds every platform and publishes the Release (about 15-20 min).
-CI attaches: Cobro-mac-apple-silicon.dmg, Cobro-mac-intel.dmg, Cobro-windows-setup.exe, Cobro-windows-portable.zip,
-Cobro-linux-x64.AppImage, Cobro-linux-x64.tar.gz. **These names are a contract**: the README's download links
-(releases/latest/download/<name>) and the in-app updater (update.asset_name) both depend on them, and the repo
-must stay public. update.REPO = "nickvenecia/cobro".
+**Merging is releasing.** Nobody tags or releases by hand.
+- A pull request with a change users will notice (a fix, polish, a new feature) bumps `__version__` in
+  `cobro/__init__.py`, once per pull request: the last number for fixes and polish (1.2.0 → 1.2.1), the middle
+  one for a new feature (1.2.1 → 1.3.0). Its notes go at the top of CHANGELOG.md under `## X.Y.Z`, that same
+  number, never under "Unreleased". Changes users won't notice (tests, notes, code tidying) don't bump it.
+- When it's merged, the push to main runs `.github/workflows/build.yml`: it sees that `vX.Y.Z` has no tag yet,
+  builds and tests every platform, tags that exact commit and publishes the GitHub Release with the downloads
+  and the CHANGELOG notes, all in that one run (about 15-20 min). A merge that doesn't bump the version builds
+  and tests, and releases nothing. Pull requests never release.
+- The workflow checks, on every pull request too, that CHANGELOG's top section is the version in
+  `cobro/__init__.py` (`scripts/release_notes.py`). Two quick merges can't release the same version twice: the
+  release job runs one at a time and only one run can make the tag. A tag pushed by hand still works, but only
+  if it matches the version.
+- CI attaches: Cobro-mac-apple-silicon.dmg, Cobro-mac-intel.dmg, Cobro-windows-setup.exe,
+  Cobro-windows-portable.zip, Cobro-linux-x64.AppImage, Cobro-linux-x64.tar.gz. **These names are a contract**:
+  the README's download links (releases/latest/download/<name>) and the in-app updater (update.asset_name) both
+  depend on them, and the repo must stay public. update.REPO = "nickvenecia/cobro".
 
 ## Ideas not done yet
 - Email the PDF straight from Cobro (attach to a new mail)

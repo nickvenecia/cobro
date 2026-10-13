@@ -53,7 +53,7 @@ def test_due_on_receipt():
 
 
 def test_file_names_are_safe():
-    inv = Invoice(number="RM-2026-001")
+    inv = Invoice(number="JLF-2026-001")
     inv.client.name = 'Northwind: Media/"West"'
-    assert document.file_stem(inv) == "RM-2026-001 Northwind- Media--West-"
+    assert document.file_stem(inv) == "JLF-2026-001 Northwind- Media--West-"
     assert document.file_stem(Invoice()) == "Invoice"

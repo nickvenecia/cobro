@@ -107,10 +107,13 @@ packaging/     Installer files per OS
 
 ## 7. Commits and releases
 
-- One topic per commit. Message: short summary line in the present tense ("Add A4 paper"),
-  then a blank line and the why, if it isn't obvious.
-- Update `CHANGELOG.md` under "Unreleased" for anything a user would notice.
-- Release: bump `__version__` in `cobro/__init__.py`, move the changelog entries under the new version,
-  commit, then `git tag vX.Y.Z && git push --tags`. CI builds and publishes the downloads.
+- One topic per commit. Message: a short plain summary line in the present tense ("Add A4 paper"), nothing
+  added after it (no co-author or sign-off lines, no links).
+- **Merging is releasing.** A pull request with a change users will notice bumps `__version__` in
+  `cobro/__init__.py` once: the last number for fixes and polish (1.2.0 → 1.2.1), the middle one for a new
+  feature (1.2.1 → 1.3.0). Its notes go at the top of `CHANGELOG.md` under `## X.Y.Z`, that same number,
+  never under "Unreleased". Changes users won't notice don't bump it.
+- Merging it to main builds every platform, tags the commit `vX.Y.Z` and publishes the Release with the
+  downloads, in one run of `.github/workflows/build.yml`. Never tag or release by hand.
 - Never commit `build/`, `dist/`, real invoices, personal details, or anything with a password or key in it.
   Signing secrets live only in GitHub → Settings → Secrets.

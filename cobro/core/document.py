@@ -164,7 +164,7 @@ def build(inv: Invoice, b: Business, today=None) -> InvoiceView:
 
 
 def file_stem(inv: Invoice) -> str:
-    """ "RM-2026-001 Northwind Media": what an exported file is called (safe on every system)."""
+    """ "JLF-2026-001 Northwind Media": what an exported file is called (safe on every system)."""
     raw = f"{inv.number} {inv.client.name}".strip() or "Invoice"
     bad = '<>:"/\\|?*'
     clean = "".join("-" if ch in bad or ord(ch) < 32 else ch for ch in raw)

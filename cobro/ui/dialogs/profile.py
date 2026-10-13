@@ -169,7 +169,7 @@ class ProfileDialog(Embeddable, QDialog):
         sec = Section("Invoice Numbers Start With")
         self.prefix = QLineEdit(b.prefix)
         self.prefix.setPlaceholderText(numbering.initials(b.name))
-        self.prefix.setToolTip("Numbers look like RM-2026-001, counting up each year.")
+        self.prefix.setToolTip("Numbers look like JLF-2026-001, counting up each year.")
         sec.add(self.prefix)
         row.addWidget(sec, 1)
         sec = Section("Currency")

@@ -32,9 +32,9 @@ Everything comes bundled, fonts included. There's no Python or terminal needed.
 
 ## What it does
 
-**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`RM-2026-001`, `RM-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
+**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`JLF-2026-001`, `JLF-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
 
-**Numbers your way.** One count for all your invoices (`RM-2026-001`), or a separate count for each client with their code in it (`RM-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
+**Numbers your way.** One count for all your invoices (`JLF-2026-001`), or a separate count for each client with their code in it (`JLF-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
 
 **Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date, line items with details, quantities and rates (a rate of 0 prints as *Included*), discount, sales tax and a deposit already paid.
 
@@ -72,14 +72,10 @@ Build the app yourself: `pyinstaller cobro.spec --noconfirm` → `dist/`.
 
 ## Making a release
 
-Builds run on GitHub for every push. To publish downloads:
-
-```bash
-# bump __version__ in cobro/__init__.py, then:
-git tag v1.0.1 && git push --tags
-```
-
-GitHub Actions builds the Mac (Apple Silicon and Intel), Windows and Linux versions, tests each one, and attaches them to a new Release.
+Merging is releasing. Builds and tests run on GitHub for every push and pull request. A pull request that
+bumps `__version__` in `cobro/__init__.py` (with its notes at the top of `CHANGELOG.md` under that number)
+publishes a new Release when it's merged: GitHub Actions builds the Mac (Apple Silicon and Intel), Windows and
+Linux versions, tests each one, tags the commit and attaches the downloads. No tagging by hand.
 
 ### Optional: signing the Mac app
 To get rid of the "can't check this app" warning you need an Apple Developer account ($99/yr). Add these repository secrets and the workflow will sign and notarize automatically: `MACOS_CERTIFICATE` (base64 .p12), `MACOS_CERTIFICATE_PWD`, `MACOS_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`.

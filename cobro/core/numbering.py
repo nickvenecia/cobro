@@ -1,7 +1,7 @@
 """Invoice numbers: PREFIX-YEAR-001, counting up per prefix and year.
 
-A profile can also count per client: the client's short code goes in the middle (RM-NRTH-2026-001),
-or replaces the profile's letters (NRTH-2026-001). Each head (RM, RM-NRTH, NRTH) has its own count.
+A profile can also count per client: the client's short code goes in the middle (JLF-NRTH-2026-001),
+or replaces the profile's letters (NRTH-2026-001). Each head (JLF, JLF-NRTH, NRTH) has its own count.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ _SMALL = {"and", "of", "the", "a", "an", "&", "de", "la", "el", "los", "las", "y
 
 
 def initials(name: str) -> str:
-    """ "Rosa Marquez" -> "RM"; "Mesquite Productions" -> "MP"; one word -> its first 3 letters."""
+    """ "Juniper Lane Films" -> "JLF"; "Desert Sun Records" -> "DSR"; one word -> its first 3 letters."""
     words = [w for w in re.findall(r"[A-Za-z0-9]+", name) if w.lower() not in _SMALL]
     if not words:
         return "INV"
@@ -36,7 +36,7 @@ def clean_code(code: str) -> str:
 
 
 def head(prefix: str, code: str, style: str) -> str:
-    """What comes before the year: RM ("year"), RM-NRTH ("client") or NRTH ("client_only").
+    """What comes before the year: JLF ("year"), JLF-NRTH ("client") or NRTH ("client_only").
     Without a client code it's always the profile's own letters."""
     prefix, code = clean_prefix(prefix), clean_code(code)
     if code and style == "client":
@@ -53,7 +53,7 @@ def clean_prefix(prefix: str) -> str:
 
 
 def next_number(prefix: str, existing: Iterable[str], year: int) -> str:
-    """The next free number for this prefix and year: RM-2026-001, then RM-2026-002…"""
+    """The next free number for this prefix and year: JLF-2026-001, then JLF-2026-002…"""
     prefix = clean_prefix(prefix)
     head = f"{prefix}-{year}-"
     highest = 0
