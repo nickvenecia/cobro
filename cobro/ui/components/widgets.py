@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
@@ -764,3 +765,61 @@ def add_chip(text: str, icon: str = "plus") -> QPushButton:
     b.setCursor(Qt.CursorShape.PointingHandCursor)
     b.setIcon(theme.icon(icon, theme.ACCENT, tokens.ICON_SM))
     return b
+
+
+class FlowLayout(QLayout):
+    """Lays widgets out left to right and wraps to the next line when the row is full (the + buttons under a group)."""
+
+    def __init__(self, parent: QWidget | None = None, spacing: int = tokens.SPACE_2):
+        super().__init__(parent)
+        self._items: list = []
+        self._space = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item) -> None:
+        self._items.append(item)
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, i):
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i):
+        return self._items.pop(i) if 0 <= i < len(self._items) else None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._lay(QRect(0, 0, width, 0), apply=False)
+
+    def setGeometry(self, rect) -> None:
+        super().setGeometry(rect)
+        self._lay(rect, apply=True)
+
+    def sizeHint(self) -> QSize:
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for it in self._items:
+            size = size.expandedTo(it.minimumSize())
+        return size
+
+    def _lay(self, rect, apply: bool) -> int:
+        x, y, line = rect.x(), rect.y(), 0
+        for it in self._items:
+            if it.widget() is not None and not it.widget().isVisibleTo(it.widget().parentWidget()):
+                continue
+            hint = it.sizeHint()
+            if x + hint.width() > rect.right() + 1 and line > 0:
+                x, y, line = rect.x(), y + line + self._space, 0
+            if apply:
+                it.setGeometry(QRect(QPoint(x, y), hint))
+            x += hint.width() + self._space
+            line = max(line, hint.height())
+        return y + line - rect.y()

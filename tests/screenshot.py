@@ -96,6 +96,16 @@ def shots(out: Path, suffix: str) -> None:
     w.assistant.say("You", "Is anything spelled wrong?")
     w.assistant.say("AI", "No, everything reads well. The details could be shorter.")
     shot(w, out / f"4b-assistant{suffix}.png")
+    from cobro.ui.style import tokens
+
+    w.deselect()
+    w.resize(*tokens.WINDOW_MIN)  # the smallest window: everything still fits
+    w.open(first.id)
+    w.panel.groups["adjustments"].set_open(True)
+    wait()
+    w.panel.scroll.verticalScrollBar().setValue(w.panel.scroll.verticalScrollBar().maximum())
+    shot(w, out / f"12-smallest{suffix}.png")
+    w.resize(*SIZE)
     w.deselect()
     w.go("unpaid")
     shot(w, out / f"5-unpaid{suffix}.png")

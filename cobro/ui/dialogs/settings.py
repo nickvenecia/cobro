@@ -2,6 +2,7 @@
 
     General             Appearance; updates
     Profiles            your profiles (name, logo, contact, numbers, payment text, paper), edited right here
+    AI                  provider, key (in the keychain), model
     Account             sign in or out
     Keyboard Shortcuts  every key, read from the menus
     Your Data           the folder, Back Up

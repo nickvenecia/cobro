@@ -21,6 +21,7 @@ from cobro.core.store import Library
 from cobro.ui.components.lift import Grip, StackLift
 from cobro.ui.components.widgets import (
     ElidedLabel,
+    FlowLayout,
     IconLabel,
     MoneyField,
     Section,
@@ -349,15 +350,13 @@ class InvoicePanel(DetailsBase):
             part.removed.connect(self._remove_part)
             self.parts[key] = part
             g["adjustments"].add(part)
-        add_row = hbox(spacing=tokens.SPACE_2)
+        self.add_row = QWidget()
+        add_row = FlowLayout(self.add_row)  # wraps onto a second line in a narrow panel
         for key in ADJUSTMENTS:
             b = add_chip(ADD_LABELS[key])
             b.clicked.connect(lambda _c=False, k=key: self._add_part(k))
             self.add_parts[key] = b
             add_row.addWidget(b)
-        add_row.addStretch(1)
-        self.add_row = QWidget()
-        self.add_row.setLayout(add_row)
         g["adjustments"].add(self.add_row)
 
         # Payment && Terms

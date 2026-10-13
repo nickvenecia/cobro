@@ -194,6 +194,7 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Long one-line text | `widgets.ElidedLabel` | Text that may not fit: cut short with "…", the full text in its tooltip |
 | Alert | `dialogs.common.Alert` (`confirm`, `notice`) | Every "are you sure", and every error that needs more than a toast |
 | Toast | `widgets.Toast` | A few words saying what just happened; never a question |
+| Wrapping row | `widgets.FlowLayout` | A row of + buttons that wraps onto a second line in a narrow panel |
 | Empty page | `empty.EmptyPage` | Where the table would be with nothing in it: only its start tiles, centred (no headline; the page title says where you are). Search and the filter hide while it shows |
 | Start tile | `empty.StartTile` (`#StartTile`) | Every way to begin on an empty page (Add Your Profile…, New Invoice with the place's sidebar icon, Clear Filters): a raised `RADIUS_LG` tile, its icon in a small tinted circle, a name and a few words, all centred |
 | What's new | `update.Notes` (`#WhatsNew`) | The update window's notes, read from the release (this version's CHANGELOG): a soft `FILL` box only as tall as its words (up to `NOTES_H`, then it scrolls); each section a small label, each change an accent dot and its words at `NOTES_LINE` line height. Release text is escaped, never read as HTML; only https links open |
