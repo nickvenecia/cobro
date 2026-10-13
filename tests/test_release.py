@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import cobro
+import saldo
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("release_notes", ROOT / "scripts" / "release_notes.py")
@@ -17,8 +17,8 @@ spec.loader.exec_module(rn)
 
 def test_this_version_has_its_notes_at_the_top():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    notes = rn.notes(text, cobro.__version__)
-    assert notes.strip() and "Cobro-mac-apple-silicon.dmg" in notes and "## Download" in notes
+    notes = rn.notes(text, saldo.__version__)
+    assert notes.strip() and "Saldo-mac-apple-silicon.dmg" in notes and "## Download" in notes
 
 
 def test_only_that_versions_notes():

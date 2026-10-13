@@ -1,0 +1,95 @@
+"""Secrets (AI keys, the account sign-in) live in the computer's own keychain, never in a file.
+
+macOS Keychain, Windows Credential Manager, or the Linux Secret Service (GNOME Keyring, KWallet), through
+the `keyring` package. If the computer has none, Saldo won't save a key at all rather than write it
+somewhere less safe, and says so. Values are never logged.
+"""
+
+from __future__ import annotations
+
+from saldo.core.log import get_logger
+
+log = get_logger(__name__)
+
+SERVICE = "Saldo"  # how the entries are named in the keychain ("Saldo", account "ai:anthropic"…)
+OLD_SERVICE = "Cobro"  # the app's old name: keys saved before it was called Saldo are under this one
+
+
+class SecretsUnavailable(OSError):
+    """This computer has no keychain Saldo can use."""
+
+
+def _keyring():
+    try:
+        import keyring
+        from keyring.backends import fail
+    except ImportError as e:  # pragma: no cover - bundled with the app
+        raise SecretsUnavailable("The keychain isn't available in this copy of Saldo.") from e
+    if isinstance(keyring.get_keyring(), fail.Keyring):
+        raise SecretsUnavailable("This computer has no keychain for Saldo to keep keys in.")
+    return keyring
+
+
+def available() -> bool:
+    try:
+        _keyring()
+        return True
+    except SecretsUnavailable:
+        return False
+
+
+def get(name: str) -> str:
+    """The secret called `name`, or "" (none saved, or no keychain)."""
+    try:
+        return _keyring().get_password(SERVICE, name) or ""
+    except SecretsUnavailable:
+        return ""
+    except Exception:  # a locked or broken keychain: treat as not saved
+        log.warning("couldn't read %s from the keychain", name)
+        return ""
+
+
+def put(name: str, value: str) -> None:
+    """Save (or with "", remove) a secret. Raises SecretsUnavailable or OSError."""
+    if not value:
+        delete(name)
+        return
+    try:
+        _keyring().set_password(SERVICE, name, value)
+    except SecretsUnavailable:
+        raise
+    except Exception as e:
+        log.warning("couldn't save %s to the keychain", name)
+        raise OSError("Couldn't save it to the keychain.") from e
+
+
+def delete(name: str) -> None:
+    try:
+        _keyring().delete_password(SERVICE, name)
+    except SecretsUnavailable:
+        return
+    except Exception:  # already gone
+        return
+
+
+def carry_over(names: list[str]) -> int:
+    """Copy keys saved under the app's old name (Cobro) to Saldo's own entries, for any Saldo doesn't have yet.
+    The old entries stay as they are. Returns how many came along."""
+    try:
+        keyring = _keyring()
+    except SecretsUnavailable:
+        return 0
+    moved = 0
+    for name in names:
+        try:
+            if keyring.get_password(SERVICE, name):
+                continue
+            value = keyring.get_password(OLD_SERVICE, name)
+            if value:
+                keyring.set_password(SERVICE, name, value)
+                moved += 1
+        except Exception:  # a locked or broken keychain: the key can be added again in Settings › AI
+            log.warning("couldn't bring %s over from the old keychain entries", name)
+    if moved:
+        log.info("brought %d key(s) over from the old keychain entries", moved)
+    return moved

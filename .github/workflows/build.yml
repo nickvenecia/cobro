@@ -1,8 +1,8 @@
-name: Build Cobro
+name: Build Saldo
 
-# Every push and pull request builds and tests Cobro on every platform.
+# Every push and pull request builds and tests Saldo on every platform.
 #
-# Merging is releasing: when a push to main carries a version (__version__ in cobro/__init__.py) that has no
+# Merging is releasing: when a push to main carries a version (__version__ in saldo/__init__.py) that has no
 # tag yet, this same run builds the downloads, tags that exact commit vX.Y.Z and publishes the GitHub Release
 # with the files and that version's CHANGELOG notes. Nobody tags or releases by hand. (A tag made by a
 # workflow's own token starts no other workflow, so tagging and releasing happen here, in one run.)
@@ -45,9 +45,9 @@ jobs:
           REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          v=$(python -c "import ast, pathlib; t = ast.parse(pathlib.Path('cobro/__init__.py').read_text()); print(next(n.value.value for n in t.body if isinstance(n, ast.Assign) and n.targets[0].id == '__version__'))")
+          v=$(python -c "import ast, pathlib; t = ast.parse(pathlib.Path('saldo/__init__.py').read_text()); print(next(n.value.value for n in t.body if isinstance(n, ast.Assign) and n.targets[0].id == '__version__'))")
           echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "Cobro $v"
+          echo "Saldo $v"
           # every version has its notes at the top of CHANGELOG.md, and nothing waits under "Unreleased"
           python scripts/release_notes.py "$v" > /dev/null
           release=false
@@ -55,7 +55,7 @@ jobs:
             push:refs/tags/*)
               # a release whose app reports another number would keep offering itself as an update
               if [ "$REF_NAME" != "v$v" ]; then
-                echo "::error::Tag $REF_NAME doesn't match __version__ $v in cobro/__init__.py. Bump the version and merge it; the release makes its own tag."
+                echo "::error::Tag $REF_NAME doesn't match __version__ $v in saldo/__init__.py. Bump the version and merge it; the release makes its own tag."
                 exit 1
               fi
               release=true
@@ -131,7 +131,7 @@ jobs:
           exit $code
 
       - name: Build app
-        run: pyinstaller cobro.spec --noconfirm
+        run: pyinstaller saldo.spec --noconfirm
 
       # the signing certificate is only handed to the signing step (never to installs, tests or the build)
       - name: Is signing set up?
@@ -147,8 +147,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          dist/Cobro.app/Contents/MacOS/Cobro --smoke-test
-          dist/Cobro.app/Contents/MacOS/Cobro cli sample smoke.pdf --header band
+          dist/Saldo.app/Contents/MacOS/Saldo --smoke-test
+          dist/Saldo.app/Contents/MacOS/Saldo cli sample smoke.pdf --header band
           test -s smoke.pdf
 
       - name: Smoke test (Linux)
@@ -156,8 +156,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          dist/Cobro/Cobro --smoke-test
-          dist/Cobro/Cobro cli sample smoke.pdf --color oxblood
+          dist/Saldo/Saldo --smoke-test
+          dist/Saldo/Saldo cli sample smoke.pdf --color oxblood
           test -s smoke.pdf
 
       - name: Smoke test (Windows)
@@ -166,9 +166,9 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          $p = Start-Process -FilePath dist\Cobro\Cobro.exe -ArgumentList "--smoke-test" -Wait -PassThru
+          $p = Start-Process -FilePath dist\Saldo\Saldo.exe -ArgumentList "--smoke-test" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "GUI smoke test failed: $($p.ExitCode)" }
-          $p = Start-Process -FilePath dist\Cobro\Cobro.exe -ArgumentList "cli","sample","smoke.pdf" -Wait -PassThru
+          $p = Start-Process -FilePath dist\Saldo\Saldo.exe -ArgumentList "cli","sample","smoke.pdf" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "CLI smoke test failed: $($p.ExitCode)" }
           if (-not (Test-Path smoke.pdf)) { throw "no PDF" }
 
@@ -192,39 +192,56 @@ jobs:
           security import "$CERT" -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
           rm -f "$CERT"
           security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
-          find dist/Cobro.app -type f \( -perm -u+x -o -name "*.dylib" -o -name "*.so" \) -print0 | \
+          find dist/Saldo.app -type f \( -perm -u+x -o -name "*.dylib" -o -name "*.so" \) -print0 | \
             xargs -0 codesign --force --timestamp --options runtime --entitlements packaging/macos/entitlements.plist --sign "$MACOS_SIGN_IDENTITY" || true
-          codesign --force --deep --timestamp --options runtime --entitlements packaging/macos/entitlements.plist --sign "$MACOS_SIGN_IDENTITY" dist/Cobro.app
-          ditto -c -k --keepParent dist/Cobro.app notarize.zip
+          codesign --force --deep --timestamp --options runtime --entitlements packaging/macos/entitlements.plist --sign "$MACOS_SIGN_IDENTITY" dist/Saldo.app
+          ditto -c -k --keepParent dist/Saldo.app notarize.zip
           xcrun notarytool submit notarize.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
-          xcrun stapler staple dist/Cobro.app
+          xcrun stapler staple dist/Saldo.app
 
       # ---------- package
+      # Each download is also made under the app's old name (Cobro-…), shaped the way Cobro's updater expects,
+      # so people still on Cobro can update themselves to Saldo (see saldo/core/from_cobro.py)
       - name: Package (macOS .dmg)
         if: runner.os == 'macOS'
         run: |
-          mkdir -p out dmg
-          cp -R dist/Cobro.app dmg/
+          mkdir -p out dmg old/dmg
+          cp -R dist/Saldo.app dmg/
           ln -s /Applications dmg/Applications
-          # hdiutil on GitHub's Macs is sometimes "Resource busy" for a moment: wait and try again
-          for try in 1 2 3 4 5; do
-            if hdiutil create -volname "Cobro" -srcfolder dmg -ov -format UDZO "out/Cobro-${{ matrix.name }}.dmg"; then
-              break
-            fi
-            if [ "$try" = 5 ]; then
-              echo "::error::hdiutil couldn't make the disk image after 5 tries"
-              exit 1
-            fi
-            echo "hdiutil was busy (try $try of 5); trying again"
-            sleep $((try * 5))
-          done
+          # Cobro's updater copies Cobro.app out of the disk image: the same app, named so (on its first start it
+          # renames itself Saldo.app)
+          ditto dist/Saldo.app old/dmg/Cobro.app
+          ln -s /Applications old/dmg/Applications
+          make_dmg() {
+            # hdiutil on GitHub's Macs is sometimes "Resource busy" for a moment: wait and try again
+            for try in 1 2 3 4 5; do
+              if hdiutil create -volname "Saldo" -srcfolder "$1" -ov -format UDZO "$2"; then
+                return 0
+              fi
+              if [ "$try" = 5 ]; then
+                echo "::error::hdiutil couldn't make $2 after 5 tries"
+                return 1
+              fi
+              echo "hdiutil was busy (try $try of 5); trying again"
+              sleep $((try * 5))
+            done
+          }
+          make_dmg dmg "out/Saldo-${{ matrix.name }}.dmg"
+          make_dmg old/dmg "out/Cobro-${{ matrix.name }}.dmg"
 
       - name: Package (Windows .zip)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force out | Out-Null
-          Compress-Archive -Path dist\Cobro -DestinationPath out\Cobro-windows-portable.zip
+          New-Item -ItemType Directory -Force out, old | Out-Null
+          Compress-Archive -Path dist\Saldo -DestinationPath out\Saldo-windows-portable.zip
+          # Cobro's updater unpacks a Cobro folder and opens Cobro.exe in it: a copy of Saldo.exe answers to that
+          # name until Saldo's next update
+          Copy-Item -Recurse dist\Saldo old\Cobro
+          Copy-Item old\Cobro\Saldo.exe old\Cobro\Cobro.exe
+          $p = Start-Process -FilePath old\Cobro\Cobro.exe -ArgumentList "--smoke-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Cobro.exe smoke test failed: $($p.ExitCode)" }
+          Compress-Archive -Path old\Cobro -DestinationPath out\Cobro-windows-portable.zip
 
       - name: Package (Windows installer)
         if: runner.os == 'Windows'
@@ -232,17 +249,25 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
-          $v = (python -c "import cobro; print(cobro.__version__)")
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$v packaging\windows\cobro.iss
-          Copy-Item packaging\windows\Output\Cobro-Setup.exe out\Cobro-windows-setup.exe
+          $v = (python -c "import saldo; print(saldo.__version__)")
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$v packaging\windows\saldo.iss
+          Copy-Item packaging\windows\Output\Saldo-Setup.exe out\Saldo-windows-setup.exe
+          # the same installer for Cobro's updater (it sees a copy installed as Cobro: saldo.iss)
+          Copy-Item packaging\windows\Output\Saldo-Setup.exe out\Cobro-windows-setup.exe
 
       - name: Package (Linux .tar.gz)
         if: runner.os == 'Linux'
         run: |
           mkdir -p out
-          cp packaging/linux/install.sh packaging/linux/cobro.desktop cobro/assets/icon.png dist/Cobro/
-          chmod +x dist/Cobro/install.sh
-          tar -C dist -czf out/Cobro-linux-x64.tar.gz Cobro
+          cp packaging/linux/install.sh packaging/linux/saldo.desktop saldo/assets/icon.png dist/Saldo/
+          chmod +x dist/Saldo/install.sh
+          tar -C dist -czf out/Saldo-linux-x64.tar.gz Saldo
+          # Cobro's updater unpacks a Cobro folder and opens Cobro in it: a copy of Saldo answers to that name
+          mkdir -p old
+          cp -a dist/Saldo old/Cobro
+          cp old/Cobro/Saldo old/Cobro/Cobro
+          QT_QPA_PLATFORM=offscreen old/Cobro/Cobro --smoke-test
+          tar -C old -czf out/Cobro-linux-x64.tar.gz Cobro
 
       - name: Package (Linux AppImage, one file)
         if: runner.os == 'Linux'
@@ -250,12 +275,13 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
-          bash packaging/linux/build_appimage.sh dist/Cobro out/Cobro-linux-x64.AppImage
-          out/Cobro-linux-x64.AppImage --smoke-test
+          bash packaging/linux/build_appimage.sh dist/Saldo out/Saldo-linux-x64.AppImage
+          out/Saldo-linux-x64.AppImage --smoke-test
+          cp out/Saldo-linux-x64.AppImage out/Cobro-linux-x64.AppImage  # the same file, for Cobro's updater
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: Cobro-${{ matrix.name }}
+          name: Saldo-${{ matrix.name }}
           path: out/*
           if-no-files-found: error
 
@@ -316,13 +342,13 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: All six downloads are here
+      - name: All six downloads are here (and their copies for Cobro's updater)
         # the README's links and the in-app updater ask for these exact names
         if: steps.claim.outputs.go == 'true'
         run: |
           missing=0
-          for f in Cobro-mac-apple-silicon.dmg Cobro-mac-intel.dmg Cobro-windows-setup.exe \
-                   Cobro-windows-portable.zip Cobro-linux-x64.AppImage Cobro-linux-x64.tar.gz; do
+          for f in {Saldo,Cobro}-mac-apple-silicon.dmg {Saldo,Cobro}-mac-intel.dmg {Saldo,Cobro}-windows-setup.exe \
+                   {Saldo,Cobro}-windows-portable.zip {Saldo,Cobro}-linux-x64.AppImage {Saldo,Cobro}-linux-x64.tar.gz; do
             if [ ! -s "artifacts/$f" ]; then
               echo "::error::$f wasn't built, so $TAG isn't published. Re-run all jobs; if it needs a code fix, merge it with the next version."
               missing=1
@@ -334,7 +360,7 @@ jobs:
         if: steps.claim.outputs.go == 'true'
         with:
           tag_name: ${{ env.TAG }}
-          name: Cobro ${{ env.VERSION }}
+          name: Saldo ${{ env.VERSION }}
           body_path: ${{ runner.temp }}/notes.md
           files: artifacts/*
           fail_on_unmatched_files: true

@@ -1,0 +1,62 @@
+name: Copy a Release for Cobro 2.0.0
+
+# Cobro 2.0.0 (the app's old name) only takes an update whose download links start with
+# github.com/nickvenecia/cobro/releases/download/. Since the repo became nickvenecia/saldo, GitHub forwards that
+# address here, but the links it hands out say "saldo", so 2.0.0 finds the update and then won't use it.
+# (Cobro 1.0 and 1.1 have no such check: they update straight from this repo's releases.)
+#
+# For 2.0.0 to update itself, a public repo named nickvenecia/cobro has to carry the release:
+#   1. Create a new public repo named "cobro", with a README (so it has a first commit). From then on the old
+#      address shows that repo instead of forwarding here, so say in its README that the app is now Saldo.
+#   2. Make a fine-grained personal access token that can only reach that repo (Contents: Read and write) and
+#      add it to this repo as the Actions secret COBRO_REPO_TOKEN.
+#   3. Once a release is out, run this workflow (Actions › Copy a Release for Cobro 2.0.0 › Run workflow) with
+#      its version. It copies the release's notes and its Cobro-… downloads (made for Cobro's updater, see
+#      build.yml) to nickvenecia/cobro. Running it again changes nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version to copy, like 2.1.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: The release's notes and its Cobro-… downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$VERSION isn't a version like 2.1.0."
+            exit 1
+          fi
+          gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --pattern 'Cobro-*' --dir files
+          ls -l files
+          if [ "$(ls files | wc -l)" -ne 6 ]; then
+            echo "::error::v$VERSION doesn't have all six Cobro-… downloads."
+            exit 1
+          fi
+
+      # the token is handed to this step only
+      - name: Publish them as a release of nickvenecia/cobro
+        env:
+          GH_TOKEN: ${{ secrets.COBRO_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Add the COBRO_REPO_TOKEN secret first (the steps are at the top of this workflow)."
+            exit 1
+          fi
+          if gh release view "v$VERSION" --repo nickvenecia/cobro > /dev/null 2>&1; then
+            echo "::notice::v$VERSION is already on nickvenecia/cobro."
+            exit 0
+          fi
+          gh release create "v$VERSION" files/* --repo nickvenecia/cobro --title "Saldo $VERSION" \
+            --notes-file notes.md --latest

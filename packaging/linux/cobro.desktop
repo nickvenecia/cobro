@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Cobro
-Comment=Make an invoice, send it, get paid.
-Exec=COBRO_DIR/Cobro
-Icon=COBRO_DIR/icon.png
-Terminal=false
-Categories=Office;Finance;

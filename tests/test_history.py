@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from cobro.core import sample
-from cobro.core.history import History
-from cobro.core.model import Client
-from cobro.core.store import Library
+from saldo.core import sample
+from saldo.core.history import History
+from saldo.core.model import Client
+from saldo.core.store import Library
 
 
 def test_undo_redo_round_trip(tmp_path):

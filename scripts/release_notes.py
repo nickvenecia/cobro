@@ -4,7 +4,7 @@
 
 The build (.github/workflows/build.yml) runs it on every push and pull request, so a mistake shows up before
 anything is merged: it stops with an error if CHANGELOG.md's top section isn't the version in
-cobro/__init__.py, or if anything still sits under "Unreleased" (notes go straight under their version).
+saldo/__init__.py, or if anything still sits under "Unreleased" (notes go straight under their version).
 """
 
 from __future__ import annotations
@@ -20,14 +20,15 @@ HEADING = re.compile(r"^## +(.+?)\s*$", re.MULTILINE)
 DOWNLOADS = """## Download
 | Your computer | File |
 |---|---|
-| Mac with Apple Silicon (M1 and newer) | `Cobro-mac-apple-silicon.dmg` |
-| Intel Mac | `Cobro-mac-intel.dmg` |
-| Windows (installer) | `Cobro-windows-setup.exe` |
-| Windows (no install) | `Cobro-windows-portable.zip` |
-| Linux (one file, double-click to run) | `Cobro-linux-x64.AppImage` |
-| Linux (folder + install script) | `Cobro-linux-x64.tar.gz` |
+| Mac with Apple Silicon (M1 and newer) | `Saldo-mac-apple-silicon.dmg` |
+| Intel Mac | `Saldo-mac-intel.dmg` |
+| Windows (installer) | `Saldo-windows-setup.exe` |
+| Windows (no install) | `Saldo-windows-portable.zip` |
+| Linux (one file, double-click to run) | `Saldo-linux-x64.AppImage` |
+| Linux (folder + install script) | `Saldo-linux-x64.tar.gz` |
 
-Everything Cobro needs is inside, nothing else to install.
+Everything Saldo needs is inside, nothing else to install. (The `Cobro-…` files are the same app, for copies of \
+Cobro, its old name, updating themselves.)
 **First launch on Mac:** if macOS says it can't check the app, open **System Settings → Privacy & Security** and \
 click **Open Anyway**.
 **First launch on Windows:** if SmartScreen appears, click **More info → Run anyway**.
@@ -44,12 +45,12 @@ def section(changelog: str, version: str) -> str:
     if any(h.casefold().startswith("unreleased") for h, _s, _e in heads):
         raise NotesError(
             'CHANGELOG.md has an "Unreleased" section. Put those notes under the new version instead '
-            f"(## {version}, the same number as in cobro/__init__.py)."
+            f"(## {version}, the same number as in saldo/__init__.py)."
         )
     if not heads or heads[0][0] != version:
         top = heads[0][0] if heads else "nothing"
         raise NotesError(
-            f"CHANGELOG.md starts with ## {top}, but cobro/__init__.py says {version}. "
+            f"CHANGELOG.md starts with ## {top}, but saldo/__init__.py says {version}. "
             f"Add a ## {version} section at the top with what changed."
         )
     end = heads[1][1] if len(heads) > 1 else len(changelog)

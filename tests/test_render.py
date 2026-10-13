@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from cobro.core import document, sample
-from cobro.core.looks import COLORS, MONO, resolve
-from cobro.core.model import Look
-from cobro.doc import export, fonts, render
+from saldo.core import document, sample
+from saldo.core.looks import COLORS, MONO, resolve
+from saldo.core.model import Look
+from saldo.doc import export, fonts, render
 
 
 def _pages(qapp, look=None, items=3, logo=None):
@@ -73,7 +73,7 @@ def test_png_and_a4(qapp, tmp_path):
 
 
 def test_logo(qapp, tmp_path):
-    from cobro.doc.fonts import ASSETS
+    from saldo.doc.fonts import ASSETS
 
     pages = _pages(qapp, logo=ASSETS / "icon.png")
     assert any(isinstance(s, render.Logo) for s in pages[0].steps)
@@ -82,7 +82,7 @@ def test_logo(qapp, tmp_path):
 
 
 def test_the_dark_page_changes_colors_only(qapp, tmp_path):
-    from cobro.core.looks import DARK, LIGHT
+    from saldo.core.looks import DARK, LIGHT
 
     fonts.load_bundled()
     v = document.build(sample.invoice(), sample.business())
@@ -102,7 +102,7 @@ def test_the_name_and_tagline_stay_together_beside_a_logo(qapp, tmp_path):
     whatever the logo's shape; the logo is centred on the name block."""
     from PySide6.QtGui import QColor, QImage
 
-    from cobro.doc.fonts import metrics
+    from saldo.doc.fonts import metrics
 
     fonts.load_bundled()
     for width in range(60, 400, 7):

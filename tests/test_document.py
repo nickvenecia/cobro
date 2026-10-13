@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from cobro.core import document, sample
-from cobro.core.model import Invoice, LineItem
+from saldo.core import document, sample
+from saldo.core.model import Invoice, LineItem
 
 
 def test_the_sample_invoice_reads_right():

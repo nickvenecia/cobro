@@ -1,8 +1,8 @@
-"""Draw the app icon (cobro/assets/icon.png): "c." on a dark tile, the full stop in the accent.
+"""Draw the app icon (saldo/assets/icon.png): "s." on a dark tile, the full stop in the accent.
 
     python scripts/make_icon.py
 
-The build turns the PNG into the Mac .icns and Windows .ico (cobro.spec). Colors come from the design
+The build turns the PNG into the Mac .icns and Windows .ico (saldo.spec). Colors come from the design
 tokens and the letters from the bundled Inter Display Bold, so the icon always matches the app.
 """
 
@@ -16,14 +16,14 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from cobro.ui.style.tokens import ACCENT, TEXT  # noqa: E402
+from saldo.ui.style.tokens import ACCENT, TEXT  # noqa: E402
 
 SIZE = 1024
 TILE = 824  # Apple's icon grid: an 824 px rounded square centred on 1024 (room for the shadow)
 RADIUS = 185
 TILE_TOP = "#1E1E22"  # a soft top-to-bottom shade of the app background (BG #111113)
 TILE_BOTTOM = "#121214"
-FONT = ROOT / "cobro" / "assets" / "fonts" / "InterDisplay-Bold.otf"
+FONT = ROOT / "saldo" / "assets" / "fonts" / "InterDisplay-Bold.otf"
 
 
 def _hex(c: str) -> tuple[int, int, int]:
@@ -58,8 +58,8 @@ def draw(size: int = SIZE) -> Image.Image:
         width=max(1, round(3 * s)),
     )
 
-    # "c." in the text color, the full stop in the accent; sized by the letter's height, centred on its ink
-    letter, dot = "c", "."
+    # "s." in the text color, the full stop in the accent; sized by the letter's height, centred on its ink
+    letter, dot = "s", "."
     font = ImageFont.truetype(str(FONT), round(560 * s))
     d = ImageDraw.Draw(img)
     left, top_px, right, bottom_px = font.getbbox(letter + dot)
@@ -72,6 +72,6 @@ def draw(size: int = SIZE) -> Image.Image:
 
 
 if __name__ == "__main__":
-    out = ROOT / "cobro" / "assets" / "icon.png"
+    out = ROOT / "saldo" / "assets" / "icon.png"
     draw().save(out)
     print(f"wrote {out}")

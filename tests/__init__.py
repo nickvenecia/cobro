@@ -1,1 +1,1 @@
-"""Cobro's tests (run with python -m pytest -q)."""
+"""Saldo's tests (run with python -m pytest -q)."""

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import csv
 
-from cobro.core import sample, spreadsheet
-from cobro.core.store import Library
+from saldo.core import sample, spreadsheet
+from saldo.core.store import Library
 
 
 def test_one_row_per_invoice_with_plain_numbers(tmp_path):

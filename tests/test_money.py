@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from cobro.core import billing, money
-from cobro.core.model import Invoice, LineItem
+from saldo.core import billing, money
+from saldo.core.model import Invoice, LineItem
 
 
 def test_typed_amounts_are_read_the_way_people_write_them():

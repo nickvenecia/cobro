@@ -8,14 +8,14 @@ from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QApplication
 
-from cobro.core import sample
-from cobro.core.model import Client, LineItem
-from cobro.core.store import Library
+from saldo.core import sample
+from saldo.core.model import Client, LineItem
+from saldo.core.store import Library
 
 
 @pytest.fixture
 def win(qapp, data_folder):
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.window.main_window import MainWindow
 
     w = MainWindow(sample.fill(Library(data_folder).load()))
     w._restored = True
@@ -56,7 +56,7 @@ def row_of(w, inv_id: str):
 
 
 def test_first_launch_asks_for_your_profile(qapp, data_folder):
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.window.main_window import MainWindow
 
     w = MainWindow(Library(data_folder).load())
     assert w.pages.currentWidget() is w.empty
@@ -67,7 +67,7 @@ def test_first_launch_asks_for_your_profile(qapp, data_folder):
 
 
 def test_sidebar_places_and_counts(win):
-    from cobro.core import document
+    from saldo.core import document
 
     counts = {k: r.count.text() for k, r in win.sidebar.rows.items()}
     assert counts["all"] == "4" and counts["drafts"] == "1" and counts["paid"] == "1"
@@ -100,7 +100,7 @@ def test_open_edit_and_save(win, data_folder):
     win.refresh()
     again = Library(data_folder).load().invoices[inv.id]
     assert again.client.name == "Brand New Co" and again.items[0].rate == "1500"
-    from cobro.ui.window.tables import COL
+    from saldo.ui.window.tables import COL
 
     assert row_of(win, inv.id).text(COL["total"]) == "$1,500.00"
     win.deselect()  # Esc
@@ -145,7 +145,7 @@ def test_toasts(win):
 
 
 def test_the_invoice_window_and_its_dark_page(win, monkeypatch):
-    from cobro.ui.dialogs.preview import PageDialog
+    from saldo.ui.dialogs.preview import PageDialog
 
     seen = []
 
@@ -175,8 +175,8 @@ def test_paid_shows_its_date(win):
 
 
 def test_an_unsaved_client_still_shows_and_typing_never_saves_clients(qapp, data_folder):
-    from cobro.ui.panels.invoice import THIS_CLIENT
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.panels.invoice import THIS_CLIENT
+    from saldo.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = lib.add_business(sample.business())
@@ -225,7 +225,7 @@ def test_scrolling_never_changes_a_date_or_dropdown(win):
 
 
 def test_every_group_folds_and_is_remembered(qapp, data_folder):
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.window.main_window import MainWindow
 
     w = MainWindow(sample.fill(Library(data_folder).load()))
     w.open(w.lib.ordered()[0].id)
@@ -240,7 +240,7 @@ def test_every_group_folds_and_is_remembered(qapp, data_folder):
 
 
 def test_picking_a_client_gives_a_draft_its_number_when_counting_per_client(qapp, data_folder):
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.window.main_window import MainWindow
 
     lib = Library(data_folder)
     b = sample.business()
@@ -264,7 +264,7 @@ def test_picking_a_client_gives_a_draft_its_number_when_counting_per_client(qapp
 
 
 def test_the_profile_editor_saves_a_copy_and_cancel_changes_nothing(qapp, data_folder):
-    from cobro.ui.dialogs.profile import ProfileDialog
+    from saldo.ui.dialogs.profile import ProfileDialog
 
     b = sample.business()
     d = ProfileDialog(b, can_delete=False)
@@ -278,7 +278,7 @@ def test_the_profile_editor_saves_a_copy_and_cancel_changes_nothing(qapp, data_f
 
 
 def test_the_paper_changes_with_the_profile(win, data_folder):
-    from cobro.ui.dialogs.profile import ProfileDialog
+    from saldo.ui.dialogs.profile import ProfileDialog
 
     b = win.business()
     d = ProfileDialog(b, can_delete=False)
@@ -292,7 +292,7 @@ def test_the_paper_changes_with_the_profile(win, data_folder):
 
 
 def test_new_client_under_bill_to_fills_in_the_invoice(win, monkeypatch):
-    from cobro.ui.window import editing
+    from saldo.ui.window import editing
 
     class Saved:
         DialogCode = editing.ClientDialog.DialogCode
@@ -313,7 +313,7 @@ def test_new_client_under_bill_to_fills_in_the_invoice(win, monkeypatch):
 
 
 def test_all_invoices_folds_its_places_and_remembers(qapp, data_folder):
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.window.main_window import MainWindow
 
     lib = sample.fill(Library(data_folder).load())
     w = MainWindow(lib)
@@ -401,7 +401,7 @@ def test_a_new_client_is_kept_once_it_has_a_name(win, data_folder):
 
 
 def test_a_new_invoice_for_a_client_and_deleting_one(win, monkeypatch, data_folder):
-    from cobro.ui.window import editing
+    from saldo.ui.window import editing
 
     lib = win.lib
     mesa = lib.find_client("Mesa Coffee Co.")
@@ -422,7 +422,7 @@ def test_a_new_invoice_for_a_client_and_deleting_one(win, monkeypatch, data_fold
 
 
 def test_undo_and_redo(win, monkeypatch, data_folder):
-    from cobro.ui.window import editing
+    from saldo.ui.window import editing
 
     monkeypatch.setattr(editing, "confirm", lambda *a, **k: True)
     lib = win.lib
@@ -449,7 +449,7 @@ def test_undo_and_redo(win, monkeypatch, data_folder):
 
 
 def test_delete_many_after_one_alert(win, monkeypatch):
-    from cobro.ui.window import editing
+    from saldo.ui.window import editing
 
     asked = []
     monkeypatch.setattr(editing, "confirm", lambda _w, title, *_a, **_k: asked.append(title) or True)
@@ -496,7 +496,7 @@ def test_search_filter_and_totals(win):
 def test_divide_by_client_and_fold_a_band(win):
     from datetime import date
 
-    from cobro.ui.window.tables import HEAD
+    from saldo.ui.window.tables import HEAD
 
     root = win.table.invisibleRootItem()
     months = [root.child(i).text(0) for i in range(root.childCount())]
@@ -513,10 +513,10 @@ def test_divide_by_client_and_fold_a_band(win):
 
 
 def test_settings_window(win, qapp, data_folder):
-    from cobro.app import set_appearance
-    from cobro.core.store import read_json
-    from cobro.ui.dialogs.settings import SettingsDialog
-    from cobro.ui.style import tokens
+    from saldo.app import set_appearance
+    from saldo.core.store import read_json
+    from saldo.ui.dialogs.settings import SettingsDialog
+    from saldo.ui.style import tokens
 
     d = SettingsDialog(win.lib, win)
     try:
@@ -540,7 +540,7 @@ def test_settings_window(win, qapp, data_folder):
 
 
 def test_shortcuts_listed(win):
-    from cobro.ui.dialogs.shortcuts import keys_by_menu
+    from saldo.ui.dialogs.shortcuts import keys_by_menu
 
     menus = dict(keys_by_menu(win.menuBar()))
     edit = dict(menus["Edit"])
@@ -552,7 +552,7 @@ def test_alert_return_says_yes(win):
     from PySide6.QtCore import QTimer
     from PySide6.QtTest import QTest
 
-    from cobro.ui.dialogs.common import confirm
+    from saldo.ui.dialogs.common import confirm
 
     QTimer.singleShot(50, lambda: QTest.keyClick(QApplication.activeModalWidget(), Qt.Key.Key_Return))
     assert confirm(win, "Delete it?", "", "Delete") is True
@@ -563,9 +563,9 @@ def test_alert_return_says_yes(win):
 def test_back_up_zips_the_data(tmp_path):
     import zipfile
 
-    from cobro.core.fileutil import zip_folder
+    from saldo.core.fileutil import zip_folder
 
-    src = tmp_path / "Cobro"
+    src = tmp_path / "Saldo"
     (src / "invoices").mkdir(parents=True)
     (src / "businesses.json").write_text("{}")
     (src / "invoices" / "a.json").write_text("{}")
@@ -573,16 +573,16 @@ def test_back_up_zips_the_data(tmp_path):
     (src / "ui" / "x.svg").write_text("<svg/>")
     dest = tmp_path / "backup.zip"
     assert zip_folder(src, dest, skip=("ui",)) == 2
-    assert sorted(zipfile.ZipFile(dest).namelist()) == ["Cobro/businesses.json", "Cobro/invoices/a.json"]
+    assert sorted(zipfile.ZipFile(dest).namelist()) == ["Saldo/businesses.json", "Saldo/invoices/a.json"]
 
 
 def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
     from PySide6.QtCore import QSize
     from PySide6.QtGui import QStyleHints
 
-    from cobro.app import set_appearance
-    from cobro.ui.style import theme, tokens
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.app import set_appearance
+    from saldo.ui.style import theme, tokens
+    from saldo.ui.window.main_window import MainWindow
 
     assert set(tokens.LIGHT) == set(tokens.DARK)  # every color has both versions
     lib = Library(data_folder)
@@ -605,14 +605,14 @@ def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
 
     try:
         set_appearance(qapp, "system")
-        computer_says(Qt.ColorScheme.Light)  # e.g. switched in System Settings while Cobro is open
+        computer_says(Qt.ColorScheme.Light)  # e.g. switched in System Settings while Saldo is open
         assert tokens.SCHEME == "light" and tokens.LIGHT["BG"] == tokens.BG
         assert ink(plus) == tokens.LIGHT["TEXT"].lower()  # icons already made follow too
         assert tokens.LIGHT["ACCENT"] in theme.wordmark()
         computer_says(Qt.ColorScheme.Dark)
         assert tokens.SCHEME == "dark" and tokens.DARK["BG"] == tokens.BG
         assert ink(plus) == tokens.DARK["TEXT"].lower()
-        computer_says(Qt.ColorScheme.Unknown)  # can't tell: Cobro's dark
+        computer_says(Qt.ColorScheme.Unknown)  # can't tell: Saldo's dark
         assert tokens.SCHEME == "dark"
         set_appearance(qapp, "light")  # pinned in Settings: the computer no longer decides
         computer_says(Qt.ColorScheme.Dark)
@@ -622,13 +622,13 @@ def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
     w.shutdown()
 
 
-def test_a_data_folder_from_cobro_1_opens_and_nothing_in_it_is_lost(qapp, data_folder):
-    """Files written by Cobro 1.0 (type styles, no clients file, the old window's settings) open in the new
+def test_a_data_folder_from_version_1_opens_and_nothing_in_it_is_lost(qapp, data_folder):
+    """Files written by version 1.0 (type styles, no clients file, the old window's settings) open in the new
     window, print, and come back out with everything they held."""
     import json
 
-    from cobro.core.store import write_json
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.core.store import write_json
+    from saldo.ui.window.main_window import MainWindow
 
     look = {
         "type_style": "classic",

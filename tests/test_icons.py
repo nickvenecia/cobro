@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from cobro.ui.style import theme
+from saldo.ui.style import theme
 
-ROOT = Path(__file__).resolve().parent.parent / "cobro"
+ROOT = Path(__file__).resolve().parent.parent / "saldo"
 CALLS = re.compile(
     r'(?:icon|menu_icon|IconLabel|circle_button|icon_button|header_icon|set_icon|menu_action)\(\s*"([a-z0-9-]+)"'
 )
@@ -24,8 +24,8 @@ def test_every_named_icon_exists():
 
 
 def test_settings_and_sidebar_icons_exist():
-    from cobro.ui.dialogs.settings import PANES
-    from cobro.ui.window.common import PLACES
+    from saldo.ui.dialogs.settings import PANES
+    from saldo.ui.window.common import PLACES
 
     names = {icon for _k, _l, icon in PANES} | {icon for _label, icon in PLACES.values()}
     assert names and all(n in theme._SVG for n in names), names

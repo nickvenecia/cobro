@@ -3,7 +3,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cobro"
+name = "saldo"
 dynamic = ["version"]
 description = "Make an invoice, send it, get paid."
 readme = "README.md"
@@ -16,19 +16,19 @@ dependencies = ["PySide6-Essentials>=6.7", "certifi>=2024.2", "keyring>=25"]
 dev = ["pytest>=8", "ruff>=0.6", "pyinstaller>=6.10", "Pillow>=10.3"]
 
 [project.scripts]
-cobro-cli = "cobro.cli:main"
+saldo-cli = "saldo.cli:main"
 
 [project.gui-scripts]
-cobro = "cobro.app:main"
+saldo = "saldo.app:main"
 
 [tool.setuptools.dynamic]
-version = { attr = "cobro.__version__" }
+version = { attr = "saldo.__version__" }
 
 [tool.setuptools.packages.find]
-include = ["cobro*"]
+include = ["saldo*"]
 
 [tool.setuptools.package-data]
-cobro = ["assets/*", "assets/fonts/*"]
+saldo = ["assets/*", "assets/fonts/*"]
 
 # ---------------------------------------------------------------- code style
 [tool.ruff]
@@ -60,10 +60,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S108", "B023", "E731"]
-"cobro.spec" = ["F821"]
+"saldo.spec" = ["F821"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["cobro"]
+known-first-party = ["saldo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

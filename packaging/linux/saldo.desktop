@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Saldo
+Comment=Make an invoice, send it, get paid.
+Exec=SALDO_DIR/Saldo
+Icon=SALDO_DIR/icon.png
+Terminal=false
+Categories=Office;Finance;

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from cobro.core import numbering
+from saldo.core import numbering
 
 
 def test_initials():
     assert numbering.initials("Juniper Lane Films") == "JLF"
     assert numbering.initials("Desert Sun Records") == "DSR"
     assert numbering.initials("Mesa Coffee") == "MC"
-    assert numbering.initials("Cobro") == "COB"
+    assert numbering.initials("Saldo") == "SAL"
     assert numbering.initials("") == "INV"
 
 

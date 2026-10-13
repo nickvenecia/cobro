@@ -1,0 +1,59 @@
+"""Where Saldo keeps its own files on each operating system."""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+_override: Path | None = None
+
+ASSETS = Path(__file__).resolve().parent.parent / "assets"  # fonts, icon: shipped inside the app
+
+
+def use_data_dir(path: Path | None) -> None:
+    """Point Saldo at another data folder (tests, the smoke test). None goes back to the normal one."""
+    global _override
+    _override = path
+
+
+def data_dir() -> Path:
+    """Per-user folder for invoices, businesses, logos and logs (never inside the app bundle)."""
+    if _override is not None:
+        return _override
+    env = os.environ.get("SALDO_DATA_DIR")
+    if env:
+        return Path(env)
+    return standard_data_dir()
+
+
+def standard_data_dir(name: str = "Saldo") -> Path:
+    """Where an app called `name` keeps its files on this computer (no test or trial folder)."""
+    home = Path.home()
+    if sys.platform == "darwin":
+        return home / "Library" / "Application Support" / name
+    if sys.platform.startswith("win"):
+        return Path(os.environ.get("LOCALAPPDATA", home / "AppData" / "Local")) / name
+    return Path(os.environ.get("XDG_DATA_HOME", home / ".local" / "share")) / name.lower()
+
+
+def logos_dir() -> Path:
+    return data_dir() / "logos"
+
+
+def logo_path(name: str) -> Path | None:
+    """A profile's logo file, if `name` is a plain file name inside the logos folder (never a path that
+    leads anywhere else). The file may be missing: then the invoice just leaves the logo out."""
+    if not name or name != Path(name).name or name.startswith(".") or "\\" in name:
+        return None
+    return logos_dir() / name
+
+
+def log_dir() -> Path:
+    return data_dir() / "logs"
+
+
+def documents_dir() -> Path:
+    """Where exported PDFs go by default: Documents/Saldo."""
+    docs = Path.home() / "Documents"
+    return (docs if docs.is_dir() else Path.home()) / "Saldo"

@@ -1,12 +1,19 @@
 # Changelog
 
+## 2.1.0
+- **cobro. is now saldo.** Same app, new name. Everything you made carries over
+- The first time Saldo opens, every invoice, client, profile, number and setting from Cobro is there, and so is your AI key. Cobro's own files are left as they were
+- **A new icon**: "s." on the dark tile, the full stop in the same turquoise
+- On a Mac, Saldo takes the old Cobro app's place instead of sitting beside it
+- On Linux, the install script keeps the program apart from your invoices, so installing again never touches them
+
 ## 2.0.0
 - **A new window.** The sidebar on the left takes you to All Invoices, with Drafts, Unpaid and Paid under it (the arrow folds them away), and to your clients. The middle is one table of your invoices. Click one and it opens on the right, ready to edit; Esc or ✕ puts it away
 - **Clients in the sidebar**: All Clients shows everyone you bill in one table (who to address, their email, how many invoices, what's unpaid, what you've billed in all), and each client sits under it in the sidebar. Click one to see and change their details, every invoice you've made them, and **New Invoice** to bill them again. The section's **+** (or ⇧⌘N) adds a client; they're kept once they have a name
 - **The invoice table**: sort by any column; divided by month (newest first) or by client, each with its total, and each folds with a click; filter by status, profile and year; search. Unpaid, Overdue, Paid and Total add up underneath
 - **The invoice in its own window**: **Invoice…** shows the page exactly as it prints, with Save PDF…, Print…, Save as PNG…, Copy as Text, Email Client and Mark as Sent
-- **Settings** (⌘,): Appearance (Match System, Light or Dark), Accent Color (Cobro's turquoise or seven others), your Profiles, Account, Keyboard Shortcuts, and Your Data (Show Folder, Back Up…)
-- **Light and dark**: Cobro follows your computer's setting and switches with it while it's open, or you pick one in Settings. The invoice's own Dark Page (the moon) is separate, and PDFs, PNGs and prints always stay white
+- **Settings** (⌘,): Appearance (Match System, Light or Dark), Accent Color (Saldo's turquoise or seven others), your Profiles, Account, Keyboard Shortcuts, and Your Data (Show Folder, Back Up…)
+- **Light and dark**: Saldo follows your computer's setting and switches with it while it's open, or you pick one in Settings. The invoice's own Dark Page (the moon) is separate, and PDFs, PNGs and prints always stay white
 - **Undo and redo** (⌘Z, ⇧⌘Z) for invoices, clients and profiles
 - **AI, with your own key** (optional): connect Anthropic, OpenAI, Google Gemini, Kimi, OpenRouter, DeepSeek, Mistral, xAI, Groq or a model on your own computer in Settings › AI. The assistant (⌘J, or the bubble in the toolbar) tidies up an invoice's line items or answers questions about them. Only the line items' words are sent, never amounts or clients, and nothing changes until you approve it
 - **Pick many**: ⌘A, or Shift- and ⌘-click, then Delete. One alert names what goes
@@ -24,9 +31,9 @@
 - A new invoice you leave without filling anything in isn't kept
 - Scrolling over a date or a dropdown never changes it
 - A name next to a logo no longer leaves an empty line above the tagline; the logo and name line up in the middle
-- **Safer logos**: every logo, SVG too, is redrawn by Cobro as a clean picture before it's kept (anything else the file carried is left behind), very big files are refused, and logos are scaled to print size on the page, so PDFs stay small
+- **Safer logos**: every logo, SVG too, is redrawn by Saldo as a clean picture before it's kept (anything else the file carried is left behind), very big files are refused, and logos are scaled to print size on the page, so PDFs stay small
 - **A new icon**: "c." on a dark tile, the full stop in turquoise
-- Everything you made in Cobro 1.1 opens as it was
+- Everything you made in version 1.1 opens as it was
 
 ## 1.1.0
 - **First release.** Make an invoice, see it exactly as it will print, save it as a PDF

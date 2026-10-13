@@ -1,10 +1,10 @@
-<p align="center"><img src="cobro/assets/icon.png" width="128" alt="Cobro icon"></p>
+<p align="center"><img src="saldo/assets/icon.png" width="128" alt="Saldo icon"></p>
 
-<h1 align="center">cobro.</h1>
+<h1 align="center">saldo.</h1>
 <p align="center"><b>Make an invoice. Send it. Get paid.</b><br>
 Clean, good-looking invoices as PDFs, with your logo and your colors. Runs on Mac, Windows and Linux.</p>
 
-<p align="center"><img src="docs/screenshot.png" width="860" alt="Cobro: your invoices and clients on the left, your invoices in the middle, the one you picked on the right"></p>
+<p align="center"><img src="docs/screenshot.png" width="860" alt="Saldo: your invoices and clients on the left, your invoices in the middle, the one you picked on the right"></p>
 
 ---
 
@@ -14,27 +14,29 @@ Click the one for your computer. These links always give you the newest version.
 
 | Your computer | Download |
 |---|---|
-| Mac with Apple Silicon (M1 and newer) | **[Cobro for Mac (Apple Silicon)](https://github.com/nickvenecia/cobro/releases/latest/download/Cobro-mac-apple-silicon.dmg)** |
-| Intel Mac | **[Cobro for Mac (Intel)](https://github.com/nickvenecia/cobro/releases/latest/download/Cobro-mac-intel.dmg)** |
-| Windows | **[Cobro for Windows (installer)](https://github.com/nickvenecia/cobro/releases/latest/download/Cobro-windows-setup.exe)** · [portable .zip](https://github.com/nickvenecia/cobro/releases/latest/download/Cobro-windows-portable.zip) |
-| Linux | **[Cobro for Linux (AppImage)](https://github.com/nickvenecia/cobro/releases/latest/download/Cobro-linux-x64.AppImage)** · [.tar.gz](https://github.com/nickvenecia/cobro/releases/latest/download/Cobro-linux-x64.tar.gz) |
+| Mac with Apple Silicon (M1 and newer) | **[Saldo for Mac (Apple Silicon)](https://github.com/nickvenecia/saldo/releases/latest/download/Saldo-mac-apple-silicon.dmg)** |
+| Intel Mac | **[Saldo for Mac (Intel)](https://github.com/nickvenecia/saldo/releases/latest/download/Saldo-mac-intel.dmg)** |
+| Windows | **[Saldo for Windows (installer)](https://github.com/nickvenecia/saldo/releases/latest/download/Saldo-windows-setup.exe)** · [portable .zip](https://github.com/nickvenecia/saldo/releases/latest/download/Saldo-windows-portable.zip) |
+| Linux | **[Saldo for Linux (AppImage)](https://github.com/nickvenecia/saldo/releases/latest/download/Saldo-linux-x64.AppImage)** · [.tar.gz](https://github.com/nickvenecia/saldo/releases/latest/download/Saldo-linux-x64.tar.gz) |
 
-Not sure which Mac you have? Apple menu → About This Mac: "Chip: Apple M…" means Apple Silicon. Every version is on the **[Releases page](https://github.com/nickvenecia/cobro/releases)**.
+Not sure which Mac you have? Apple menu → About This Mac: "Chip: Apple M…" means Apple Silicon. Every version is on the **[Releases page](https://github.com/nickvenecia/saldo/releases)**.
 
 **Installing:**
-- **Mac:** open the .dmg and drag Cobro into Applications. The app isn't signed with a paid Apple developer account yet, so the first time macOS says it can't check it: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Only once.
+- **Mac:** open the .dmg and drag Saldo into Applications. The app isn't signed with a paid Apple developer account yet, so the first time macOS says it can't check it: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Only once.
 - **Windows:** run the installer (no admin needed). If SmartScreen pops up, click **More info → Run anyway**.
 - **Linux:** make the AppImage runnable (right-click → Properties → Allow executing, or `chmod +x`) and double-click it.
 
 Everything comes bundled, fonts included. There's no Python or terminal needed.
 
-**Updates:** Cobro checks for a new version each time it opens. When there is one, an **Update to …** button appears in the sidebar: it shows what's new, downloads the right file for your computer, swaps it in and reopens Cobro. You can also click your profile at the bottom of the sidebar → **Check for Updates…**, or turn the check off in **Settings › General**.
+**Updates:** Saldo checks for a new version each time it opens. When there is one, an **Update to …** button appears in the sidebar: it shows what's new, downloads the right file for your computer, swaps it in and reopens Saldo. You can also click your profile at the bottom of the sidebar → **Check for Updates…**, or turn the check off in **Settings › General**.
+
+**Used Cobro before?** Saldo is the same app with a new name. Open it once and everything you made in Cobro is there: invoices, clients, profiles, numbering, settings and your AI key. Cobro's own files are left as they were. On a Mac, the old Cobro app goes to the Trash.
 
 ## What it does
 
 **Everything in one window.** On the left, where you are: All Invoices (with Drafts, Unpaid and Paid under it) and your clients. In the middle, all your invoices in one table, by month or by client, with what's unpaid, overdue and paid added up underneath. Click one and it opens on the right, ready to edit. It saves itself as you type.
 
-**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`JLF-2026-001`, `JLF-2026-002`…). Save your clients once too (in **All Clients**, or **Bill To → New Client…**), then just pick them: no more typing the same address every time. Each client's page shows their details, every invoice you've made them and what they still owe.
+**Fill it in once.** Add your profile the first time you open Saldo: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`JLF-2026-001`, `JLF-2026-002`…). Save your clients once too (in **All Clients**, or **Bill To → New Client…**), then just pick them: no more typing the same address every time. Each client's page shows their details, every invoice you've made them and what they still owe.
 
 **Numbers your way.** One count for all your invoices (`JLF-2026-001`), or a separate count for each client with their code in it (`JLF-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
 
@@ -63,28 +65,32 @@ Every invoice is set in Inter, with the invoice number in IBM Plex Mono, so it l
 ## Run from source
 
 ```bash
-git clone https://github.com/nickvenecia/cobro.git && cd cobro
+git clone https://github.com/nickvenecia/saldo.git && cd saldo
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-python -m cobro                    # the app
-python -m cobro cli sample out.pdf --header band   # a sample invoice, no window
+python -m saldo                    # the app
+python -m saldo cli sample out.pdf --header band   # a sample invoice, no window
 python -m pytest -q                # tests
 ```
 
-Build the app yourself: `pyinstaller cobro.spec --noconfirm` → `dist/`.
+Build the app yourself: `pyinstaller saldo.spec --noconfirm` → `dist/`.
 
 ## Making a release
 
 Merging is releasing. Builds and tests run on GitHub for every push and pull request. A pull request that
-bumps `__version__` in `cobro/__init__.py` (with its notes at the top of `CHANGELOG.md` under that number)
+bumps `__version__` in `saldo/__init__.py` (with its notes at the top of `CHANGELOG.md` under that number)
 publishes a new Release when it's merged: GitHub Actions builds the Mac (Apple Silicon and Intel), Windows and
 Linux versions, tests each one, tags the commit and attaches the downloads. No tagging by hand.
+
+Each download is also attached under the app's old name (`Cobro-…`), made the way Cobro's updater expects, so
+copies of Cobro can update themselves to Saldo. Cobro 2.0.0 needs one more thing, a repo at the old address:
+the steps are at the top of [`.github/workflows/cobro-release.yml`](.github/workflows/cobro-release.yml).
 
 ### Optional: signing the Mac app
 To get rid of the "can't check this app" warning you need an Apple Developer account ($99/yr). Add these repository secrets and the workflow will sign and notarize automatically: `MACOS_CERTIFICATE` (base64 .p12), `MACOS_CERTIFICATE_PWD`, `MACOS_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`.
 
 ## Changing the icon
-Run `python scripts/make_icon.py`, or replace `cobro/assets/icon.png` with a 1024×1024 PNG (transparent corners). The Mac and Windows icons are generated from it at build time.
+Run `python scripts/make_icon.py`, or replace `saldo/assets/icon.png` with a 1024×1024 PNG (transparent corners). The Mac and Windows icons are generated from it at build time.
 
 ## Security
 Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.
@@ -92,11 +98,11 @@ Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.
 ## License
 Copyright © Nick Venecia.
 
-Cobro's code is open source under GPL-3.0: you're welcome to read it, learn from it, change it and share it,
+Saldo's code is open source under GPL-3.0: you're welcome to read it, learn from it, change it and share it,
 as long as what you share stays open source under the same license. The fonts it ships are under the
 SIL Open Font License; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### Name and icon
-The name **Cobro**, the "cobro." wordmark and the app icon are **not** covered by the GPL. They belong to
+The name **Saldo**, the "saldo." wordmark and the app icon are **not** covered by the GPL. They belong to
 Nick Venecia and identify the official app. If you publish a modified version, please give it a different
-name and icon so people don't mistake it for Cobro. Saying that it's "based on Cobro" is welcome.
+name and icon so people don't mistake it for Saldo. Saying that it's "based on Saldo" is welcome.

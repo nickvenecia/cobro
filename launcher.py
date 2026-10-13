@@ -10,9 +10,9 @@ if __name__ == "__main__":
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")  # noqa: SIM115
     if len(sys.argv) > 1 and sys.argv[1] == "cli":
-        from cobro.cli import main as cli_main
+        from saldo.cli import main as cli_main
 
         sys.exit(cli_main(sys.argv[2:]))
-    from cobro.app import main
+    from saldo.app import main
 
     sys.exit(main())
