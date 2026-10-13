@@ -48,7 +48,7 @@ def test_new_invoice_edit_and_save(qapp, data_folder):
 
     lib = Library(data_folder)
     lib.add_business(sample.business())
-    client = lib.save_client(Client(name="Digital Empire", contact="Ana"))
+    client = lib.save_client(Client(name="Northwind Media", contact="Alex"))
     w = MainWindow(lib.load())
     w.new_invoice()
     inv = w.inv
@@ -56,7 +56,7 @@ def test_new_invoice_edit_and_save(qapp, data_folder):
     assert w.details.client.currentIndex() == -1  # "Choose a Client"
     assert not w.details.edit_client.isVisibleTo(w.details)
     pick(w.details.client, client.id)
-    assert inv.client.name == "Digital Empire" and inv.client.contact == "Ana"
+    assert inv.client.name == "Northwind Media" and inv.client.contact == "Alex"
     assert w.details.edit_client.isVisibleTo(w.details)
     ed = w.details.items[0]
     ed.desc.textEdited.emit("Production")
@@ -64,7 +64,7 @@ def test_new_invoice_edit_and_save(qapp, data_folder):
     assert ed.amount.text() == "$1,500.00" and ed.title.full_text() == "Production"
     w.flush()
     again = Library(data_folder).load().invoices[inv.id]
-    assert again.client.name == "Digital Empire" and again.items[0].rate == "1500"
+    assert again.client.name == "Northwind Media" and again.items[0].rate == "1500"
     assert w.pages() and w.list.cards[inv.id].amount.text() == "$1,500.00"
     w.shutdown()
 

@@ -185,7 +185,7 @@ class Library:
         return numbering.next_number(head, taken, year)
 
     def renumber(self, inv: Invoice) -> bool:
-        """Keep a draft's number in step with its profile, client and year (NV-DGTL-2026-001), when Cobro
+        """Keep a draft's number in step with its profile, client and year (RM-NRTH-2026-001), when Cobro
         picked it. Numbers you typed, and invoices already sent or paid, never change. True if it changed."""
         b = self.businesses.get(inv.business_id)
         if b is None or not inv.auto_number or inv.status != "draft":

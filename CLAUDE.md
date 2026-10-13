@@ -1,7 +1,6 @@
-# Cobro: notes for Claude Code
+# Cobro: notes for working on the code
 
-Cross-platform (macOS / Windows / Linux) invoice maker. Listo's sibling: same structure, same design system,
-same build and release pipeline (github.com/nickvenecia/listo).
+Cross-platform (macOS / Windows / Linux) invoice maker.
 Python 3.12 + PySide6 (Qt Widgets). Invoices are drawn with QPainter (one layout for preview, PDF, PNG, print).
 Shipped as a PyInstaller app; GitHub Actions builds the downloads.
 The owner is a filmmaker (director/DP/editor/colorist), not a full-time developer. Explain changes in plain words.
@@ -11,6 +10,8 @@ The owner is a filmmaker (director/DP/editor/colorist), not a full-time develope
   All app values live in `cobro/ui/tokens.py`; paper colors in `cobro/core/looks.py`. Never type a size or color anywhere else.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: code rules. Layout, style (ruff), safety rules, tests, commits.
 - Before finishing any change: `ruff format . && ruff check . && python -m pytest -q`.
+- Commit messages: a short plain summary, nothing added after it (no co-author or sign-off lines, no links).
+  Commits are authored as Nick Venecia <nicholasvenecia@gmail.com> (this repo's git config).
 
 ## Layout
 ```
@@ -28,17 +29,17 @@ cobro/
                    settings.json), atomic writes, unreadable files set aside; new_invoice / duplicate;
                    save_client / delete_client (drafts follow a client's edits); next_number / renumber
     sample.py      the made-up Juniper Lane Films business + invoice (tests, smoke test, screenshots)
-    update.py      Listo's updater, pointed at nickvenecia/cobro (asset names are a contract, see Releasing)
+    update.py      the updater, pointed at nickvenecia/cobro (asset names are a contract, see Releasing)
     paths.py, log.py, net.py (certifi SSL), fileutil.py (reveal in Finder/Explorer)
   doc/             Drawing the invoice. QtGui only, no widgets.
     fonts.py       loads assets/fonts; make(FontSpec, device) sizes fonts in points on ANY device (divides the dpi out)
     render.py      layout(view, resolved_look, logo) -> [Page of steps]; paint(painter, page). Pagination, footer
     export.py      to_pdf (QPdfWriter at 72 dpi), to_png, print_pages, image() for the preview; temp file + os.replace
   ui/
-    tokens.py      THE design tokens (Listo's, with turquoise instead of marigold); colors in DARK and LIGHT,
+    tokens.py      THE design tokens (Cobro's turquoise accent); colors in DARK and LIGHT,
                    read through C (the palette in use)
     theme.py       stylesheet built from tokens.C, SVG icons that redraw in the colors in use
-    widgets.py     Listo's building blocks + TextBox (multi-line field), ElidedLabel, Disclosure (fold-away group),
+    widgets.py     the building blocks + TextBox (multi-line field), ElidedLabel, Disclosure (fold-away group),
                    Wordmark, IconLabel
     main_window.py the three panels, menus, saving (debounced), exporting, updates
     invoice_list.py   ① cards, filter, Unpaid / Paid totals, ⋯ tools menu, Update button
@@ -52,9 +53,9 @@ cobro/
   app.py           QApplication, fonts, stylesheet (light or dark: apply_scheme), rounded popups, one window
                    at a time, --smoke-test
   cli.py           `python -m cobro cli sample OUT.pdf|png [--style] [--color] [--header] [--items] [--logo]`
-scripts/make_icon.py   draws cobro/assets/icon.png ("cobro." on Listo's dark tile)
+scripts/make_icon.py   draws cobro/assets/icon.png ("cobro." on the dark tile)
 scripts/make_fonts.py  cuts the bundled fonts from Google Fonts' OFL files (results are committed)
-cobro.spec, packaging/, .github/workflows/build.yml   same as Listo
+cobro.spec, packaging/, .github/workflows/build.yml   building and releasing
 ```
 
 ## Rules that matter

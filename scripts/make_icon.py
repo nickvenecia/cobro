@@ -60,7 +60,7 @@ def draw(size: int = SIZE) -> Image.Image:
 
     # the wordmark: "cobro" in the text color, the full stop in turquoise
     word, dot = "cobro", "."
-    # "cobro." is wider than "listo.": size it to the same share of the tile Listo's word takes
+    # size the word to a fixed share of the tile
     pt = 250
     while ImageFont.truetype(str(FONT), pt).getlength(word + dot) > TILE * 0.68 and pt > 120:
         pt -= 2

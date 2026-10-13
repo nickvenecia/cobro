@@ -16,7 +16,7 @@ T = TypeVar("T")
 
 STATUSES = ("draft", "sent", "paid")
 TERMS_DAYS = (0, 7, 15, 30, 45, 60)
-NUMBER_STYLES = ("year", "client", "client_only")  # NV-2026-001 / NV-DGTL-2026-001 / DGTL-2026-001
+NUMBER_STYLES = ("year", "client", "client_only")  # RM-2026-001 / RM-NRTH-2026-001 / NRTH-2026-001
 
 
 def new_id() -> str:
@@ -119,7 +119,7 @@ class Client:
     contact: str = ""
     address: str = ""
     email: str = ""
-    code: str = ""  # in invoice numbers that count per client (NV-DGTL-2026-001); blank = made from the name
+    code: str = ""  # in invoice numbers that count per client (RM-NRTH-2026-001); blank = made from the name
 
     def to_dict(self) -> dict:
         return asdict(self)

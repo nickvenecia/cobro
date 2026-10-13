@@ -1,6 +1,6 @@
 # Cobro design rules
 
-The rules for how Cobro looks and reads. They are Listo's rules (the two apps are siblings), with the parts that are only about video swapped for invoices. Follow them for every screen, dialog and control.
+The rules for how Cobro looks and reads. Follow them for every screen, dialog and control.
 If a change needs something these rules don't cover, add a rule here in the same commit.
 
 All numbers and colors live in **`cobro/ui/tokens.py`**. The stylesheet (`cobro/ui/theme.py`) and
@@ -103,7 +103,7 @@ the popup window see-through and gives every dropdown `widgets.ComboItemDelegate
 ## 5. Color (light and dark)
 
 Cobro is light or dark, as the computer is set, and switches along with it while it's open
-(`app.apply_scheme`). `tokens.py` has two palettes with the same names: `DARK` (Listo's) and `LIGHT`
+(`app.apply_scheme`). `tokens.py` has two palettes with the same names: `DARK` and `LIGHT`
 (the same jobs on white; turquoise and the status colors are deeper there so they still read).
 Read a color through `tokens.C` (`C.TEXT`, `C.ACCENT`) at the moment you draw it, never keep one in a
 variable of your own, and check every change in both (§10).
@@ -118,7 +118,7 @@ variable of your own, and check every change in both (§10).
 | `WELL` | Sunken areas: the preview behind the paper |
 | `BORDER` / `BORDER_STRONG` / `BORDER_HOVER` / `BORDER_CHECK` | Hairlines and progress tracks, control borders, hover, empty checkbox |
 | `TEXT` / `MUTED` / `FAINT` | Main text / secondary text / hints, labels, disabled |
-| `ACCENT` (+ `_HOVER`, `_PRESS`) | Turquoise (Listo's is marigold). Selection, the one primary action, focus |
+| `ACCENT` (+ `_HOVER`, `_PRESS`) | Turquoise. Selection, the one primary action, focus |
 | `ON_ACCENT` | Text and icons on turquoise |
 | `ACCENT_OFF` / `ACCENT_OFF_TEXT` | A disabled primary button |
 | `ACCENT_TINT` / `ACCENT_EDGE` | Turquoise wash and outline (the Sent chip, the selected card) |
@@ -238,7 +238,7 @@ number + Title Case name, `HEADER_H` tall) so the three line up. The preview tak
   Edit… beside Bill To only once a client is picked; a client's Code only when a profile counts per client.
 - **Optional steps are buttons, not interruptions.** After saving a PDF, the bottom bar offers Show File and
   (for a draft) Mark as Sent. Saving never opens anything in your way.
-- **Removing goes through a menu or a confirmation, never a single click** (Listo's rule). Remove a line item
+- **Removing goes through a menu or a confirmation, never a single click**. Remove a line item
   from its ⋯ menu; Delete Invoice, Delete Profile and Delete Client ask first, with Cancel as the default.
 - **Menus hold commands, the panels hold settings.** File / Profile / Help live in the Mac menu bar; on
   Windows and Linux the bar is hidden and the shortcuts still work. The same tools sit under ⋯ in the
@@ -252,7 +252,7 @@ number + Title Case name, `HEADER_H` tall) so the three line up. The preview tak
 - **Light or dark, as the computer is set.** The whole window follows the system's Light / Dark setting,
   and switches with it while Cobro is open (by hand, or on its own at sunset). The Dark Page is separate:
   it's about the invoice, not the window, and keeps its own moon in either.
-- **One identity everywhere.** The app icon is the "cobro." wordmark on Listo's dark tile
+- **One identity everywhere.** The app icon is the "cobro." wordmark on a dark tile
   (`scripts/make_icon.py`); on the Mac the title bar is ours (`ui/titlebar.py`).
 
 ---

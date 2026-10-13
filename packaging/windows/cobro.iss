@@ -7,7 +7,7 @@
 AppId={{C850227F-94F4-4A15-8B75-ACF38F960B4D}
 AppName=Cobro
 AppVersion={#MyAppVersion}
-AppPublisher=Bad Filmmaker
+AppPublisher=Cobro
 DefaultDirName={localappdata}\Programs\Cobro
 DefaultGroupName=Cobro
 DisableProgramGroupPage=yes

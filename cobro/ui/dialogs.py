@@ -40,9 +40,7 @@ def about(parent: QWidget, version: str, data_folder: str) -> None:
     lay.addWidget(Wordmark())
     lay.addWidget(hint(f"Version {version}. Make an invoice, send it, get paid."))
     lay.addWidget(hint(f"Your invoices are saved on this computer only, in {data_folder}"))
-    lay.addWidget(
-        hint("Open source under GPL-3.0. Fonts under the SIL Open Font License. Made by Bad Filmmaker.")
-    )
+    lay.addWidget(hint("Open source under GPL-3.0. Fonts under the SIL Open Font License."))
     row = hbox()
     row.addStretch(1)
     ok = QPushButton("Done")

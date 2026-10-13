@@ -12,66 +12,66 @@ from cobro.core.store import Library, write_json
 
 def test_business_gets_sensible_defaults(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia", mail_address="1 Main St\nEl Paso, TX"))
-    assert b.prefix == "NV"
-    assert "Checks payable to Nicholas Venecia" in b.payment
+    b = lib.add_business(Business(name="Rosa Marquez", mail_address="1 Main St\nEl Paso, TX"))
+    assert b.prefix == "RM"
+    assert "Checks payable to Rosa Marquez" in b.payment
     assert "1 Main St, El Paso, TX" in b.payment
     assert b.terms and b.note
 
 
 def test_everything_survives_a_restart(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia"))
+    b = lib.add_business(Business(name="Rosa Marquez"))
     inv = lib.new_invoice(b, today=date(2026, 10, 10))
-    inv.client = Client(name="Digital Empire")
+    inv.client = Client(name="Northwind Media")
     inv.items = [LineItem("Production", "Shoot day", "1", "1500")]
     lib.save_invoice(inv)
     again = Library(data_folder).load()
     got = again.invoices[inv.id]
-    assert got.number == "NV-2026-001"
-    assert got.client.name == "Digital Empire"
+    assert got.number == "RM-2026-001"
+    assert got.client.name == "Northwind Media"
     assert got.items[0].rate == "1500"
-    assert again.businesses[b.id].name == "Nicholas Venecia"
+    assert again.businesses[b.id].name == "Rosa Marquez"
 
 
 def test_new_invoices_start_from_the_business(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia", terms_days=30, tax_rate="8.25"))
+    b = lib.add_business(Business(name="Rosa Marquez", terms_days=30, tax_rate="8.25"))
     first = lib.new_invoice(b, today=date(2026, 10, 10))
     second = lib.new_invoice(b, today=date(2026, 10, 11))
-    assert (first.number, second.number) == ("NV-2026-001", "NV-2026-002")
+    assert (first.number, second.number) == ("RM-2026-001", "RM-2026-002")
     assert second.terms_days == 30 and second.tax_rate == "8.25"
     assert second.payment == b.payment and second.issued == "2026-10-11"
 
 
 def test_duplicate_is_a_fresh_draft(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia"))
+    b = lib.add_business(Business(name="Rosa Marquez"))
     inv = lib.new_invoice(b, today=date(2026, 10, 10))
     inv.status, inv.paid_on = "paid", "2026-10-20"
-    inv.client.name = "Digital Empire"
+    inv.client.name = "Northwind Media"
     copy = lib.duplicate(inv, today=date(2026, 11, 1))
-    assert copy.id != inv.id and copy.number == "NV-2026-002"
+    assert copy.id != inv.id and copy.number == "RM-2026-002"
     assert copy.status == "draft" and not copy.paid_on
-    assert copy.client.name == "Digital Empire"
+    assert copy.client.name == "Northwind Media"
     copy.client.name = "Someone Else"
-    assert inv.client.name == "Digital Empire"  # a real copy, not the same object
+    assert inv.client.name == "Northwind Media"  # a real copy, not the same object
 
 
 def test_saved_clients_survive_a_restart(data_folder):
     lib = Library(data_folder)
-    c = lib.save_client(Client(name=" Digital Empire ", contact="Ana"))
-    assert c.name == "Digital Empire" and c.id
-    lib.save_client(replace(c, contact="Ana B"))
+    c = lib.save_client(Client(name=" Northwind Media ", contact="Alex"))
+    assert c.name == "Northwind Media" and c.id
+    lib.save_client(replace(c, contact="Alex R"))
     again = Library(data_folder).load()
-    assert len(again.clients) == 1 and again.clients[c.id].contact == "Ana B"
-    assert again.find_client("digital empire") is not None
+    assert len(again.clients) == 1 and again.clients[c.id].contact == "Alex R"
+    assert again.find_client("northwind media") is not None
 
 
 def test_drafts_follow_a_client_edit_but_sent_invoices_keep_theirs(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia"))
-    c = lib.save_client(Client(name="Digital Empire", address="1 Old St"))
+    b = lib.add_business(Business(name="Rosa Marquez"))
+    c = lib.save_client(Client(name="Northwind Media", address="1 Old St"))
     draft, sent = lib.new_invoice(b), lib.new_invoice(b)
     draft.client, sent.client = replace(c), replace(c)
     sent.status = "sent"
@@ -85,14 +85,14 @@ def test_drafts_follow_a_client_edit_but_sent_invoices_keep_theirs(data_folder):
 
 def test_deleting_a_client_leaves_invoices_alone(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia"))
-    c = lib.save_client(Client(name="Digital Empire"))
+    b = lib.add_business(Business(name="Rosa Marquez"))
+    c = lib.save_client(Client(name="Northwind Media"))
     inv = lib.new_invoice(b)
     inv.client = replace(c)
     lib.save_invoice(inv)
     lib.delete_client(c.id)
     again = Library(data_folder).load()
-    assert again.clients == {} and again.invoices[inv.id].client.name == "Digital Empire"
+    assert again.clients == {} and again.invoices[inv.id].client.name == "Northwind Media"
     assert again.match_client(again.invoices[inv.id].client) is None
 
 
@@ -125,36 +125,36 @@ def test_writes_are_atomic(data_folder):
 
 def test_a_draft_takes_its_clients_number_when_counting_per_client(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia", number_style="client"))
-    de = lib.save_client(Client(name="Digital Empire"))
+    b = lib.add_business(Business(name="Rosa Marquez", number_style="client"))
+    nm = lib.save_client(Client(name="Northwind Media"))
     mesa = lib.save_client(Client(name="Mesa Coffee", code="MESA"))
     first = lib.new_invoice(b, today=date(2026, 10, 10))
-    assert first.number == "NV-2026-001"  # no client picked yet
-    first.client = replace(de)
-    assert lib.renumber(first) and first.number == "NV-DGTL-2026-001"
+    assert first.number == "RM-2026-001"  # no client picked yet
+    first.client = replace(nm)
+    assert lib.renumber(first) and first.number == "RM-NRTH-2026-001"
     lib.save_invoice(first)
     second = lib.new_invoice(b, today=date(2026, 10, 11))
-    second.client = replace(de)
+    second.client = replace(nm)
     lib.renumber(second)
-    assert second.number == "NV-DGTL-2026-002"
+    assert second.number == "RM-NRTH-2026-002"
     second.client = replace(mesa)
     lib.renumber(second)
-    assert second.number == "NV-MESA-2026-001"
+    assert second.number == "RM-MESA-2026-001"
     assert not lib.renumber(second)  # already right: left alone
-    assert lib.duplicate(first, today=date(2026, 11, 1)).number == "NV-DGTL-2026-002"
+    assert lib.duplicate(first, today=date(2026, 11, 1)).number == "RM-NRTH-2026-002"
 
 
 def test_typed_numbers_and_sent_invoices_keep_their_number(data_folder):
     lib = Library(data_folder)
-    b = lib.add_business(Business(name="Nicholas Venecia", number_style="client"))
-    de = lib.save_client(Client(name="Digital Empire"))
+    b = lib.add_business(Business(name="Rosa Marquez", number_style="client"))
+    nm = lib.save_client(Client(name="Northwind Media"))
     typed = lib.new_invoice(b, today=date(2026, 10, 10))
     typed.number, typed.auto_number = "SPECIAL-7", False
-    typed.client = replace(de)
+    typed.client = replace(nm)
     assert not lib.renumber(typed) and typed.number == "SPECIAL-7"
     sent = lib.new_invoice(b, today=date(2026, 10, 10))
     sent.status = "sent"
-    sent.client = replace(de)
+    sent.client = replace(nm)
     assert not lib.renumber(sent)
-    old = Invoice.from_dict({"number": "NV-2026-004", "client": {"name": "Digital Empire"}})
+    old = Invoice.from_dict({"number": "RM-2026-004", "client": {"name": "Northwind Media"}})
     assert old.auto_number is False  # invoices from before keep the number they have

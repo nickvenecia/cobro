@@ -32,9 +32,9 @@ Everything comes bundled, fonts included. There's no Python or terminal needed.
 
 ## What it does
 
-**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`NV-2026-001`, `NV-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
+**Fill it in once.** Add your profile the first time you open Cobro: name, logo, address, where checks go, how you like to be paid, your terms. Every new invoice starts with all of it, with the next number already filled in (`RM-2026-001`, `RM-2026-002`…). Save your clients once too (**Bill To → New Client…**), then just pick them: no more typing the same address every time.
 
-**Numbers your way.** One count for all your invoices (`NV-2026-001`), or a separate count for each client with their code in it (`NV-DGTL-2026-001`, or just `DGTL-2026-001`). Pick it under your profile's **Numbers & Tax**.
+**Numbers your way.** One count for all your invoices (`RM-2026-001`), or a separate count for each client with their code in it (`RM-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
 
 **Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date, line items with details, quantities and rates (a rate of 0 prints as *Included*), discount, sales tax and a deposit already paid.
 

@@ -1,4 +1,4 @@
-"""Design tokens (the same system as Listo): the ONLY place sizes, spacing, type and colors are defined.
+"""Design tokens: the ONLY place sizes, spacing, type and colors are defined.
 
 Every widget, layout and stylesheet rule uses these names. If something needs a value
 that isn't here, add a token (and document it in DESIGN.md) instead of typing a number.
@@ -78,7 +78,7 @@ WINDOW_MIN = (1180, 640)
 # Cobro is light or dark, as the computer is set (app.apply_scheme), and switches along with it while
 # it's open. Both palettes use the same names. Read colors through C (C.TEXT, C.ACCENT…) at the moment
 # you draw: C always holds the palette in use. Never keep a color in a variable of your own.
-DARK = {  # shared with Listo
+DARK = {
     "BG": "#111113",  # window background
     "PANEL": "#17171A",  # sidebar, footer, dialogs
     "CARD": "#1E1E22",  # cards, fields
@@ -96,7 +96,7 @@ DARK = {  # shared with Listo
     "MUTED": "#A09B93",  # secondary text
     "FAINT": "#6E6A64",  # hints, disabled, section labels
     "WELL": "#0C0C0E",  # sunken areas: thumbnails, previews, logs
-    "ACCENT": "#3CC8B4",  # Southwest turquoise — selection, primary action, focus (Listo's is marigold)
+    "ACCENT": "#3CC8B4",  # Southwest turquoise — selection, primary action, focus
     "ACCENT_HOVER": "#5DD6C4",
     "ACCENT_PRESS": "#2AA996",
     "ON_ACCENT": "#04211D",  # text/icons on turquoise

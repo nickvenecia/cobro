@@ -74,7 +74,7 @@ class ClientDialog(QDialog):
         self.code = QLineEdit(c.code)
         self.code.setMaxLength(8)
         self.code.setFixedWidth(NUM_FIELD_W)
-        self.code.setToolTip("Goes in invoice numbers that count per client, like NV-DGTL-2026-001.")
+        self.code.setToolTip("Goes in invoice numbers that count per client, like RM-NRTH-2026-001.")
         self.code_sec.add(self.code)
         self.code_sec.setVisible(show_code)
         row.addWidget(self.code_sec)
