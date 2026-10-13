@@ -1,4 +1,4 @@
-"""App entry point: fonts, light/dark stylesheet, rounded popups, one window at a time, and --smoke-test."""
+"""App entry point: fonts, stylesheet, rounded popups, one window at a time, and --smoke-test."""
 
 from __future__ import annotations
 
@@ -7,14 +7,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QAbstractScrollArea,
     QAbstractSlider,
     QAbstractSpinBox,
     QApplication,
     QComboBox,
+    QLabel,
     QMenu,
     QScrollBar,
     QWidget,
@@ -82,10 +84,29 @@ def _listen(window) -> object:
     return server
 
 
+def place_menu(menu: QWidget, button: QWidget) -> None:
+    """A button's menu opens just below it, with a little air between: lined up with its left edge, or, for a
+    button on the right of the window, with its right edge (so it never runs off past the window)."""
+    size = menu.size()
+    top_left = button.mapToGlobal(QPoint(0, 0))
+    win = button.window()
+    on_right = button.mapTo(win, button.rect().center()).x() > win.width() / 2
+    x = top_left.x() + button.width() - size.width() if on_right else top_left.x()
+    y = top_left.y() + button.height() + tokens.MENU_GAP
+    screen = button.screen().availableGeometry() if button.screen() else None
+    if screen is not None:
+        if y + size.height() > screen.bottom():  # no room below: above it instead
+            y = top_left.y() - size.height() - tokens.MENU_GAP
+        x = max(screen.left(), min(x, screen.right() - size.width()))
+    menu.move(x, y)
+
+
 class _RoundPopups(QObject):
     """Qt gives menus and dropdown lists square windows; make them see-through so the
-    stylesheet's rounded corners are what you actually see. Also: scrolling never changes a value
-    (dropdowns, dates and sliders pass the wheel on to the panel, which scrolls instead)."""
+    stylesheet's rounded corners are what you actually see. A button's menu opens just below it, with a
+    little air (place_menu); so does a dropdown's list. Every plain QLabel shows its words as typed (a client
+    called "<b>…" stays as written). Also: scrolling never changes a value (dropdowns, dates and sliders pass
+    the wheel on to the panel, which scrolls instead)."""
 
     @staticmethod
     def _see_through(win: QWidget) -> None:
@@ -105,7 +126,25 @@ class _RoundPopups(QObject):
             if area is not None:
                 QApplication.sendEvent(area.verticalScrollBar(), ev)
             return True
+        if ev.type() == QEvent.Type.Show and isinstance(obj, QWidget) and obj.isWindow():
+            owner = obj.parentWidget()
+            if (
+                isinstance(obj, QMenu)
+                and isinstance(owner, QAbstractButton)
+                and getattr(owner, "menu", lambda: None)() is obj
+            ):
+                place_menu(obj, owner)
+            elif obj.inherits("QComboBoxPrivateContainer") and isinstance(owner, QComboBox):
+                below = owner.mapToGlobal(QPoint(0, owner.height()))
+                if obj.y() >= below.y() - 1:  # opened below the box: leave the same air
+                    obj.move(obj.x(), below.y() + tokens.MENU_GAP)
         if ev.type() == QEvent.Type.Polish and isinstance(obj, QWidget):
+            if (
+                isinstance(obj, QLabel)
+                and obj.textFormat() == Qt.TextFormat.AutoText
+                and not obj.inherits("QTipLabel")
+            ):  # names are shown as typed: a client called "<img …>" mustn't turn into a picture
+                obj.setTextFormat(Qt.TextFormat.PlainText)
             if (isinstance(obj, QMenu) and obj.isWindow()) or obj.inherits("QTipLabel"):
                 self._see_through(obj)
             elif isinstance(obj, QComboBox):
@@ -113,10 +152,7 @@ class _RoundPopups(QObject):
                     obj.setItemDelegate(ComboItemDelegate(obj))
                 container = obj.view().window()
                 if container is not obj.window():
-                    self._see_through(container)
-                    container.setStyleSheet(
-                        "QComboBoxPrivateContainer { background: transparent; border: none; }"
-                    )
+                    self._see_through(container)  # its look is in theme.py (QComboBoxPrivateContainer)
         return False
 
 
@@ -152,19 +188,6 @@ def _crash_log() -> None:
         log.debug("no crash log", exc_info=True)
 
 
-def system_is_dark(app: QApplication) -> bool:
-    """The computer's Light / Dark setting. When it can't tell (some Linux desktops), Cobro stays dark."""
-    hints = app.styleHints()
-    return not (hasattr(hints, "colorScheme") and hints.colorScheme() == Qt.ColorScheme.Light)
-
-
-def apply_scheme(app: QApplication, dark: bool | None = None) -> None:
-    """Light or dark: as the computer is set, or as asked (`dark`, for screenshots and tests).
-    Everything on screen repaints in the new colors; the system's own title bars follow by themselves."""
-    tokens.use(system_is_dark(app) if dark is None else dark)
-    app.setStyleSheet(theme.stylesheet(data_dir() / "ui"))
-
-
 def setup_app(app: QApplication) -> None:
     """Fonts, stylesheet and look (also used by the tests and screenshots)."""
     app.setApplicationName(APP_NAME)
@@ -177,15 +200,44 @@ def setup_app(app: QApplication) -> None:
         app.setWindowIcon(QIcon(str(icon_path)))
     family = theme.load_fonts()
     f = QFont(family or app.font().family())
-    f.setPointSizeF(13 if sys.platform == "darwin" else 10)
+    f.setPixelSize(tokens.TEXT_MD)  # every size is in pixels (the stylesheet's too), so they match
     f.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
     app.setFont(f)
-    apply_scheme(app)
+    from cobro.core.store import read_json
+
+    saved = read_json(data_dir() / "settings.json", {})
+    saved = saved if isinstance(saved, dict) else {}
+    appearance, accent = saved.get("appearance", "system"), saved.get("accent", "")
+    set_appearance(
+        app,
+        appearance if isinstance(appearance, str) else "system",
+        accent if isinstance(accent, str) else "",
+    )
     hints = app.styleHints()
     if hasattr(hints, "colorSchemeChanged"):  # the computer switched (by hand, or on its own at sunset)
-        hints.colorSchemeChanged.connect(lambda _scheme: apply_scheme(app))
+        hints.colorSchemeChanged.connect(lambda _s: _system_changed(app))
     app._round = _RoundPopups(app)
     app.installEventFilter(app._round)
+
+
+def set_appearance(app: QApplication, appearance: str, accent: str | None = None) -> str:
+    """Light, dark, or "system" (follow the computer), and the accent ("" = Cobro's own; None keeps it).
+    Redraws open windows."""
+    app._appearance = appearance
+    app._applying = True  # asking the system can itself report a change
+    try:
+        look = theme.apply(app, appearance, data_dir() / "ui", accent)
+    finally:
+        app._applying = False
+    for w in app.topLevelWidgets():
+        if hasattr(w, "look_changed"):
+            w.look_changed()
+    return look
+
+
+def _system_changed(app: QApplication) -> None:
+    if getattr(app, "_appearance", "system") == "system" and not getattr(app, "_applying", False):
+        set_appearance(app, "system")
 
 
 def _smoke(app: QApplication) -> int:

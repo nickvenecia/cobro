@@ -117,7 +117,7 @@ def swatch(color: str) -> QIcon:
 def icon_button(name: str, tip: str) -> QToolButton:
     b = QToolButton()
     b.setObjectName("IconBtn")
-    b.setIcon(theme.icon(name, "MUTED"))
+    b.setIcon(theme.icon(name, theme.MUTED))
     b.setToolTip(tip)
     b.setCursor(Qt.CursorShape.PointingHandCursor)
     return b
@@ -230,7 +230,7 @@ class ItemEditor(QFrame):
 
     def set_open(self, on: bool) -> None:
         self.body.setVisible(on)
-        self.chevron.set_icon(theme.icon("chevron" if on else "chevron-right", "MUTED"))
+        self.chevron.set_icon(theme.icon("chevron" if on else "chevron-right", theme.MUTED))
         self.head.setToolTip("Fold away" if on else "Show the details")
         self.setProperty("open", on)
         repolish(self)
@@ -408,7 +408,7 @@ class DetailsPanel(QFrame):
         g["items"].add(self.items_box)
         add_row = hbox()
         self.add_item = QPushButton("Add Line Item")
-        self.add_item.setIcon(theme.icon("plus", "TEXT"))
+        self.add_item.setIcon(theme.icon("plus", theme.TEXT))
         add_row.addWidget(self.add_item)
         add_row.addStretch(1)
         g["items"].add(add_row)

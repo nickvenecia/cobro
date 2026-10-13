@@ -27,6 +27,8 @@ BUNDLED_FONTS: list[tuple[str, str]] = [
 ]
 DISPLAY_ONLY = {"DM Serif Display", "Bebas Neue", "Libre Caslon Display"}  # too loud for running text
 FALLBACK_FONT = "Inter"
+FONT = "Inter"  # the app and the paper
+MONO = "IBM Plex Mono"  # invoice numbers where they are data
 
 
 @dataclass(frozen=True)

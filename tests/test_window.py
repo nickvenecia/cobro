@@ -261,8 +261,7 @@ def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
     from PySide6.QtCore import QSize
     from PySide6.QtGui import QStyleHints
 
-    from cobro.app import apply_scheme
-    from cobro.ui.components.widgets import Wordmark
+    from cobro.app import set_appearance
     from cobro.ui.style import theme, tokens
     from cobro.ui.window.main_window import MainWindow
 
@@ -270,39 +269,39 @@ def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
     lib = Library(data_folder)
     lib.add_business(sample.business())
     w = MainWindow(lib.load())
-    word = Wordmark()
-    word.show()
-    plus = theme.icon("plus", "TEXT")
+    plus = theme.icon("plus", theme.TEXT)
 
     def computer_says(scheme) -> None:
         monkeypatch.setattr(QStyleHints, "colorScheme", lambda _hints: scheme)
         qapp.styleHints().colorSchemeChanged.emit(scheme)
 
     def background() -> str:
-        return w.grab().toImage().pixelColor(tokens.LIST_W // 2, 2).name()
+        return w.grab().toImage().pixelColor(w.width() // 2, 2).name()
 
     def ink(icon) -> str:  # the icon's color where it's fully drawn
         img = icon.pixmap(QSize(64, 64), 1.0).toImage()
         return next(
             img.pixelColor(x, y).name()
-            for x in range(64)
-            for y in range(64)
+            for x in range(img.width())
+            for y in range(img.height())
             if img.pixelColor(x, y).alpha() == 255
         )
 
     try:
-        assert background() == tokens.DARK["BG"].lower()
+        set_appearance(qapp, "system")
         computer_says(Qt.ColorScheme.Light)  # e.g. switched in System Settings while Cobro is open
-        assert not tokens.C.dark
+        assert tokens.SCHEME == "light"
         assert background() == tokens.LIGHT["BG"].lower()
         assert ink(plus) == tokens.LIGHT["TEXT"].lower()  # icons already made follow too
-        assert tokens.LIGHT["ACCENT"] in word.text()
+        assert tokens.LIGHT["ACCENT"] in theme.wordmark()
         computer_says(Qt.ColorScheme.Dark)
-        assert tokens.C.dark and background() == tokens.DARK["BG"].lower()
+        assert tokens.SCHEME == "dark" and background() == tokens.DARK["BG"].lower()
         assert ink(plus) == tokens.DARK["TEXT"].lower()
-        assert tokens.DARK["ACCENT"] in word.text()
-        computer_says(Qt.ColorScheme.Unknown)  # can't tell: Cobro's own dark
-        assert tokens.C.dark
+        computer_says(Qt.ColorScheme.Unknown)  # can't tell: Cobro's dark
+        assert tokens.SCHEME == "dark"
+        set_appearance(qapp, "light")  # pinned in Settings: the computer no longer decides
+        computer_says(Qt.ColorScheme.Dark)
+        assert tokens.SCHEME == "light"
     finally:
-        apply_scheme(qapp, dark=True)
+        set_appearance(qapp, "dark", "")
     w.shutdown()

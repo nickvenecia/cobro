@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PySide6.QtWidgets import QApplication
 
-from cobro.app import apply_scheme, setup_app
+from cobro.app import set_appearance, setup_app
 from cobro.core import sample
 from cobro.core.model import Client
 from cobro.core.paths import use_data_dir
@@ -41,7 +41,7 @@ def main(out: Path) -> int:
     use_data_dir(Path(tempfile.mkdtemp(prefix="cobro-shots-")))
     setup_app(app)
     for dark in (True, False):  # every shot in dark, then again in light (…-light.png)
-        apply_scheme(app, dark)
+        set_appearance(app, "dark" if dark else "light")
         shots(out, "" if dark else "-light")
     return 0
 
