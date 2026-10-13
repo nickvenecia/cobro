@@ -1,6 +1,6 @@
 """Settings (⌘,): one window with a glass sidebar of sections, like the Mac's System Settings.
 
-    General             Appearance; updates
+    General             Appearance, Accent Color; updates
     Profiles            your profiles (name, logo, contact, numbers, payment text, paper), edited right here
     AI                  provider, key (in the keychain), model
     Account             sign in or out
