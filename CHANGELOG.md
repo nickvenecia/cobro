@@ -18,6 +18,7 @@
 - A new invoice you leave without filling anything in isn't kept
 - Scrolling over a date or a dropdown never changes it
 - A name next to a logo no longer leaves an empty line above the tagline; the logo and name line up in the middle
+- **Safer logos**: every logo, SVG too, is redrawn by Cobro as a clean picture before it's kept (anything else the file carried is left behind), very big files are refused, and logos are scaled to print size on the page, so PDFs stay small
 - Everything you made in Cobro 1.1 opens as it was
 
 ## 1.1.0

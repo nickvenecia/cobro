@@ -40,6 +40,14 @@ def logos_dir() -> Path:
     return data_dir() / "logos"
 
 
+def logo_path(name: str) -> Path | None:
+    """A profile's logo file, if `name` is a plain file name inside the logos folder (never a path that
+    leads anywhere else). The file may be missing: then the invoice just leaves the logo out."""
+    if not name or name != Path(name).name or name.startswith(".") or "\\" in name:
+        return None
+    return logos_dir() / name
+
+
 def log_dir() -> Path:
     return data_dir() / "logs"
 

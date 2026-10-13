@@ -9,6 +9,7 @@ PNG and the printer all use the same steps, so they always match.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, Qt
@@ -26,6 +27,7 @@ WRAP = int(Qt.TextFlag.TextWordWrap)
 
 MARGIN = 44.0
 LABEL_SPACING = 0.14  # letter-spacing of the small capital labels
+LOGO_DPI = 300  # how sharp a logo is on paper (it's scaled to this first, so a PDF stays small)
 NAME_SLACK = 6.0  # points kept free beside the business name, so it fits on one line on every computer
 SEMIBOLD, BOLD = 600, 700  # the paper's two heavier weights
 TIGHT = -0.01  # letter spacing for the name and the big amount
@@ -94,9 +96,18 @@ def _draw_logo(p: QPainter, step: Logo) -> None:
             r.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
             r.render(p, step.rect)
         return
-    img = QImage(str(step.path))
+    img = _print_size(str(step.path), round(step.rect.width() * LOGO_DPI / 72))
     if not img.isNull():
         p.drawImage(step.rect, img)
+
+
+@lru_cache(maxsize=16)
+def _print_size(path: str, width_px: int) -> QImage:
+    """The logo no wider than it needs to be on paper (LOGO_DPI), so a PDF stays small."""
+    img = QImage(path)
+    if not img.isNull() and img.width() > width_px > 0:
+        img = img.scaledToWidth(width_px, Qt.TransformationMode.SmoothTransformation)
+    return img
 
 
 # ---------------------------------------------------------------------------- measuring

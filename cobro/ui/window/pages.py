@@ -16,7 +16,7 @@ from cobro.core.fileutil import reveal
 from cobro.core.log import get_logger
 from cobro.core.looks import resolve
 from cobro.core.model import Invoice
-from cobro.core.paths import documents_dir, logos_dir
+from cobro.core.paths import documents_dir, logo_path
 from cobro.doc import export, render
 from cobro.ui.dialogs.preview import PageDialog
 
@@ -63,7 +63,7 @@ class PagesMixin:
         if inv is None or b is None:
             return []
         view = document.build(inv, b)
-        logo = logos_dir() / b.look.logo if b.look.logo else None
+        logo = logo_path(b.look.logo)
         return render.layout(view, resolve(b.look, dark=dark), logo)
 
     def redraw(self) -> None:

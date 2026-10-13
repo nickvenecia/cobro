@@ -9,7 +9,7 @@ import hashlib
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QByteArray, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QLabel, QLineEdit, QPushButton, QWidget
 
@@ -18,7 +18,7 @@ from cobro.core.dates import terms_label, today
 from cobro.core.log import get_logger
 from cobro.core.looks import COLORS, CUSTOM, HEADERS, LOGO_SIZES, PAPERS, accent_of
 from cobro.core.model import TERMS_DAYS, Business
-from cobro.core.paths import logos_dir
+from cobro.core.paths import logo_path, logos_dir
 from cobro.core.store import DEFAULT_NOTE, DEFAULT_TERMS, suggested_payment
 from cobro.ui.components.widgets import (
     Disclosure,
@@ -48,27 +48,27 @@ from cobro.ui.style.tokens import (
 
 log = get_logger(__name__)
 
-LOGO_MAX_PX = 1600  # bigger pictures are scaled down when added (keeps PDFs small)
+LOGO_MAX_PX = 1600  # a logo's long side once it's kept (sharp on paper, small in a PDF)
+LOGO_MAX_BYTES = 40_000_000  # a logo file you pick, before it's redrawn
 
 
 def import_logo(src: Path) -> str:
-    """Copy a logo into Cobro's own folder (so moving or deleting the original never breaks an invoice).
-    Returns the stored file name. Raises ValueError if it isn't a picture Cobro can read."""
-    from cobro.doc.render import logo_size
+    """Keep a copy of a logo in Cobro's own folder (so moving or deleting the original never breaks an invoice).
 
-    if logo_size(src) is None:
-        raise ValueError(f"Cobro can't read {src.name}. Use a PNG, JPG or SVG file.")
-    data = src.read_bytes()
-    digest = hashlib.sha256(data).hexdigest()[:16]
-    folder = logos_dir()
-    folder.mkdir(parents=True, exist_ok=True)
-    if src.suffix.lower() == ".svg":
-        name = f"{digest}.svg"
-        (folder / name).write_bytes(data)
-        return name
-    img = QImage(str(src))
-    if img.isNull():
-        raise ValueError(f"Cobro can't read {src.name}. Use a PNG, JPG or SVG file.")
+    Every logo is read and drawn again by Cobro before it's kept, as a PNG no bigger than LOGO_MAX_PX: whatever
+    else the file carried (camera details, scripts or links inside an SVG, anything odd) is left behind, and a
+    file that isn't really a picture is refused. Named by what's in it; written whole or not at all.
+    Returns the stored file name. Raises ValueError with a plain message if it can't be used."""
+    bad = f"Cobro can't read {src.name}. Use a PNG, JPG or SVG file."
+    try:
+        if src.stat().st_size > LOGO_MAX_BYTES:
+            raise ValueError(f"{src.name} is too big for a logo. Use a smaller PNG, JPG or SVG file.")
+        data = src.read_bytes()
+    except OSError as e:
+        raise ValueError(f"Couldn't open {src.name}.") from e
+    img = _svg_picture(data) if src.suffix.lower() == ".svg" else QImage.fromData(QByteArray(data))
+    if img is None or img.isNull() or img.width() < 2 or img.height() < 2:
+        raise ValueError(bad)
     if max(img.width(), img.height()) > LOGO_MAX_PX:
         img = img.scaled(
             LOGO_MAX_PX,
@@ -76,10 +76,38 @@ def import_logo(src: Path) -> str:
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
-    name = f"{digest}.png"
-    if not img.save(str(folder / name), "PNG"):
-        raise ValueError("Couldn't save the logo. Check that there's free space on this computer.")
+    name = f"{hashlib.sha256(data).hexdigest()[:16]}.png"
+    folder = logos_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / name
+    if not dest.exists():
+        tmp = folder / f".{name}.part"
+        if not img.save(str(tmp), "PNG"):
+            tmp.unlink(missing_ok=True)
+            raise ValueError("Couldn't save the logo. Check that there's free space on this computer.")
+        tmp.replace(dest)
     return name
+
+
+def _svg_picture(data: bytes) -> QImage | None:
+    """An SVG logo drawn as a picture LOGO_MAX_PX on its long side (on a see-through background)."""
+    from PySide6.QtSvg import QSvgRenderer
+
+    r = QSvgRenderer(QByteArray(data))
+    if not r.isValid():
+        return None
+    size = r.defaultSize()
+    w, h = max(1, size.width()), max(1, size.height())
+    scale = LOGO_MAX_PX / max(w, h)
+    img = QImage(
+        max(2, round(w * scale)), max(2, round(h * scale)), QImage.Format.Format_ARGB32_Premultiplied
+    )
+    img.fill(Qt.GlobalColor.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    r.render(p)
+    p.end()
+    return img
 
 
 def logo_thumbnail(path: Path, height: int) -> QPixmap:
@@ -389,7 +417,7 @@ class ProfileDialog(Embeddable, QDialog):
 
     def _show_logo(self) -> None:
         name = self.business.look.logo
-        path = logos_dir() / name if name else None
+        path = logo_path(name)
         pm = logo_thumbnail(path, LOGO_THUMB - SPACE_2) if path and path.is_file() else QPixmap()
         has_logo = not pm.isNull()
         if has_logo:
