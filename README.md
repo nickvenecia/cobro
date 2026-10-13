@@ -64,7 +64,7 @@ git clone https://github.com/nickvenecia/cobro.git && cd cobro
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
 python -m cobro                    # the app
-python -m cobro cli sample out.pdf --style screenplay --header band   # a sample invoice, no window
+python -m cobro cli sample out.pdf --header band   # a sample invoice, no window
 python -m pytest -q                # tests
 ```
 

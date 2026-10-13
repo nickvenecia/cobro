@@ -52,7 +52,7 @@ cobro/
     dialogs.py (confirm, about), update_dialog.py, titlebar.py (Mac)
   app.py           QApplication, fonts, stylesheet (light or dark: apply_scheme), rounded popups, one window
                    at a time, --smoke-test
-  cli.py           `python -m cobro cli sample OUT.pdf|png [--style] [--color] [--header] [--items] [--logo]`
+  cli.py           `python -m cobro cli sample OUT.pdf|png [--color] [--header] [--items] [--logo]`
 scripts/make_icon.py   draws cobro/assets/icon.png ("cobro." on the dark tile)
 scripts/make_fonts.py  cuts the bundled fonts from Google Fonts' OFL files (results are committed)
 cobro.spec, packaging/, .github/workflows/build.yml   building and releasing

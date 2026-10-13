@@ -484,3 +484,57 @@ def test_light_or_dark_follows_the_computer(qapp, data_folder, monkeypatch):
     finally:
         set_appearance(qapp, "dark", "")
     w.shutdown()
+
+
+def test_a_data_folder_from_cobro_1_opens_and_nothing_in_it_is_lost(qapp, data_folder):
+    """Files written by Cobro 1.0 (type styles, no clients file, the old window's settings) open in the new
+    window, print, and come back out with everything they held."""
+    import json
+
+    from cobro.core.store import write_json
+    from cobro.ui.window.main_window import MainWindow
+
+    look = {
+        "type_style": "classic",
+        "heading_font": "",
+        "body_font": "",
+        "heading_caps": False,
+        "color": "sage",
+        "custom_color": "#284B63",
+        "header": "band",
+        "logo": "",
+        "logo_size": "medium",
+        "name_with_logo": True,
+        "paper": "letter",
+    }
+    biz = {"id": "b1", "name": "Juniper Lane Films", "prefix": "JLF", "currency": "$", "terms_days": 30}
+    biz["look"] = look
+    write_json(data_folder / "businesses.json", [biz])
+    inv = {
+        "id": "i1",
+        "business_id": "b1",
+        "number": "JLF-2025-007",
+        "client": {"name": "Mesa Coffee Co.", "contact": "", "address": "", "email": ""},
+        "issued": "2025-11-02",
+        "terms_days": 30,
+        "items": [{"description": "Edit", "details": "", "qty": "2", "rate": "650"}],
+        "status": "sent",
+        "sent_on": "2025-11-02",
+    }
+    write_json(data_folder / "invoices" / "i1.json", inv)
+    write_json(data_folder / "settings.json", {"current": "i1", "splitter": "abc", "dark_preview": False})
+    before = (data_folder / "invoices" / "i1.json").read_bytes()
+
+    w = MainWindow(Library(data_folder).load())
+    w.open("i1")
+    assert w.panel.inv.number == "JLF-2025-007" and w.panel.items[0].amount.text() == "$1,300.00"
+    w.page_inv = "i1"
+    pages = w.page_list()
+    assert pages and pages[0].steps[0].color == "#4C6A55"  # its sage band, as before
+    w.shutdown()
+
+    assert (data_folder / "invoices" / "i1.json").read_bytes() == before  # opened, not rewritten
+    saved = json.loads((data_folder / "businesses.json").read_text(encoding="utf-8"))
+    assert saved[0]["look"]["type_style"] == "classic" and saved[0]["look"]["color"] == "sage"
+    settings = json.loads((data_folder / "settings.json").read_text(encoding="utf-8"))
+    assert settings["splitter"] == "abc"  # settings the new window doesn't use are kept too

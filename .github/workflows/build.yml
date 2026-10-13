@@ -94,7 +94,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           dist/Cobro.app/Contents/MacOS/Cobro --smoke-test
-          dist/Cobro.app/Contents/MacOS/Cobro cli sample smoke.pdf --style screenplay --header band
+          dist/Cobro.app/Contents/MacOS/Cobro cli sample smoke.pdf --header band
           test -s smoke.pdf
 
       - name: Smoke test (Linux)
@@ -103,7 +103,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           dist/Cobro/Cobro --smoke-test
-          dist/Cobro/Cobro cli sample smoke.pdf --style classic
+          dist/Cobro/Cobro cli sample smoke.pdf --color oxblood
           test -s smoke.pdf
 
       - name: Smoke test (Windows)

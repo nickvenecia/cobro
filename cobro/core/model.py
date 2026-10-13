@@ -56,11 +56,13 @@ def _from(cls: type[T], data: Any) -> T:
 class Look:
     """How a business's invoices look. Keys refer to core/looks.py."""
 
+    # kept from older Cobros, which offered type styles; read and saved as they were, but the paper is
+    # always set in Inter now
     type_style: str = "modern"
-    heading_font: str = ""  # only used with type_style "custom"
+    heading_font: str = ""
     body_font: str = ""
     heading_caps: bool = True
-    color: str = "ink"  # a looks.COLORS key, or "custom"
+    color: str = "turquoise"  # a looks.COLORS key, or "custom" (an exact color from an older Cobro)
     custom_color: str = "#284B63"
     header: str = "clean"  # "clean" or "band"
     logo: str = ""  # a file name inside paths.logos_dir()
@@ -70,7 +72,10 @@ class Look:
 
     @classmethod
     def from_dict(cls, data: Any) -> Look:
-        return _from(cls, data)
+        look = _from(cls, data)
+        if not isinstance(data, dict) or "color" not in data:
+            look.color = "ink"  # saved without a color: the one older Cobros used, so it looks as it did
+        return look
 
 
 @dataclass

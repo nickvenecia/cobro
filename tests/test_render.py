@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from cobro.core import document, sample
-from cobro.core.looks import TYPE_STYLES, resolve
+from cobro.core.looks import COLORS, MONO, resolve
 from cobro.core.model import Look
 from cobro.doc import export, fonts, render
 
@@ -12,7 +12,7 @@ def _pages(qapp, look=None, items=3, logo=None):
     fonts.load_bundled()
     look = look or Look()
     v = document.build(sample.invoice(items), sample.business(look))
-    return render.layout(v, resolve(look, fonts.installed_families()), logo)
+    return render.layout(v, resolve(look), logo)
 
 
 def test_bundled_fonts_load(qapp):
@@ -30,11 +30,19 @@ def test_pdf_is_a_real_pdf_with_the_text_in_it(qapp, tmp_path):
     assert [p.name for p in tmp_path.iterdir()] == ["a.pdf"]  # no temp file left
 
 
-def test_every_style_lays_out(qapp):
-    for key in TYPE_STYLES:
+def test_every_color_and_header_lays_out(qapp):
+    for key in COLORS:
         for header in ("clean", "band"):
-            pages = _pages(qapp, Look(type_style=key, header=header))
+            pages = _pages(qapp, Look(color=key, header=header))
             assert len(pages) == 1, (key, header)
+
+
+def test_inter_throughout_and_mono_for_the_number(qapp):
+    steps = [s for s in _pages(qapp)[0].steps if isinstance(s, render.Text)]
+    families = {s.font.family for s in steps}
+    assert families == {"Inter", MONO}
+    assert {s.text for s in steps if s.font.family == MONO} == {sample.invoice().number}
+    assert render.MARGIN == 44
 
 
 def test_long_invoices_flow_onto_more_pages(qapp):
@@ -97,10 +105,10 @@ def test_the_name_and_tagline_stay_together_beside_a_logo(qapp, tmp_path):
         img = QImage(width, 300, QImage.Format.Format_ARGB32)
         img.fill(QColor("#222222"))
         img.save(str(logo))
-        for style in ("screenplay", "modern", "editorial"):
-            look = Look(type_style=style, header="band", logo=logo.name)
+        for header in ("clean", "band"):
+            look = Look(header=header, logo=logo.name)
             b = sample.business(look)
-            b.name, b.tagline = "Marisol Delacruz Films", "Photographer | Cinematographer"
+            b.name, b.tagline = "Juniper Lane Films & Post", "Director | Cinematographer"
             steps = render.layout(document.build(sample.invoice(), b), resolve(look), logo)[0].steps
             pic = next(s for s in steps if isinstance(s, render.Logo))
             name, tag = [s for s in steps if isinstance(s, render.Text)][:2]
