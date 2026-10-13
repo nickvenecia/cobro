@@ -9,22 +9,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 
 from PySide6.QtGui import QFont, QFontDatabase, QFontMetricsF, QImage, QPaintDevice
 
-from ..core.looks import BUNDLED_FONTS, FALLBACK_FONT
+from cobro.core.looks import BUNDLED_FONTS
+from cobro.core.looks import FONT as FALLBACK_FONT
+from cobro.core.paths import ASSETS
 
-ASSETS = Path(__file__).resolve().parent.parent / "assets"
 FONT_DIR = ASSETS / "fonts"
 
-# Some faces look much smaller or bigger than others at the same point size.
-SCALE = {
-    "Bebas Neue": 1.32,
-    "Archivo Expanded": 0.86,
-    "Courier Prime": 0.96,
-    "DM Serif Display": 1.06,
-}
+# Some faces look smaller or bigger than others at the same point size.
+SCALE = {"IBM Plex Mono": 0.94}
 
 _loaded: set[str] = set()
 
@@ -43,12 +38,7 @@ def load_bundled() -> set[str]:
 
 
 def bundled_families() -> list[str]:
-    return [f for f, _ in BUNDLED_FONTS]
-
-
-def installed_families() -> set[str]:
-    load_bundled()
-    return set(QFontDatabase.families())
+    return list(BUNDLED_FONTS)
 
 
 @dataclass(frozen=True)

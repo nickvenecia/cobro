@@ -8,6 +8,8 @@ from pathlib import Path
 
 _override: Path | None = None
 
+ASSETS = Path(__file__).resolve().parent.parent / "assets"  # fonts, icon: shipped inside the app
+
 
 def use_data_dir(path: Path | None) -> None:
     """Point Cobro at another data folder (tests, the smoke test). None goes back to the normal one."""
@@ -30,12 +32,16 @@ def data_dir() -> Path:
     return Path(os.environ.get("XDG_DATA_HOME", home / ".local" / "share")) / "cobro"
 
 
-def invoices_dir() -> Path:
-    return data_dir() / "invoices"
-
-
 def logos_dir() -> Path:
     return data_dir() / "logos"
+
+
+def logo_path(name: str) -> Path | None:
+    """A profile's logo file, if `name` is a plain file name inside the logos folder (never a path that
+    leads anywhere else). The file may be missing: then the invoice just leaves the logo out."""
+    if not name or name != Path(name).name or name.startswith(".") or "\\" in name:
+        return None
+    return logos_dir() / name
 
 
 def log_dir() -> Path:

@@ -1,4 +1,4 @@
-"""Draw the app icon (cobro/assets/icon.png): the "cobro." wordmark on the app's dark tile.
+"""Draw the app icon (cobro/assets/icon.png): "c." on a dark tile, the full stop in the accent.
 
     python scripts/make_icon.py
 
@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from cobro.ui.tokens import ACCENT, TEXT  # noqa: E402
+from cobro.ui.style.tokens import ACCENT, TEXT  # noqa: E402
 
 SIZE = 1024
 TILE = 824  # Apple's icon grid: an 824 px rounded square centred on 1024 (room for the shadow)
@@ -58,21 +58,16 @@ def draw(size: int = SIZE) -> Image.Image:
         width=max(1, round(3 * s)),
     )
 
-    # the wordmark: "cobro" in the text color, the full stop in turquoise
-    word, dot = "cobro", "."
-    # "cobro." is wider than "listo.": size it to the same share of the tile Listo's word takes
-    pt = 250
-    while ImageFont.truetype(str(FONT), pt).getlength(word + dot) > TILE * 0.68 and pt > 120:
-        pt -= 2
-    font = ImageFont.truetype(str(FONT), round(pt * s))
+    # "c." in the text color, the full stop in the accent; sized by the letter's height, centred on its ink
+    letter, dot = "c", "."
+    font = ImageFont.truetype(str(FONT), round(560 * s))
     d = ImageDraw.Draw(img)
-    w_word = font.getlength(word)
-    w_all = font.getlength(word + dot)
-    _left, top_px, _right, bottom_px = font.getbbox(word + dot)
-    x = (size - w_all) / 2
-    y = (size - (bottom_px - top_px)) / 2 - top_px - round(10 * s)  # optical centre: a touch high
-    d.text((x, y), word, font=font, fill=_hex(TEXT))
-    d.text((x + w_word, y), dot, font=font, fill=_hex(ACCENT))
+    left, top_px, right, bottom_px = font.getbbox(letter + dot)
+    w_letter = font.getlength(letter)
+    x = (size - (right - left)) / 2 - left
+    y = (size - (bottom_px - top_px)) / 2 - top_px
+    d.text((x, y), letter, font=font, fill=_hex(TEXT))
+    d.text((x + w_letter, y), dot, font=font, fill=_hex(ACCENT))
     return img
 
 

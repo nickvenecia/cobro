@@ -1,4 +1,4 @@
-"""Turn laid-out pages into a PDF, PNG pictures, a printout, or a picture for the preview.
+"""Turn laid-out pages into a PDF, PNG pictures, a printout, or a picture for the page window.
 
 Files are written to a hidden temp file in the same folder and moved into place only when complete,
 so a failed export never leaves a broken file (or replaces a good one).
@@ -13,9 +13,9 @@ from pathlib import Path
 from PySide6.QtCore import QMarginsF, QSizeF
 from PySide6.QtGui import QImage, QPageLayout, QPageSize, QPainter, QPdfWriter
 
-from .. import APP_NAME, __version__
-from ..core.log import get_logger
-from .render import Page, paint
+from cobro import APP_NAME, __version__
+from cobro.core.log import get_logger
+from cobro.doc.render import Page, paint
 
 log = get_logger(__name__)
 

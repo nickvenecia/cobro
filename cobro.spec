@@ -10,7 +10,15 @@ IS_MAC = sys.platform == "darwin"
 IS_WIN = sys.platform == "win32"
 
 datas = [(str(ROOT / "cobro" / "assets"), "cobro/assets")]
-hiddenimports = ["PySide6.QtSvg", "PySide6.QtPrintSupport", "PySide6.QtNetwork"]
+hiddenimports = [
+    "PySide6.QtSvg", "PySide6.QtPrintSupport", "PySide6.QtNetwork",
+    # the system keychain (AI keys, the account sign-in): keyring finds its backends by name at run time
+    "keyring.backends.macOS", "keyring.backends.Windows", "keyring.backends.SecretService",
+    "keyring.backends.libsecret", "keyring.backends.chainer", "keyring.backends.fail",
+]
+from PyInstaller.utils.hooks import copy_metadata  # noqa: E402
+
+datas += copy_metadata("keyring")  # its backends are listed in its package metadata
 
 excludes = [
     "tkinter", "unittest", "pydoc_data", "numpy", "PIL", "fontTools",

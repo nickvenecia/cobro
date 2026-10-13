@@ -1,4 +1,4 @@
-"""The choices for how an invoice looks: type styles, colors, header, logo size and paper.
+"""The choices for how an invoice looks: the paper's color, header, logo size and paper size.
 
 Plain data (no Qt): the drawing code in doc/ turns a resolved look into fonts and colors.
 """
@@ -8,88 +8,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .model import Look
+from cobro.core.model import Look
 
-# Fonts that ship inside Cobro (cobro/assets/fonts), so every invoice looks the same on every computer.
-# (family, what it's like). Any other font installed on the computer can be picked too.
-BUNDLED_FONTS: list[tuple[str, str]] = [
-    ("Archivo Expanded", "Wide, bold sans for names"),
-    ("Archivo", "Sturdy sans"),
-    ("Inter", "Neutral sans"),
-    ("Hanken Grotesk", "Friendly sans"),
-    ("Public Sans", "Plain, sturdy sans"),
-    ("IBM Plex Mono", "Typewriter-like, lined-up numbers"),
-    ("Courier Prime", "Screenplay typewriter"),
-    ("Libre Caslon Text", "Classic book serif"),
-    ("Libre Caslon Display", "Elegant serif, headings only"),
-    ("DM Serif Display", "Bold display serif, headings only"),
-    ("Bebas Neue", "Tall poster capitals, headings only"),
-]
-DISPLAY_ONLY = {"DM Serif Display", "Bebas Neue", "Libre Caslon Display"}  # too loud for running text
-FALLBACK_FONT = "Inter"
-
-
-@dataclass(frozen=True)
-class TypeStyle:
-    label: str
-    heading: str
-    body: str
-    numbers: str
-    caps: bool  # business name in capitals
-    tip: str
-
-
-TYPE_STYLES: dict[str, TypeStyle] = {
-    "modern": TypeStyle(
-        "Modern",
-        "Archivo Expanded",
-        "Hanken Grotesk",
-        "IBM Plex Mono",
-        True,
-        "Wide bold name, clean text",
-    ),
-    "clean": TypeStyle("Clean", "Inter", "Inter", "Inter", False, "One neutral sans throughout"),
-    "classic": TypeStyle(
-        "Classic",
-        "Libre Caslon Display",
-        "Libre Caslon Text",
-        "Libre Caslon Text",
-        False,
-        "Serif, like letterhead",
-    ),
-    "editorial": TypeStyle(
-        "Editorial",
-        "DM Serif Display",
-        "Hanken Grotesk",
-        "IBM Plex Mono",
-        False,
-        "Bold serif name, crisp text",
-    ),
-    "screenplay": TypeStyle(
-        "Screenplay",
-        "Courier Prime",
-        "Courier Prime",
-        "Courier Prime",
-        True,
-        "Typed like a script page",
-    ),
-    "poster": TypeStyle(
-        "Poster",
-        "Bebas Neue",
-        "Archivo",
-        "Archivo",
-        True,
-        "Tall capitals, like a one-sheet",
-    ),
-    "technical": TypeStyle(
-        "Technical",
-        "Public Sans",
-        "Public Sans",
-        "IBM Plex Mono",
-        False,
-        "Plain sans with typewriter numbers",
-    ),
-}
+# The paper is set in Inter, with IBM Plex Mono for the invoice number. Both ship inside Cobro
+# (cobro/assets/fonts), so every invoice looks the same on every computer.
+FONT = "Inter"  # the app and the paper
+MONO = "IBM Plex Mono"  # codes: the invoice number
+BUNDLED_FONTS = [FONT, MONO]
 CUSTOM = "custom"
 
 
@@ -102,13 +27,14 @@ class Swatch:
 COLORS: dict[str, Swatch] = {
     "ink": Swatch("Ink Blue", "#284B63"),
     "turquoise": Swatch("Turquoise", "#11776E"),
-    "marigold": Swatch("Marigold", "#B8720B"),
+    "marigold": Swatch("Amber", "#B8720B"),  # (its key stays: saved profiles use it)
     "oxblood": Swatch("Oxblood", "#7A2E2E"),
     "sage": Swatch("Sage", "#4C6A55"),
     "plum": Swatch("Plum", "#5B3A6B"),
     "graphite": Swatch("Graphite", "#2B2B2E"),
 }
 
+DEFAULT_COLOR = "turquoise"  # Cobro's own color, for a new profile
 HEADERS = {"clean": "Clean", "band": "Color Band"}
 LOGO_SIZES = {
     "small": ("Small", 36.0),
@@ -120,9 +46,9 @@ PAPERS = {
     "a4": ("A4", (595.28, 841.89)),
 }  # points
 
-INK = "#18212B"  # body text on paper
-INK_SOFT = "#5A6572"  # secondary text on paper
-RULE = "#D9DEE3"  # hairlines on paper
+INK = "#1B1B1F"  # body text on paper
+INK_SOFT = "#5E5E66"  # secondary text on paper
+RULE = "#D9D9DE"  # hairlines on paper
 PAPER = "#FFFFFF"
 
 
@@ -137,7 +63,7 @@ class Palette:
 
 
 LIGHT = Palette(PAPER, INK, INK_SOFT, RULE)  # every PDF, PNG and printout
-DARK = Palette("#1C1D21", "#ECE9E4", "#9C978F", "#34363C")  # the preview's Dark Page only, easier on the eyes
+DARK = Palette("#1A1A1E", "#F2F0EB", "#B4AFA8", "#3A3A42")  # the invoice window's Dark Page only
 
 _HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -150,10 +76,6 @@ def valid_hex(c: str) -> bool:
 class Resolved:
     """Everything the drawing code needs, decided."""
 
-    heading: str
-    body: str
-    numbers: str
-    caps: bool
     accent: str  # the accent, dark enough to read as text on white
     band: str  # the accent as picked (fills the header band)
     tint: str  # a pale wash of the accent (payment and terms boxes)
@@ -166,7 +88,7 @@ class Resolved:
     ink: str = INK
     ink_soft: str = INK_SOFT
     rule: str = RULE
-    dark: bool = False  # the preview's Dark Page (never exported)
+    dark: bool = False  # the page window's Dark Page (never exported)
 
 
 def mix(a: str, b: str, t: float) -> str:
@@ -188,7 +110,7 @@ def luminance(c: str) -> float:
 def accent_of(look: Look) -> str:
     if look.color == CUSTOM and valid_hex(look.custom_color):
         return look.custom_color.upper()
-    return COLORS.get(look.color, COLORS["ink"]).accent
+    return COLORS.get(look.color, COLORS[DEFAULT_COLOR]).accent
 
 
 def contrast(a: str, b: str) -> float:
@@ -208,35 +130,13 @@ def readable_on(accent: str, paper: str = PAPER) -> str:
     return c
 
 
-def resolve(look: Look, available: set[str] | None = None, dark: bool = False) -> Resolved:
-    """Turn a Look into fonts and colors. `available`: font families this computer has
-    (a picked font that's missing falls back to the style's own). `dark`: the preview's Dark Page."""
-    style = TYPE_STYLES.get(look.type_style)
-    if style is not None:
-        heading, body, numbers, caps = (
-            style.heading,
-            style.body,
-            style.numbers,
-            style.caps,
-        )
-    else:  # custom
-        base = TYPE_STYLES["modern"]
-        heading = look.heading_font or base.heading
-        body = look.body_font or base.body
-        numbers = body
-        caps = look.heading_caps
-        if available is not None:
-            heading = heading if heading in available else base.heading
-            body = body if body in available else base.body
-            numbers = body
+def resolve(look: Look, dark: bool = False) -> Resolved:
+    """Turn a Look into colors and sizes. `dark`: the invoice window's Dark Page (never exported).
+    Anything unknown (from a newer or older Cobro) falls back to the default."""
     raw = accent_of(look)
     pal = DARK if dark else LIGHT
     on_accent = "#FFFFFF" if luminance(raw) < 0.45 else INK
     return Resolved(
-        heading=heading,
-        body=body,
-        numbers=numbers,
-        caps=caps,
         accent=readable_on(raw, pal.paper),
         band=raw,
         tint=mix(raw, pal.paper, 0.84 if dark else 0.92),

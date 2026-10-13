@@ -1,4 +1,4 @@
-"""Make the invoice fonts in cobro/assets/fonts from Google Fonts' open-source files (SIL OFL).
+"""Make the fonts in cobro/assets/fonts (Inter, IBM Plex Mono) from Google Fonts' open-source files (SIL OFL).
 
     python scripts/make_fonts.py            # downloads into build/fonts-src, writes the .ttf files
 
@@ -29,20 +29,9 @@ STYLE = {400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "Extr
 # family name -> (source file in google/fonts, fixed axes, weights to cut)
 VARIABLE = {
     "Inter": ("inter/Inter[opsz,wght].ttf", {"opsz": 14}, [400, 500, 600, 700]),
-    "Archivo": ("archivo/Archivo[wdth,wght].ttf", {"wdth": 100}, [400, 600, 700]),
-    "Archivo Expanded": ("archivo/Archivo[wdth,wght].ttf", {"wdth": 125}, [600, 800]),
-    "Hanken Grotesk": ("hankengrotesk/HankenGrotesk[wght].ttf", {}, [400, 600, 700]),
-    "Public Sans": ("publicsans/PublicSans[wght].ttf", {}, [400, 600, 700]),
-    "Libre Caslon Text": ("librecaslontext/LibreCaslonText[wght].ttf", {}, [400, 600, 700]),
 }
 STATIC = {
-    "CourierPrime-Regular.ttf": "courierprime/CourierPrime-Regular.ttf",
-    "CourierPrime-Bold.ttf": "courierprime/CourierPrime-Bold.ttf",
     "IBMPlexMono-Regular.ttf": "ibmplexmono/IBMPlexMono-Regular.ttf",
-    "IBMPlexMono-Bold.ttf": "ibmplexmono/IBMPlexMono-Bold.ttf",
-    "BebasNeue-Regular.ttf": "bebasneue/BebasNeue-Regular.ttf",
-    "DMSerifDisplay-Regular.ttf": "dmserifdisplay/DMSerifDisplay-Regular.ttf",
-    "LibreCaslonDisplay-Regular.ttf": "librecaslondisplay/LibreCaslonDisplay-Regular.ttf",
 }
 
 
@@ -58,7 +47,7 @@ def fetch(rel: str) -> Path:
 
 
 def rename(font: TTFont, family: str, style: str) -> None:
-    """One family name for every weight, so apps list "Archivo" once with its weights."""
+    """One family name for every weight, so apps list "Inter" once with its weights."""
     full = f"{family} {style}" if style != "Regular" else family
     ps = f"{family.replace(' ', '')}-{style}"
     names = font["name"]

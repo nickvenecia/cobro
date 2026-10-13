@@ -9,24 +9,27 @@ PNG and the printer all use the same steps, so they always match.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QImageReader, QPainter, QPen
 from PySide6.QtSvg import QSvgRenderer
 
-from ..core.document import InvoiceView
-from ..core.looks import PAPER, Resolved
-from .fonts import FontSpec, make, metrics
+from cobro.core.document import InvoiceView
+from cobro.core.looks import FONT, MONO, PAPER, Resolved
+from cobro.doc.fonts import FontSpec, make, metrics
 
 LEFT = int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 RIGHT = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-CENTER = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 WRAP = int(Qt.TextFlag.TextWordWrap)
 
-MARGIN = 48.0
+MARGIN = 44.0
 LABEL_SPACING = 0.14  # letter-spacing of the small capital labels
+LOGO_DPI = 300  # how sharp a logo is on paper (it's scaled to this first, so a PDF stays small)
 NAME_SLACK = 6.0  # points kept free beside the business name, so it fits on one line on every computer
+SEMIBOLD, BOLD = 600, 700  # the paper's two heavier weights
+TIGHT = -0.01  # letter spacing for the name and the big amount
 
 
 # ---------------------------------------------------------------------------- drawing steps
@@ -92,9 +95,18 @@ def _draw_logo(p: QPainter, step: Logo) -> None:
             r.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
             r.render(p, step.rect)
         return
-    img = QImage(str(step.path))
+    img = _print_size(str(step.path), round(step.rect.width() * LOGO_DPI / 72))
     if not img.isNull():
         p.drawImage(step.rect, img)
+
+
+@lru_cache(maxsize=16)
+def _print_size(path: str, width_px: int) -> QImage:
+    """The logo no wider than it needs to be on paper (LOGO_DPI), so a PDF stays small."""
+    img = QImage(path)
+    if not img.isNull() and img.width() > width_px > 0:
+        img = img.scaledToWidth(width_px, Qt.TransformationMode.SmoothTransformation)
+    return img
 
 
 # ---------------------------------------------------------------------------- measuring
@@ -161,11 +173,12 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     out = _Pages((W, H), look.paper)
     INK, INK_SOFT, RULE = look.ink, look.ink_soft, look.rule  # white paper's, or the Dark Page's
 
-    body = FontSpec(look.body, 9.5)
-    body_soft = FontSpec(look.body, 9)
-    body_strong = FontSpec(look.body, 9.5, 600)
-    label = FontSpec(look.body, 6.8, 600, LABEL_SPACING)
-    nums = FontSpec(look.numbers, 9.2)
+    body = FontSpec(FONT, 9.5)
+    body_soft = FontSpec(FONT, 9)
+    body_strong = FontSpec(FONT, 9.5, SEMIBOLD)
+    label = FontSpec(FONT, 6.8, SEMIBOLD, LABEL_SPACING)
+    nums = FontSpec(FONT, 9.2)
+    code = FontSpec(MONO, 9.2)  # the invoice number
     band = look.header == "band"
     on = look.on_accent if band else INK
     on_soft = look.on_accent if band else INK_SOFT
@@ -181,7 +194,7 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
         logo_w = min(logo_h * dims[0] / dims[1], left_w * (0.55 if look.name_with_logo else 1.0))
         logo_h = logo_w * dims[1] / dims[0]
     show_name = bool(v.name) and (look.name_with_logo or not dims)
-    name_text = v.name.upper() if look.caps else v.name
+    name_text = v.name
     nx = x0 + (logo_w + 14 if dims and show_name else 0)
     nw = x0 + left_w - nx
     # Shrink the name until it fits on one line, measured exactly as it's drawn (letter-spacing too) and
@@ -190,14 +203,14 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     room = nw - NAME_SLACK
 
     def name_font(pt: float) -> FontSpec:
-        return FontSpec(look.heading, pt, 800, 0.01 if look.caps else 0)
+        return FontSpec(FONT, pt, BOLD, TIGHT)
 
     size = 26.0
     while size > 15 and text_w(name_text, name_font(size)) > room:
         size -= 1
     name_spec = name_font(size)
     one_line = text_w(name_text, name_spec) <= room
-    tag_spec = FontSpec(look.body, 7.6, 600, 0.13)
+    tag_spec = FontSpec(FONT, 7.6, SEMIBOLD, LABEL_SPACING)
     if not show_name:
         name_h = 0.0
     else:
@@ -229,9 +242,9 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     rx = x0 + cw - right_w
     ry = top
     ry += out.text(rx, ry, right_w, v.big_label.upper(), label, on_soft, RIGHT) + 4
-    amount_spec = FontSpec(look.heading, 25, 700)
+    amount_spec = FontSpec(FONT, 25, BOLD, TIGHT)
     if text_w(v.big_amount, amount_spec) > right_w:
-        amount_spec = FontSpec(look.heading, 19, 700)
+        amount_spec = FontSpec(FONT, 19, BOLD, TIGHT)
     ry += (
         out.text(
             rx,
@@ -273,7 +286,7 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
                 )
             )
         out.text(cx, y + 8, col - 16, k.upper(), label, INK_SOFT)
-        out.text(cx, y + 8 + label_h + 3, col - 16, val, nums, INK)
+        out.text(cx, y + 8 + label_h + 3, col - 16, val, code if i == 0 else nums, INK)
     out.steps.append(Line(QPointF(x0, y + strip_h), QPointF(x0 + cw, y + strip_h), 0.6, RULE))
     out.y = y + strip_h + 22
 
@@ -302,7 +315,7 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     qty_w, rate_w, amt_w = 34.0, 78.0, 84.0
     desc_w = cw - qty_w - rate_w - amt_w - 3 * 14
     cols_x = (x0, x0 + desc_w + 14, x0 + desc_w + 14 + qty_w + 14, x0 + cw - amt_w)
-    detail_spec = FontSpec(look.body, 8.6)
+    detail_spec = FontSpec(FONT, 8.6)
 
     def table_header() -> None:
         hy = out.y
@@ -364,7 +377,7 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     tw = 236.0
     tx = x0 + cw - tw
     row_h = text_h("X", body, tw) + 7
-    bal_spec = FontSpec(look.numbers, 15, 700)
+    bal_spec = FontSpec(FONT, 15, BOLD, TIGHT)
     bal_h = max(text_h("X", bal_spec, tw), row_h)
     need = 12 + len(v.totals) * row_h + 8 + bal_h
     if not out.fits(need):
@@ -386,7 +399,7 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
     if boxes:
         bw = (cw - 18) / 2
         pad = 12.0
-        box_text = FontSpec(look.body, 8.6)
+        box_text = FontSpec(FONT, 8.6)
         heights = [
             pad + text_h("X", label, bw) + 6 + text_h(t, box_text, bw - 2 * pad) + pad for _, t in boxes
         ]
@@ -404,15 +417,15 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
 
     # ------------------------------------------------ footer on every page
     total = len(out.pages)
-    foot = FontSpec(look.body, 8)
+    foot = FontSpec(FONT, 8)
     note_w = min(text_w(v.note, foot) + 2, cw * 0.45) if v.note else 0.0
-    page_w = text_w(f"Page {total} of {total}", foot) + 2 if total > 1 else 0.0
+    page_w = text_w(f"Page {total} of {total}", foot) + 2  # on every page, even a page of one
     # the last page is the fullest row: note, then the page number, then the contact line on the right
     used = note_w + (16 if note_w else 0) + page_w + (16 if page_w else 0)
     room = cw - used
     fspec = foot
     while v.footer and fspec.size > 6.2 and text_w(v.footer, fspec) > room:
-        fspec = FontSpec(look.body, fspec.size - 0.3)
+        fspec = FontSpec(FONT, fspec.size - 0.3)
     footer = metrics(fspec).elidedText(v.footer, Qt.TextElideMode.ElideLeft, room) if v.footer else ""
     for n, page in enumerate(out.pages, start=1):
         fy = H - MARGIN + 4
@@ -422,16 +435,15 @@ def layout(v: InvoiceView, look: Resolved, logo: Path | None = None) -> list[Pag
             note = metrics(foot).elidedText(v.note, Qt.TextElideMode.ElideRight, note_w)
             page.steps.append(Text(QRectF(x0, fy + 8, note_w, 14), note, foot, INK_SOFT, LEFT))
             px = x0 + note_w + 16
-        if total > 1:
-            page.steps.append(
-                Text(
-                    QRectF(px, fy + 8, page_w, 14),
-                    f"Page {n} of {total}",
-                    foot,
-                    INK_SOFT,
-                    LEFT,
-                )
+        page.steps.append(
+            Text(
+                QRectF(px, fy + 8, page_w, 14),
+                f"Page {n} of {total}",
+                foot,
+                INK_SOFT,
+                LEFT,
             )
+        )
         if footer:
             page.steps.append(
                 Text(

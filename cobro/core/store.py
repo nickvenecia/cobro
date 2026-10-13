@@ -21,10 +21,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from . import dates, numbering
-from .log import get_logger
-from .model import Business, Client, Invoice, LineItem, new_id, now_iso
-from .paths import data_dir
+from cobro.core import dates, numbering
+from cobro.core.log import get_logger
+from cobro.core.model import Business, Client, Invoice, LineItem, new_id, now_iso
+from cobro.core.paths import data_dir
 
 log = get_logger(__name__)
 
@@ -51,6 +51,21 @@ def write_json(path: Path, data: Any) -> None:
             os.unlink(tmp)
         except OSError:
             log.warning("couldn't remove %s", tmp, exc_info=True)
+        raise
+
+
+def write_bytes(path: Path, data: bytes) -> None:
+    """Write a file atomically (a copy kept in backups/, say): a temp file in the same folder, then os.replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
         raise
 
 
@@ -185,7 +200,7 @@ class Library:
         return numbering.next_number(head, taken, year)
 
     def renumber(self, inv: Invoice) -> bool:
-        """Keep a draft's number in step with its profile, client and year (NV-DGTL-2026-001), when Cobro
+        """Keep a draft's number in step with its profile, client and year (JLF-NRTH-2026-001), when Cobro
         picked it. Numbers you typed, and invoices already sent or paid, never change. True if it changed."""
         b = self.businesses.get(inv.business_id)
         if b is None or not inv.auto_number or inv.status != "draft":
@@ -245,6 +260,30 @@ class Library:
         except OSError:
             log.warning("couldn't delete invoice file %s", invoice_id, exc_info=True)
 
+    SNAPSHOTS_KEPT = 30
+
+    def snapshot(self, why: str, invoice_ids: list[str]) -> Path | None:
+        """A dated copy of these invoices' files in backups/ before a big change (an AI's edits, say); the
+        newest SNAPSHOTS_KEPT copies are kept. None if there was nothing to copy or it couldn't be written."""
+        folder = self.root / "backups"
+        stamp = time.strftime("%Y-%m-%d-%H%M%S")
+        tag = "".join(ch for ch in why.lower() if ch.isalnum() or ch == "-")
+        dest = None
+        try:
+            for inv_id in invoice_ids:
+                src = self._inv_dir / f"{inv_id}.json"
+                if not src.is_file():
+                    continue
+                folder.mkdir(parents=True, exist_ok=True)
+                dest = folder / f"invoice-{stamp}-{tag}-{inv_id}.json"
+                write_bytes(dest, src.read_bytes())
+            for old in sorted(folder.glob("invoice-*.json"))[: -self.SNAPSHOTS_KEPT]:
+                old.unlink(missing_ok=True)
+        except OSError:
+            log.warning("couldn't keep a copy of the invoice before %s", why, exc_info=True)
+            return None
+        return dest
+
     # ------------------------------------------------------------------ clients
     def find_client(self, name: str) -> Client | None:
         key = name.strip().casefold()
@@ -255,6 +294,16 @@ class Library:
     def match_client(self, c: Client) -> Client | None:
         """The saved client an invoice's copy belongs to: same id, or else the same name."""
         return self.clients.get(c.id) or self.find_client(c.name)
+
+    def invoices_by_client(self) -> dict[str, list[Invoice]]:
+        """Each saved client's invoices, newest first (an invoice's own copy names its client by id, or else
+        by name)."""
+        found: dict[str, list[Invoice]] = {c_id: [] for c_id in self.clients}
+        for inv in self.ordered():
+            c = self.match_client(inv.client)
+            if c is not None:
+                found[c.id].append(inv)
+        return found
 
     def save_client(self, c: Client) -> Client:
         """Add or update a saved client. Drafts billed to them pick up the change; sent and paid

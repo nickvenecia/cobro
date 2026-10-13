@@ -1,3 +1,7 @@
+"""`python -m cobro` opens the app; `python -m cobro cli …` draws without a window (cli.py)."""
+
+from __future__ import annotations
+
 import sys
 
 

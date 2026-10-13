@@ -47,3 +47,47 @@ def qapp():
 
     setup_app(app)
     return app
+
+
+@pytest.fixture(autouse=True)
+def _no_leftover_windows():
+    """Windows a test made are gone before the next one (otherwise every later restyle redoes them all)."""
+    yield
+    if "PySide6.QtWidgets" not in sys.modules:
+        return
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is None:
+        return
+    for w in app.topLevelWidgets():
+        w.close()
+        w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+class _MemoryKeychain:
+    """A keychain that forgets everything after the test."""
+
+    def __init__(self):
+        self.store: dict[tuple[str, str], str] = {}
+
+    def get_password(self, service, name):
+        return self.store.get((service, name))
+
+    def set_password(self, service, name, value):
+        self.store[(service, name)] = value
+
+    def delete_password(self, service, name):
+        self.store.pop((service, name), None)
+
+
+@pytest.fixture(autouse=True)
+def keychain(monkeypatch):
+    """Never touch the computer's real keychain: every test gets an empty one in memory."""
+    from cobro.services import secrets
+
+    fake = _MemoryKeychain()
+    monkeypatch.setattr(secrets, "_keyring", lambda: fake)
+    return fake

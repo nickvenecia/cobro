@@ -1,4 +1,4 @@
-"""Updates (core/update.py, ui/update_dialog.py): finding a newer release, downloading it safely and
+"""Updates (core/update.py, ui/dialogs/update.py): finding a newer release, downloading it safely and
 swapping it in once Cobro has quit."""
 
 from __future__ import annotations
@@ -84,7 +84,20 @@ def server(tmp_path: Path):
     httpd.shutdown()
 
 
-def test_download_checks_size_and_fingerprint(tmp_path: Path, server):
+def test_download_only_from_our_releases_with_a_checksum(tmp_path: Path):
+    other = update.Asset("Cobro-linux-x64.AppImage", "https://example.com/Cobro.AppImage", 10, "0" * 64)
+    with pytest.raises(ValueError, match="isn't from"):
+        update.download(other, tmp_path, lambda _v: None)
+    ours = f"https://github.com/{update.REPO}/releases/download/v9.9.9/Cobro-linux-x64.AppImage"
+    unchecked = update.Asset("Cobro-linux-x64.AppImage", ours, 10, "")
+    with pytest.raises(ValueError, match="didn't say"):
+        update.download(unchecked, tmp_path, lambda _v: None)
+    assert update._trusted(ours)
+    assert not update._trusted("http://objects.githubusercontent.com/x", update.DOWNLOAD_HOSTS)
+
+
+def test_download_checks_size_and_fingerprint(tmp_path: Path, server, monkeypatch):
+    monkeypatch.setattr(update, "_trusted", lambda *_a: True)  # the test server stands in for GitHub
     root, base = server
     data = b"new cobro" * 1000
     (root / "f.AppImage").write_bytes(data)
@@ -100,7 +113,7 @@ def test_download_checks_size_and_fingerprint(tmp_path: Path, server):
     bad = update.Asset("x", f"{base}/f.AppImage", len(data), "0" * 64)
     with pytest.raises(ValueError, match="doesn't match"):
         update.download(bad, tmp_path, lambda _v: None)
-    short = update.Asset("y", f"{base}/f.AppImage", len(data) + 5)
+    short = update.Asset("y", f"{base}/f.AppImage", len(data) + 5, hashlib.sha256(data).hexdigest())
     with pytest.raises(ValueError, match="cut short"):
         update.download(short, tmp_path, lambda _v: None)
 
@@ -185,25 +198,97 @@ def test_update_window(monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
 
-    from cobro.ui.update_dialog import UpdateDialog, _whats_new
+    from cobro.ui.dialogs.update import UpdateDialog
 
     app = QApplication.instance() or QApplication([])
-    assert "Download" not in _whats_new(GITHUB_ANSWER["body"]) and "Faster glitches" in _whats_new(
-        GITHUB_ANSWER["body"]
-    )
     d = UpdateDialog(update.parse_release(GITHUB_ANSWER))
     assert "9.1.0" in d.findChild(type(d.status), "DialogTitle").text()
+    shown = d.notes.toPlainText()
+    assert "Faster glitches" in shown and "Download" not in shown
     assert d.btn_go.isHidden() and "GitHub Desktop" in d.status.text()  # from the code: nothing to install
     d.close()
     app.processEvents()
 
 
+def test_whats_new_is_the_words_without_downloads_or_github_credits():
+    generated = (
+        "## Download\n| a | b |\n**First launch on Mac:** open it.\n\n"
+        "## What's Changed\n"
+        "* Start tiles by @nickvenecia in https://github.com/nickvenecia/cobro/pull/7\n"
+        "<!-- generated -->\n\n"
+        "## New Contributors\n* @nickvenecia made their first contribution in https://x\n\n"
+        "**Full Changelog**: https://github.com/nickvenecia/cobro/compare/v1.1.5...v1.1.6"
+    )
+    assert update.whats_new(generated) == [("heading", "What's Changed"), ("item", "Start tiles")]
+    written = "The first one.\n\n## What's New\n\n- A long line\n  carried on.\n1. Two\n\n## Empty\n## Download\n| x |"
+    assert update.whats_new(written) == [
+        ("text", "The first one."),
+        ("heading", "What's New"),
+        ("item", "A long line carried on."),
+        ("item", "Two"),
+    ]
+    assert update.whats_new("") == []
+
+
+def test_release_text_is_never_read_as_html(qapp):
+    from cobro.ui.dialogs.update import Notes
+
+    n = Notes([("item", "<b>x</b> **bold** `code` [page](https://example.com/a?b=1&c=2) [run](file:///etc)")])
+    page = n.toHtml()
+    assert "&lt;b&gt;x&lt;/b&gt;" in page and "bold" in page and "`" not in n.toPlainText()
+    assert 'href="https://example.com/a?b=1&amp;c=2"' in page and "file:" not in page
+    assert Notes([]).toPlainText() == "Fixes and improvements."
+
+
+def test_release_notes_are_the_changelog_entries():
+    import importlib.util
+
+    from cobro import __version__
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("release_notes", root / "scripts" / "release_notes.py")
+    rn = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rn)
+    log = "# Changelog\n\n## 2.0.1\n\n- Fixed it.\n\n## 2.0.0\n\n- Made it.\n"
+    body = rn.notes(log, "v2.0.1")
+    assert update.whats_new(body) == [("heading", "What's New"), ("item", "Fixed it.")]
+    assert "Cobro-mac-apple-silicon.dmg" in body and "Made it." not in body
+    with pytest.raises(rn.NotesError):  # a version without its entries is never released
+        rn.notes(log, "3.0.0")
+    assert rn.changes(rn.CHANGELOG.read_text(encoding="utf-8"), __version__)  # this version has its entries
+
+
 def test_window_offers_the_update(qapp, data_folder):
     from cobro.core.store import Library
-    from cobro.ui.main_window import MainWindow
+    from cobro.ui.window.main_window import MainWindow
 
     w = MainWindow(Library(data_folder).load())
     rel = update.parse_release(GITHUB_ANSWER)
     w._found_release(rel, quiet=True)
-    assert w.list.btn_update.isVisibleTo(w.list) and w.list.btn_update.text() == "Update to 9.1.0"
+    assert w.sidebar.btn_update.isVisibleTo(w.sidebar) and w.sidebar.btn_update.text() == "Update to 9.1.0"
     w.shutdown()
+
+
+def test_a_new_version_found_on_opening_shows_right_away(qapp, data_folder, monkeypatch):
+    """The automatic check runs every launch; what it finds opens the update window by itself, but never on
+    top of another window."""
+    from PySide6.QtWidgets import QApplication
+
+    from cobro.core import sample, update
+    from cobro.core.store import Library
+    from cobro.ui.window.main_window import MainWindow
+
+    win = MainWindow(sample.fill(Library(data_folder).load()))
+    win.show()
+    shown, later = [], []
+    monkeypatch.setattr(win, "show_update", lambda: shown.append(win._release.version))
+    monkeypatch.setattr("PySide6.QtCore.QTimer.singleShot", lambda ms, fn: later.append(fn))
+    monkeypatch.setattr(QApplication, "activeModalWidget", staticmethod(lambda: object()))
+    win._found_release(update.Release("99.0.0"), quiet=True)
+    assert not shown and later  # another window is open: it waits
+    monkeypatch.setattr(QApplication, "activeModalWidget", staticmethod(lambda: None))
+    later.pop()()
+    assert shown == ["99.0.0"] and win.sidebar.btn_update.isVisibleTo(win.sidebar)
+    win._found_release(update.Release("0.0.1"), quiet=True)  # nothing newer: nothing shows
+    assert shown == ["99.0.0"]
+    win.close()
