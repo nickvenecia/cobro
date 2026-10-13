@@ -24,7 +24,8 @@ saldo/
   cli.py       Same drawing without a window: `python -m saldo cli ...`
 tests/         One test file per area (test_money.py, test_store.py, test_render.py, test_window.py, test_ai.py,
                test_security.py, test_release.py…); conftest.py gives every test its own empty data folder
-               and an empty keychain in memory; screenshot.py takes every screen in dark, light and yellow
+               and an empty keychain in memory; screenshot.py takes every screen in dark, light and yellow;
+               cut_off.py finds words cut off at an edge anywhere in a window
 scripts/       make_icon.py, make_fonts.py, release_notes.py
 packaging/     Installer files per OS
 ```
