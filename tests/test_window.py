@@ -581,3 +581,51 @@ def test_a_line_items_details_show_once_it_has_some(win):
     first = win.panel.items[0]
     first.head.clicked.emit()
     assert first.details.isVisibleTo(first) and not first.add_details.isVisibleTo(first)
+
+
+def test_drag_a_line_item_by_its_grip(win, data_folder):
+    from PySide6.QtCore import QPoint
+
+    inv = win.lib.ordered()[0]
+    inv.items = [LineItem("Production"), LineItem("Edit"), LineItem("Color")]
+    win.open(inv.id)
+    p = win.panel
+    QApplication.processEvents()
+    first, second, third = p.items
+    assert all(ed.grip.active for ed in p.items)
+    first.head.clicked.emit()  # open: it folds while it travels
+    assert first.is_open()
+
+    def drag(ed, to, cancel=False):
+        start = ed.grip.mapToGlobal(ed.grip.rect().center())
+        ed.grip.pressed.emit(start)
+        assert p._lift is not None and not ed.isVisible()  # the drawing stands in while it moves
+        for step in range(1, 9):
+            ed.grip.moved.emit(start + QPoint(0, round((to - start.y()) * step / 8)))
+            p._lift._step()
+        ed.grip.released.emit(cancel)
+        assert p._lift is None and all(e.isVisible() for e in p.items)
+
+    below = third.mapToGlobal(third.rect().bottomLeft()).y() + 4
+    drag(first, below)  # Production goes to the bottom
+    assert [i.description for i in inv.items] == ["Edit", "Color", "Production"]
+    assert p.items == [second, third, first] and not first.is_open()
+    drag(first, second.mapToGlobal(QPoint(0, 0)).y() - 40, cancel=True)  # Esc: it stays where it was
+    assert [i.description for i in inv.items] == ["Edit", "Color", "Production"]
+    win.flush()
+    assert [i.description for i in Library(data_folder).load().invoices[inv.id].items] == [
+        "Edit",
+        "Color",
+        "Production",
+    ]
+    win.setFocus()
+    win.undo()  # and undo puts it back
+    assert [i.description for i in win.lib.invoices[inv.id].items] == ["Production", "Edit", "Color"]
+
+
+def test_one_line_item_has_nothing_to_drag(win):
+    win.new_invoice()
+    (only,) = win.panel.items
+    assert not only.grip.active
+    only.grip.pressed.emit(only.grip.mapToGlobal(only.grip.rect().center()))
+    assert win.panel._lift is None

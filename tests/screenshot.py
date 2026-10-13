@@ -79,6 +79,19 @@ def shots(out: Path, suffix: str) -> None:
     wait()
     w.panel.scroll.verticalScrollBar().setValue(w.panel.scroll.verticalScrollBar().maximum())
     shot(w, out / f"4-line-items{suffix}.png")
+    from PySide6.QtCore import QPoint
+
+    w.panel.items[0].set_open(False)
+    w.panel.scroll.verticalScrollBar().setValue(w.panel.groups["items"].y())
+    wait()
+    ed = w.panel.items[0]  # a line item lifted halfway down the list
+    start = ed.grip.mapToGlobal(ed.grip.rect().center())
+    ed.grip.pressed.emit(start)
+    for step in range(1, 11):
+        ed.grip.moved.emit(start + QPoint(0, 6 * step))
+        w.panel._lift._step()
+    shot(w, out / f"4c-drag{suffix}.png")
+    ed.grip.released.emit(True)
     w.open_ai_assistant()
     w.assistant.say("You", "Is anything spelled wrong?")
     w.assistant.say("AI", "No, everything reads well. The details could be shorter.")

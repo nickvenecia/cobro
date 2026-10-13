@@ -250,7 +250,6 @@ QTreeWidget#Table::branch {{ background: transparent; border-bottom: 1px solid {
 QTreeWidget#Table::branch:has-children:closed {{ image: url(__CHEVRON_RIGHT__); }}
 QTreeWidget#Table::branch:has-children:open {{ image: url(__CHEVRON__); }}
 QTreeWidget#Table::branch:selected {{ background: transparent; }}
-    outline: none; padding: {SPACE_1}px; }}
 QHeaderView {{ background: transparent; border: none; }}
 QHeaderView::section {{ background: transparent; color: {tokens.MUTED}; border: none; border-bottom: 1px solid {tokens.BORDER_STRONG};
     padding: {SPACE_2}px {SPACE_2}px; font-size: {TEXT_SM}px; font-weight: {WEIGHT_SEMIBOLD}; }}

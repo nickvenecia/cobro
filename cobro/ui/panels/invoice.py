@@ -11,13 +11,14 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from PySide6.QtCore import QDate, Qt, QTimer, Signal
+from PySide6.QtCore import QDate, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QMenu, QPushButton, QToolButton, QWidget
 
 from cobro.core import dates, document, money
 from cobro.core.log import get_logger
 from cobro.core.model import STATUSES, TERMS_DAYS, Business, Client, Invoice, LineItem
 from cobro.core.store import Library
+from cobro.ui.components.lift import Grip, StackLift
 from cobro.ui.components.widgets import (
     ElidedLabel,
     IconLabel,
@@ -98,6 +99,9 @@ class LineEditor(QFrame):
     remove_wanted = Signal(object)
     duplicate_wanted = Signal(object)
     move_wanted = Signal(object, int)  # self, -1 (up) or +1 (down)
+    drag_started = Signal(object, QPoint)  # self, where the pointer is (global)
+    drag_moved = Signal(QPoint)
+    drag_ended = Signal(bool)  # True: Esc (put it back)
 
     def __init__(self, item: LineItem, currency: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -108,7 +112,11 @@ class LineEditor(QFrame):
 
         self.head = _ItemHead()
         self.head.setCursor(Qt.CursorShape.PointingHandCursor)
-        hl = hbox(self.head, (tokens.SPACE_3, tokens.SPACE_2, tokens.SPACE_2, tokens.SPACE_2), tokens.SPACE_2)
+        hl = hbox(self.head, (tokens.SPACE_1, tokens.SPACE_2, tokens.SPACE_2, tokens.SPACE_2), tokens.SPACE_1)
+        self.grip = Grip()  # drag it to reorder (with two or more line items)
+        self.grip.pressed.connect(lambda pos: self.drag_started.emit(self, pos))
+        self.grip.moved.connect(lambda pos: self.drag_moved.emit(pos))
+        self.grip.released.connect(lambda cancelled: self.drag_ended.emit(cancelled))
         self.chevron = IconLabel("chevron-right")
         self.title = ElidedLabel()
         self.title.setObjectName("ItemTitle")
@@ -128,7 +136,9 @@ class LineEditor(QFrame):
         m.addSeparator()
         m.addAction(theme.menu_icon("trash"), "Remove", lambda: self._later(self.remove_wanted, self))
         self.more.setMenu(m)
+        hl.addWidget(self.grip)
         hl.addWidget(self.chevron)
+        hl.addSpacing(tokens.SPACE_1)
         hl.addWidget(self.title, 1)
         hl.addWidget(self.amount)
         hl.addWidget(self.more)
@@ -198,6 +208,7 @@ class LineEditor(QFrame):
     def set_position(self, index: int, count: int) -> None:
         self.act_up.setEnabled(index > 0)
         self.act_down.setEnabled(index < count - 1)
+        self.grip.set_active(count > 1)
 
     def _set(self, key: str, value: str) -> None:
         setattr(self.item, key, value)
@@ -246,6 +257,7 @@ class InvoicePanel(DetailsBase):
         self.lib = lib
         self.inv: Invoice | None = None
         self.items: list[LineEditor] = []
+        self._lift: StackLift | None = None  # a line item being dragged
         g = self.groups
         self.sheet = self.footer_button("Invoice…", "receipt")
         self.sheet.setToolTip("The invoice as it prints: Save PDF, Print, Mark as Sent")
@@ -513,6 +525,9 @@ class InvoicePanel(DetailsBase):
         return (b.currency if b else "$") or "$"
 
     def _rebuild_items(self) -> None:
+        if self._lift is not None:  # never refill the list under a line item being dragged
+            self._lift.finish(cancelled=True)
+            self._lift = None
         for ed in self.items:
             ed.setParent(None)
             ed.deleteLater()
@@ -534,6 +549,9 @@ class InvoicePanel(DetailsBase):
         ed.remove_wanted.connect(self._remove_item)
         ed.duplicate_wanted.connect(self._duplicate_item)
         ed.move_wanted.connect(self._move_item)
+        ed.drag_started.connect(self._drag_started)
+        ed.drag_moved.connect(self._drag_moved)
+        ed.drag_ended.connect(self._drag_ended)
         pos = len(self.items) if at is None else at
         self.items_lay.insertWidget(pos, ed)
         self.items.insert(pos, ed)
@@ -578,19 +596,46 @@ class InvoicePanel(DetailsBase):
         self._changed()
 
     def _move_item(self, ed: LineEditor, step: int) -> None:
-        if self.inv is None or ed not in self.items:
+        if self.inv is not None and ed in self.items:
+            self._move_to(ed, self.items.index(ed) + step)
+
+    def _move_to(self, ed: LineEditor, j: int) -> None:
+        """Put a line item in place `j` (Move Up / Move Down, or dropped after a drag)."""
+        if self.inv is None or ed not in self.items or not 0 <= j < len(self.items):
             return
         i = self.items.index(ed)
-        j = i + step
-        if not 0 <= j < len(self.items):
+        if i == j:
             return
         # self.items and self.inv.items are always in the same order
-        self.items[i], self.items[j] = self.items[j], self.items[i]
-        self.inv.items[i], self.inv.items[j] = self.inv.items[j], self.inv.items[i]
+        self.items.insert(j, self.items.pop(i))
+        self.inv.items.insert(j, self.inv.items.pop(i))
         self.items_lay.removeWidget(ed)
         self.items_lay.insertWidget(j, ed)
         self._positions()
         self._changed()
+
+    # ------------------------------------------------------------------ dragging a line item by its grip
+    def _drag_started(self, ed: LineEditor, pos: QPoint) -> None:
+        if self.inv is None or len(self.items) < 2 or self._lift is not None:
+            return
+        if ed.is_open():  # it travels folded, like the rest
+            ed.set_open(False)
+            self.items_box.layout().activate()
+        self._lift = StackLift(
+            self.items_box, list(self.items), ed, pos, self.items_lay.spacing(), self.scroll
+        )
+
+    def _drag_moved(self, pos: QPoint) -> None:
+        if self._lift is not None:
+            self._lift.move_to(pos)
+
+    def _drag_ended(self, cancelled: bool) -> None:
+        lift, self._lift = self._lift, None
+        if lift is None:
+            return
+        j = lift.finish(cancelled)
+        if j is not None:
+            self._move_to(lift.moving, j)
 
     def _remove_item(self, ed: LineEditor) -> None:
         if self.inv is None or ed not in self.items:

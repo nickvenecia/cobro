@@ -49,7 +49,7 @@ and keep the picture, and never load image files for UI icons. An icon on the ac
 window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NUM_FIELD_W`, `QTY_FIELD_W`,
 `LOGO_THUMB`, `PAGE_GAP`, `PAGE_SHADOW`, `DIALOG_W` (and `DIALOG_W_WIDE`, `DIALOG_W_XWIDE`), `PROFILE_DIALOG_H`,
 `PAGE_DIALOG_SIZE`, `ALERT_W`, `ALERT_ICON`, `REVIEW_W`, `REVIEW_COL_W`, `START_TILE_W`, `START_BADGE`, `NOTES_H`,
-`NOTES_LINE`, `WINDOW_SIZE`, `WINDOW_MIN`.
+`NOTES_LINE`, `GRIP_W`, `GRIP_GAP`, `GRIP_DOT`, `LIFT_STEP_MS`, `LIFT_EASE`, `LIFT_SHADOW_STEPS`, `WINDOW_SIZE`, `WINDOW_MIN`.
 Use these names, never the numbers.
 
 **Fonts:** one family, Inter (`looks.FONT`, shared with the paper), loaded once in `app.py`. Every size is a
@@ -190,7 +190,8 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Date | `widgets.date_field()` | Every date (calendar popup, "Tue, Oct 13, 2026") |
 | Fold-away group | `widgets.Disclosure` | Every group in the invoice panel and the profile: folded, it says what's inside |
 | Your own things | `widgets.picker()` + an `Edit…` button | From (your profiles) and Bill To (your clients) |
-| Line item | `invoice.LineEditor` | A header row (what it is, its amount, ⋯) that folds its fields away. One open at a time |
+| Line item | `invoice.LineEditor` | A header row (grip, what it is, its amount, ⋯) that folds its fields away. One open at a time |
+| Drag to reorder | `lift.Grip` + `lift.StackLift` | The six dots on a line item (only with two or more): the item lifts onto a raised card with a soft shadow and an accent edge, the others ease apart (`LIFT_EASE` every `LIFT_STEP_MS`) to show its slot, the panel scrolls near its edges, Esc puts it back |
 | Long one-line text | `widgets.ElidedLabel` | Text that may not fit: cut short with "…", the full text in its tooltip |
 | Alert | `dialogs.common.Alert` (`confirm`, `notice`) | Every "are you sure", and every error that needs more than a toast |
 | Toast | `widgets.Toast` | A few words saying what just happened; never a question |
@@ -270,8 +271,9 @@ Cobro talks like a helpful person, not like software.
 - **Numbers count up on their own**, per profile: PREFIX-YEAR-001, or one count per client (PREFIX-CODE-YEAR-001,
   or CODE-YEAR-001). A draft's number follows its client until you type your own; sent and paid invoices never
   change number.
-- **A long list stays tidy.** Line items fold to one row each (name, amount, ⋯), one open at a time. Duplicate,
-  Move Up, Move Down and Remove live in the item's ⋯ menu.
+- **A long list stays tidy.** Line items fold to one row each (grip, name, amount, ⋯), one open at a time. Drag one
+  by its grip to reorder (it folds while it travels); Duplicate, Move Up, Move Down and Remove live in its ⋯ menu.
+  The invoice table has no grip: invoices are always in the order you sort them by.
 - **Only show what applies.** Paid On only for paid invoices; Discount, Deposit Paid and Sales Tax only when the
   invoice has them (+ Discount adds one, × takes an empty one off); a line item's details once it has some
   (+ Details); Overdue under the table only when something is; Use Profile Defaults only when the text differs;

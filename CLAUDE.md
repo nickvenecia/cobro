@@ -32,9 +32,10 @@ that slides in when something is picked.
 - **Table**: sorts by any column (newest first to start), bands by month (newest month on top) or client with their
   totals, each folding with a click; ⌘A, Shift and ⌘-click pick many; Delete deletes them after one alert.
   Underneath: Unpaid, Overdue (only when something is), Paid and Total of what's showing.
-- **Right panel**: the invoice (`panels/invoice.py`): From && Bill To, Invoice, Project, Line Items, Adjustments,
-  Payment && Terms, each folding away (remembered); Invoice… across the bottom opens the page. Or the assistant
-  (`panels/assistant.py`), which stays while you move around. Esc or ✕ closes it; a new invoice left empty goes away.
+- **Right panel**: the invoice (`panels/invoice.py`): From && Bill To, Invoice, Project, Line Items (drag one by its
+  grip to reorder), Adjustments, Payment && Terms, each folding away (remembered); Invoice… across the bottom opens
+  the page. Or the assistant (`panels/assistant.py`), which stays while you move around. Esc or ✕ closes it; a new
+  invoice left empty goes away.
 - **The page** opens in its own window (`dialogs/preview.py`): Save PDF…, Print…, ⋯ (Save as PNG…, Copy as Text,
   Email Client…, Open Invoices Folder), Show File, Mark as Sent, and the moon for the Dark Page.
 - **Settings** (⌘,) is one window with its own sidebar: General (Appearance, Accent Color, Updates), Profiles (the
@@ -80,7 +81,7 @@ cobro/
     style/         tokens.py (every number and color, DARK and LIGHT, the accent choices), theme.py (the
                    stylesheet, the SVG icons in _SVG, fonts)
     components/    widgets.py, panels.py (LeftPanel, SidePanel), glass.py (backdrop, Dock), titlebar.py (Mac),
-                   worker.py (background jobs), empty.py (EmptyPage, StartTile)
+                   worker.py (background jobs), empty.py (EmptyPage, StartTile), lift.py (drag to reorder)
     window/        main_window.py and its parts: menus.py, editing.py, pages.py (the page window, exports),
                    transfer.py (CSV, Back Up), services.py (settings, account, feedback, updates, light/dark),
                    ai.py, sidebar.py, tables.py, filters.py, common.py (places, status words and colors)
@@ -169,7 +170,6 @@ python scripts/make_icon.py             # redraw the app icon
 
 ## Ideas not done yet
 - Email the PDF straight from Cobro (attach to a new mail)
-- Reorder line items by dragging (for now: ⋯ › Move Up / Move Down)
 - Recurring invoices / a monthly reminder for unpaid ones
 - Estimates / quotes that turn into invoices
 - Accounts (Settings › Account is ready; the service isn't switched on)

@@ -40,3 +40,28 @@ def test_use_switches_and_comes_back():
         assert tokens.ACCENT_KEY == tokens.APP_ACCENT
     finally:
         tokens.use("dark", "")
+
+
+def test_the_stylesheet_reads_in_every_look(qapp):
+    """A broken rule (a brace left over after an edit) makes Qt drop the whole stylesheet, so check it reads."""
+    from PySide6.QtCore import QtMsgType, qInstallMessageHandler
+    from PySide6.QtWidgets import QPushButton
+
+    from cobro.app import set_appearance
+
+    shown = QPushButton("Save")  # Qt only reads the stylesheet for what's on screen
+    shown.show()
+    said = []
+    old = qInstallMessageHandler(
+        lambda kind, _ctx, msg: said.append(msg) if kind != QtMsgType.QtDebugMsg else None
+    )
+    try:
+        for look, accent in (("dark", ""), ("light", ""), ("light", "yellow"), ("dark", "green")):
+            set_appearance(qapp, look, accent)
+            shown.ensurePolished()
+            qapp.processEvents()
+    finally:
+        qInstallMessageHandler(old)
+        set_appearance(qapp, "dark", "")
+        shown.close()
+    assert not [m for m in said if "stylesheet" in m.lower()], said

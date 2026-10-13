@@ -128,6 +128,9 @@ START_TILE_W = (
     184  # one way to start on an empty page (three fit beside the right panel on the smallest window)
 )
 START_BADGE = 40  # the circle behind a start tile's icon
+GRIP_W = 20  # the six dots you drag a line item by
+GRIP_GAP = 5  # between the grip's dots
+GRIP_DOT = 1.2  # the radius of a dot in the grip
 PROFILE_CARD_H = 48
 ASSISTANT_ICON_BIG = 64  # and saying hi in an empty chat
 REVIEW_COL_W = (
@@ -140,6 +143,9 @@ REVIEW_W = 900
 TOAST_MAX_W = 520
 
 # ---------------------------------------------------------------- timing (ms)
+LIFT_STEP_MS = 16  # dragging a line item: how often the others move (about 60 a second)
+LIFT_EASE = 0.3  # …and how far towards their new place each step (smaller is slower)
+LIFT_SHADOW_STEPS = 6  # the lifted card's soft shadow
 DOCK_MS = 240  # the right panel sliding in or out
 FADE_MS = 150  # small things appearing or going (a sidebar section's +): a quick fade, never a pop
 SAVE_DELAY_MS = 400  # save this long after the last keystroke
