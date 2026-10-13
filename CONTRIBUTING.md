@@ -1,6 +1,6 @@
-# Cobro code rules
+# Saldo code rules
 
-How Cobro's code is organized and the rules every change follows. The look of the app has its
+How Saldo's code is organized and the rules every change follows. The look of the app has its
 own rulebook: **[DESIGN.md](DESIGN.md)**. Read both before changing anything.
 
 ---
@@ -8,7 +8,7 @@ own rulebook: **[DESIGN.md](DESIGN.md)**. Read both before changing anything.
 ## 1. Where things go
 
 ```
-cobro/
+saldo/
   core/        Everything about invoices: data, money, dates, numbering, the paper's look, saving, undo,
                the updater. No Qt imports, ever.
   doc/         Drawing the invoice (QtGui only, no widgets): fonts, layout, PDF/PNG/print.
@@ -21,7 +21,7 @@ cobro/
     panels/      the right-hand panels (the invoice, the assistant)
     dialogs/     Settings, the page window, profile, client, alerts, AI setup and review, updates…
   app.py       Starts the window (fonts, stylesheet, light/dark, one window at a time, --smoke-test)
-  cli.py       Same drawing without a window: `python -m cobro cli ...`
+  cli.py       Same drawing without a window: `python -m saldo cli ...`
 tests/         One test file per area (test_money.py, test_store.py, test_render.py, test_window.py, test_ai.py,
                test_security.py, test_release.py…); conftest.py gives every test its own empty data folder
                and an empty keychain in memory; screenshot.py takes every screen in dark, light and yellow
@@ -29,11 +29,11 @@ scripts/       make_icon.py, make_fonts.py, release_notes.py
 packaging/     Installer files per OS
 ```
 
-- Imports are absolute (`from cobro.core import money`). One module per job. No circular imports.
+- Imports are absolute (`from saldo.core import money`). One module per job. No circular imports.
 - `core/` and `services/` must work headless and be testable without Qt.
 - Per-user files (invoices, logos, logs) go under `core.paths.data_dir()`.
   Never write next to the app, and never into a fixed name in the shared temp folder.
-- Exported files go where the person picks (default Documents/Cobro), written to a temp file beside the
+- Exported files go where the person picks (default Documents/Saldo), written to a temp file beside the
   target and moved into place.
 
 ---
@@ -63,17 +63,17 @@ packaging/     Installer files per OS
    then `os.replace`. A file that can't be read is renamed aside (`.unreadable-<time>`), never deleted.
 2. Exports (PDF, PNG) are the same: temp file beside the target, then `os.replace`. A failed export
    never leaves a broken file or replaces a good one.
-3. Logos are read and drawn again by Cobro (`profile.import_logo`: a PNG no bigger than LOGO_MAX_PX, files over
+3. Logos are read and drawn again by Saldo (`profile.import_logo`: a PNG no bigger than LOGO_MAX_PX, files over
    LOGO_MAX_BYTES refused) and kept in the data folder, named by their content; the original is never touched. A
    logo's name is only ever used through `paths.logo_path`, so it can't point outside the logos folder.
-4. Files from Cobro 1.x open as they were, and nothing in them is dropped when they're saved again. New model
+4. Files from Saldo 1.x open as they were, and nothing in them is dropped when they're saved again. New model
    fields need defaults that mean "off" or "empty". If a change touches saved files, test it against an old one.
 
 **Running other programs**
 5. Always pass arguments as a **list**. Never `shell=True`, never build a command string.
 6. Every `subprocess` call gets `**fileutil.popen_kwargs()` (no console windows on Windows).
 7. Never wait on a program's output with a pipe nobody reads (a full pipe freezes it).
-8. The only programs Cobro starts are the system's own (open / explorer / xdg-open to show a file, and
+8. The only programs Saldo starts are the system's own (open / explorer / xdg-open to show a file, and
    the updater's helper script).
 
 **Network**
@@ -100,7 +100,7 @@ packaging/     Installer files per OS
 17. No silent `except: pass` around real work. Catch the narrowest exception you can; if you must
     swallow one, `log.warning(..., exc_info=True)` so it lands in the log file.
 18. Messages shown to the user are plain English and say what to do next (see DESIGN.md §7).
-    Technical details go to the log (`core/log.py`, `cobro.log` in the data folder).
+    Technical details go to the log (`core/log.py`, `saldo.log` in the data folder).
 
 ---
 
@@ -138,7 +138,7 @@ packaging/     Installer files per OS
 - One topic per commit. Message: a short plain summary line in the present tense ("Add A4 paper"), nothing
   added after it (no co-author or sign-off lines, no links).
 - **Merging is releasing.** A pull request with a change users will notice bumps `__version__` in
-  `cobro/__init__.py` once: the last number for fixes and polish (2.0.0 → 2.0.1), the middle one for a new
+  `saldo/__init__.py` once: the last number for fixes and polish (2.0.0 → 2.0.1), the middle one for a new
   feature (2.0.1 → 2.1.0), the first for a big change (2.1.0 → 3.0.0). A released number is never used again.
   Its notes go at the top of `CHANGELOG.md` under `## X.Y.Z`, that same number, never under "Unreleased".
   Changes users won't notice don't bump it.

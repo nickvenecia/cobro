@@ -1,5 +1,5 @@
 """Updates (core/update.py, ui/dialogs/update.py): finding a newer release, downloading it safely and
-swapping it in once Cobro has quit."""
+swapping it in once Saldo has quit."""
 
 from __future__ import annotations
 
@@ -16,21 +16,21 @@ from pathlib import Path
 
 import pytest
 
-from cobro.core import update
+from saldo.core import update
 
 GITHUB_ANSWER = {
     "tag_name": "v9.1.0",
-    "html_url": "https://github.com/nickvenecia/cobro/releases/tag/v9.1.0",
+    "html_url": "https://github.com/nickvenecia/saldo/releases/tag/v9.1.0",
     "body": "## Download\n| a | b |\n\n## What's new\n- Faster glitches",
     "assets": [
         {
-            "name": "Cobro-mac-apple-silicon.dmg",
+            "name": "Saldo-mac-apple-silicon.dmg",
             "browser_download_url": "https://example.invalid/a.dmg",
             "size": 10,
             "digest": "sha256:ABCDEF",
         },
         {
-            "name": "Cobro-linux-x64.AppImage",
+            "name": "Saldo-linux-x64.AppImage",
             "browser_download_url": "https://example.invalid/b",
             "size": 5,
         },
@@ -49,17 +49,17 @@ def test_versions_compare_like_numbers():
 def test_release_from_github():
     rel = update.parse_release(GITHUB_ANSWER)
     assert rel.version == "9.1.0" and rel.newer
-    a = rel.assets["Cobro-mac-apple-silicon.dmg"]
+    a = rel.assets["Saldo-mac-apple-silicon.dmg"]
     assert a.size == 10 and a.sha256 == "abcdef"
-    assert rel.assets["Cobro-linux-x64.AppImage"].sha256 == ""
+    assert rel.assets["Saldo-linux-x64.AppImage"].sha256 == ""
 
 
 def test_the_right_file_for_each_kind_of_install():
-    assert update.asset_name("mac-app", "arm64") == "Cobro-mac-apple-silicon.dmg"
-    assert update.asset_name("windows-installed") == "Cobro-windows-setup.exe"
-    assert update.asset_name("windows-portable") == "Cobro-windows-portable.zip"
-    assert update.asset_name("appimage") == "Cobro-linux-x64.AppImage"
-    assert update.asset_name("linux-folder") == "Cobro-linux-x64.tar.gz"
+    assert update.asset_name("mac-app", "arm64") == "Saldo-mac-apple-silicon.dmg"
+    assert update.asset_name("windows-installed") == "Saldo-windows-setup.exe"
+    assert update.asset_name("windows-portable") == "Saldo-windows-portable.zip"
+    assert update.asset_name("appimage") == "Saldo-linux-x64.AppImage"
+    assert update.asset_name("linux-folder") == "Saldo-linux-x64.tar.gz"
     assert update.asset_name("source") is None
 
 
@@ -85,11 +85,11 @@ def server(tmp_path: Path):
 
 
 def test_download_only_from_our_releases_with_a_checksum(tmp_path: Path):
-    other = update.Asset("Cobro-linux-x64.AppImage", "https://example.com/Cobro.AppImage", 10, "0" * 64)
+    other = update.Asset("Saldo-linux-x64.AppImage", "https://example.com/Saldo.AppImage", 10, "0" * 64)
     with pytest.raises(ValueError, match="isn't from"):
         update.download(other, tmp_path, lambda _v: None)
-    ours = f"https://github.com/{update.REPO}/releases/download/v9.9.9/Cobro-linux-x64.AppImage"
-    unchecked = update.Asset("Cobro-linux-x64.AppImage", ours, 10, "")
+    ours = f"https://github.com/{update.REPO}/releases/download/v9.9.9/Saldo-linux-x64.AppImage"
+    unchecked = update.Asset("Saldo-linux-x64.AppImage", ours, 10, "")
     with pytest.raises(ValueError, match="didn't say"):
         update.download(unchecked, tmp_path, lambda _v: None)
     assert update._trusted(ours)
@@ -99,10 +99,10 @@ def test_download_only_from_our_releases_with_a_checksum(tmp_path: Path):
 def test_download_checks_size_and_fingerprint(tmp_path: Path, server, monkeypatch):
     monkeypatch.setattr(update, "_trusted", lambda *_a: True)  # the test server stands in for GitHub
     root, base = server
-    data = b"new cobro" * 1000
+    data = b"new saldo" * 1000
     (root / "f.AppImage").write_bytes(data)
     good = update.Asset(
-        "Cobro-linux-x64.AppImage",
+        "Saldo-linux-x64.AppImage",
         f"{base}/f.AppImage",
         len(data),
         hashlib.sha256(data).hexdigest(),
@@ -133,13 +133,13 @@ def _wait_for(path: Path, timeout: float = 15) -> bool:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux / Mac helper")
 def test_appimage_is_swapped_and_reopened(tmp_path: Path, monkeypatch):
-    app = tmp_path / "apps" / "Cobro-linux-x64.AppImage"
+    app = tmp_path / "apps" / "Saldo-linux-x64.AppImage"
     app.parent.mkdir()
     app.write_text("old")
     monkeypatch.setenv("APPIMAGE", str(app))
     opened = tmp_path / "opened"
     work = update.new_work_folder()
-    new = work / "Cobro-linux-x64.AppImage"
+    new = work / "Saldo-linux-x64.AppImage"
     new.write_text(f"#!/bin/sh\ntouch {opened}\n")
     plan = update.prepare("appimage", new, pid=_gone_pid())
     subprocess.run(plan.command, check=True, timeout=30)
@@ -150,31 +150,31 @@ def test_appimage_is_swapped_and_reopened(tmp_path: Path, monkeypatch):
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Linux / Mac helper")
 def test_linux_folder_is_swapped_and_reopened(tmp_path: Path, monkeypatch):
-    folder = tmp_path / "cobro"
+    folder = tmp_path / "saldo"
     folder.mkdir()
-    (folder / "Cobro").write_text("old")
+    (folder / "Saldo").write_text("old")
     (folder / "leftover.txt").write_text("old file")
     monkeypatch.setattr(update, "target", lambda _kind: folder)
     opened = tmp_path / "opened"
     work = update.new_work_folder()
-    tar = work / "Cobro-linux-x64.tar.gz"
+    tar = work / "Saldo-linux-x64.tar.gz"
     with tarfile.open(tar, "w:gz") as t:
         script = f"#!/bin/sh\ntouch {opened}\n".encode()
-        info = tarfile.TarInfo("Cobro/Cobro")
+        info = tarfile.TarInfo("Saldo/Saldo")
         info.size, info.mode = len(script), 0o755
         t.addfile(info, io.BytesIO(script))
     plan = update.prepare("linux-folder", tar, pid=_gone_pid())
     subprocess.run(plan.command, check=True, timeout=30)
-    assert "touch" in (folder / "Cobro").read_text()
+    assert "touch" in (folder / "Saldo").read_text()
     assert not (folder / "leftover.txt").exists()  # the whole folder is the new version
     assert _wait_for(opened)
-    assert not list(tmp_path.glob("cobro.old.*"))
+    assert not list(tmp_path.glob("saldo.old.*"))
 
 
 def test_mac_and_windows_helpers(tmp_path: Path, monkeypatch):
-    app = tmp_path / "Applications" / "Cobro.app"
+    app = tmp_path / "Applications" / "Saldo.app"
     monkeypatch.setattr(update, "target", lambda _kind: app)
-    dmg = tmp_path / "Cobro-mac-apple-silicon.dmg"
+    dmg = tmp_path / "Saldo-mac-apple-silicon.dmg"
     dmg.write_bytes(b"dmg")
     mac = update.prepare("mac-app", dmg, pid=4242).script.read_text()
     for step in (
@@ -186,19 +186,19 @@ def test_mac_and_windows_helpers(tmp_path: Path, monkeypatch):
     ):
         assert step in mac, step
 
-    folder = tmp_path / "Programs" / "Cobro"
+    folder = tmp_path / "Programs" / "Saldo"
     monkeypatch.setattr(update, "target", lambda _kind: folder)
-    setup = tmp_path / "Cobro-windows-setup.exe"
+    setup = tmp_path / "Saldo-windows-setup.exe"
     setup.write_bytes(b"exe")
     win = update.prepare("windows-installed", setup, pid=4242).script.read_text()
-    assert "/VERYSILENT" in win and "PID eq 4242" in win and "Cobro.exe" in win
+    assert "/VERYSILENT" in win and "PID eq 4242" in win and "Saldo.exe" in win
 
 
 def test_update_window(monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
 
-    from cobro.ui.dialogs.update import UpdateDialog
+    from saldo.ui.dialogs.update import UpdateDialog
 
     app = QApplication.instance() or QApplication([])
     d = UpdateDialog(update.parse_release(GITHUB_ANSWER))
@@ -214,10 +214,10 @@ def test_whats_new_is_the_words_without_downloads_or_github_credits():
     generated = (
         "## Download\n| a | b |\n**First launch on Mac:** open it.\n\n"
         "## What's Changed\n"
-        "* Start tiles by @nickvenecia in https://github.com/nickvenecia/cobro/pull/7\n"
+        "* Start tiles by @nickvenecia in https://github.com/nickvenecia/saldo/pull/7\n"
         "<!-- generated -->\n\n"
         "## New Contributors\n* @nickvenecia made their first contribution in https://x\n\n"
-        "**Full Changelog**: https://github.com/nickvenecia/cobro/compare/v1.1.5...v1.1.6"
+        "**Full Changelog**: https://github.com/nickvenecia/saldo/compare/v1.1.5...v1.1.6"
     )
     assert update.whats_new(generated) == [("heading", "What's Changed"), ("item", "Start tiles")]
     written = "The first one.\n\n## What's New\n\n- A long line\n  carried on.\n1. Two\n\n## Empty\n## Download\n| x |"
@@ -231,7 +231,7 @@ def test_whats_new_is_the_words_without_downloads_or_github_credits():
 
 
 def test_release_text_is_never_read_as_html(qapp):
-    from cobro.ui.dialogs.update import Notes
+    from saldo.ui.dialogs.update import Notes
 
     n = Notes([("item", "<b>x</b> **bold** `code` [page](https://example.com/a?b=1&c=2) [run](file:///etc)")])
     page = n.toHtml()
@@ -243,7 +243,7 @@ def test_release_text_is_never_read_as_html(qapp):
 def test_release_notes_are_the_changelog_entries():
     import importlib.util
 
-    from cobro import __version__
+    from saldo import __version__
 
     root = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location("release_notes", root / "scripts" / "release_notes.py")
@@ -252,15 +252,15 @@ def test_release_notes_are_the_changelog_entries():
     log = "# Changelog\n\n## 2.0.1\n\n- Fixed it.\n\n## 2.0.0\n\n- Made it.\n"
     body = rn.notes(log, "v2.0.1")
     assert update.whats_new(body) == [("heading", "What's New"), ("item", "Fixed it.")]
-    assert "Cobro-mac-apple-silicon.dmg" in body and "Made it." not in body
+    assert "Saldo-mac-apple-silicon.dmg" in body and "Made it." not in body
     with pytest.raises(rn.NotesError):  # a version without its entries is never released
         rn.notes(log, "3.0.0")
     assert rn.changes(rn.CHANGELOG.read_text(encoding="utf-8"), __version__)  # this version has its entries
 
 
 def test_window_offers_the_update(qapp, data_folder):
-    from cobro.core.store import Library
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.core.store import Library
+    from saldo.ui.window.main_window import MainWindow
 
     w = MainWindow(Library(data_folder).load())
     rel = update.parse_release(GITHUB_ANSWER)
@@ -274,9 +274,9 @@ def test_a_new_version_found_on_opening_shows_right_away(qapp, data_folder, monk
     top of another window."""
     from PySide6.QtWidgets import QApplication
 
-    from cobro.core import sample, update
-    from cobro.core.store import Library
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.core import sample, update
+    from saldo.core.store import Library
+    from saldo.ui.window.main_window import MainWindow
 
     win = MainWindow(sample.fill(Library(data_folder).load()))
     win.show()

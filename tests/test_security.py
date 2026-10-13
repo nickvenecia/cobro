@@ -1,13 +1,13 @@
-"""Safety (the standard's security rules, as they apply to Cobro): logos are redrawn and capped, names show as
+"""Safety (the standard's security rules, as they apply to Saldo): logos are redrawn and capped, names show as
 typed, logo names can't point outside the logos folder, CSVs can't carry formulas, and files another app writes
-into Cobro's folder open without being touched."""
+into Saldo's folder open without being touched."""
 
 from __future__ import annotations
 
 import pytest
 
-from cobro.core import sample
-from cobro.core.store import Library, write_json
+from saldo.core import sample
+from saldo.core.store import Library, write_json
 
 
 def _png(path, w=40, h=20, color="#336699"):
@@ -22,8 +22,8 @@ def _png(path, w=40, h=20, color="#336699"):
 def test_a_logo_is_redrawn_capped_and_kept_whole(qapp, tmp_path):
     from PySide6.QtGui import QImage
 
-    from cobro.core.paths import logos_dir
-    from cobro.ui.dialogs import profile
+    from saldo.core.paths import logos_dir
+    from saldo.ui.dialogs import profile
 
     name = profile.import_logo(_png(tmp_path / "logo.png", 4000, 1000))
     kept = QImage(str(logos_dir() / name))
@@ -33,8 +33,8 @@ def test_a_logo_is_redrawn_capped_and_kept_whole(qapp, tmp_path):
 
 
 def test_an_svg_logo_is_kept_as_a_picture_without_whatever_else_it_carried(qapp, tmp_path):
-    from cobro.core.paths import logos_dir
-    from cobro.ui.dialogs import profile
+    from saldo.core.paths import logos_dir
+    from saldo.ui.dialogs import profile
 
     svg = tmp_path / "mark.svg"
     svg.write_text(
@@ -49,8 +49,8 @@ def test_an_svg_logo_is_kept_as_a_picture_without_whatever_else_it_carried(qapp,
 
 @pytest.mark.parametrize("content", [b"not a picture", b"", b"\x89PNG\r\n\x1a\n broken"])
 def test_files_that_arent_pictures_are_refused(qapp, tmp_path, content):
-    from cobro.core.paths import logos_dir
-    from cobro.ui.dialogs import profile
+    from saldo.core.paths import logos_dir
+    from saldo.ui.dialogs import profile
 
     bad = tmp_path / "logo.png"
     bad.write_bytes(content)
@@ -60,7 +60,7 @@ def test_files_that_arent_pictures_are_refused(qapp, tmp_path, content):
 
 
 def test_huge_logo_files_are_refused(qapp, tmp_path, monkeypatch):
-    from cobro.ui.dialogs import profile
+    from saldo.ui.dialogs import profile
 
     monkeypatch.setattr(profile, "LOGO_MAX_BYTES", 10)
     with pytest.raises(ValueError, match="too big"):
@@ -68,7 +68,7 @@ def test_huge_logo_files_are_refused(qapp, tmp_path, monkeypatch):
 
 
 def test_a_logo_name_cant_lead_outside_the_logos_folder():
-    from cobro.core.paths import logo_path, logos_dir
+    from saldo.core.paths import logo_path, logos_dir
 
     assert logo_path("abc123.png") == logos_dir() / "abc123.png"
     for name in ("", "../settings.json", "/etc/passwd", "..", ".hidden.png", "a/b.png", "a\\b.png"):
@@ -79,7 +79,7 @@ def test_names_show_as_typed(qapp):
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QLabel
 
-    from cobro.app import setup_app
+    from saldo.app import setup_app
 
     setup_app(qapp)
     lbl = QLabel('<img src="x.png"> <b>Evil</b>')
@@ -88,8 +88,8 @@ def test_names_show_as_typed(qapp):
 
 
 def test_a_draft_another_app_writes_into_the_folder_opens_untouched(data_folder):
-    """Another app can hand Cobro a draft by writing an invoice file into the invoices folder (in Cobro's own
-    format). Cobro opens it and never renames or rewrites it just for reading it."""
+    """Another app can hand Saldo a draft by writing an invoice file into the invoices folder (in Saldo's own
+    format). Saldo opens it and never renames or rewrites it just for reading it."""
     lib = sample.fill(Library(data_folder).load())
     b = next(iter(lib.businesses.values()))
     draft = {

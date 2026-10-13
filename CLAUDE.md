@@ -1,4 +1,4 @@
-# Cobro: notes for working on the code
+# Saldo: notes for working on the code
 
 Cross-platform (macOS / Windows / Linux) invoice maker for freelance filmmakers.
 Python 3.12 + PySide6 (Qt Widgets). Invoices are drawn with QPainter (one layout for the page window, PDF, PNG and
@@ -7,12 +7,12 @@ The owner is a filmmaker (director/DP/editor/colorist), not a full-time develope
 
 ## Read these first
 - **[DESIGN.md](DESIGN.md)**: how the app and the invoice page look and read. Sizes, spacing, type, colors, wording.
-  Every app value lives in `cobro/ui/style/tokens.py`; the paper's colors in `cobro/core/looks.py`. Never type a
+  Every app value lives in `saldo/ui/style/tokens.py`; the paper's colors in `saldo/core/looks.py`. Never type a
   size or a color anywhere else.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: code rules. Layout, style (ruff), safety rules, tests, commits.
-- **[SECURITY.md](SECURITY.md)**: what Cobro protects and how.
+- **[SECURITY.md](SECURITY.md)**: what Saldo protects and how.
 - Before finishing any change: `ruff format . && ruff check . && python -m pytest -q`, and
-  `python -m cobro --smoke-test`. After a change to how something looks, take screenshots (below) in light and dark.
+  `python -m saldo --smoke-test`. After a change to how something looks, take screenshots (below) in light and dark.
 - Commit messages: a short plain summary, nothing added after it (no co-author or sign-off lines, no links).
   Commits are authored as Nick Venecia (this repo's git config).
 - **Every pull request with a change users will notice bumps the version** (see Releasing), once per pull request,
@@ -50,7 +50,7 @@ on the right that slides in when something is picked.
 
 ## Layout
 ```
-cobro/
+saldo/
   core/            Invoices. No Qt imports.
     model.py       Business (a "profile" in the app, + Look), Client, LineItem, Invoice; from_dict() tolerates
                    old and new files
@@ -70,17 +70,21 @@ cobro/
     history.py     undo / redo of invoices, clients and profiles
     spreadsheet.py Export as CSV (plain numbers; nothing a spreadsheet would run as a formula)
     sample.py      the made-up Juniper Lane Films profile, clients and invoices (tests, smoke test, screenshots)
-    update.py      the updater, pointed at nickvenecia/cobro (asset names are a contract, see Releasing);
+    update.py      the updater, pointed at nickvenecia/saldo (asset names are a contract, see Releasing);
                    whats_new() reads a release's notes for the update window
     web.py         the one way to reach an address (no redirects with a key on board)
-    paths.py (data_dir, logo_path), log.py, net.py (certifi SSL), fileutil.py (reveal, zip_folder)
+    from_cobro.py  moving in from Cobro (the app's old name): carry_over() copies its data folder the first time
+                   Saldo opens (never moves or changes it); rename_plan() turns Cobro.app into Saldo.app;
+                   leftovers() finds the old Cobro.app (app.py puts it in the Trash)
+    paths.py (data_dir, standard_data_dir, logo_path), log.py, net.py (certifi SSL), fileutil.py (reveal, zip_folder)
   doc/             Drawing the invoice. QtGui only, no widgets.
     fonts.py       loads assets/fonts; make(FontSpec, device) sizes fonts in points on ANY device (divides the dpi out)
     render.py      layout(view, resolved_look, logo) -> [Page of steps]; paint(painter, page). Pagination, footer;
                    logos scaled to print size (LOGO_DPI) so PDFs stay small
     export.py      to_pdf (QPdfWriter at 72 dpi), to_png, print_pages, image() for the page window
   services/        Anything outside the app. No Qt.
-    secrets.py     the system keychain (keyring) for AI keys and the sign-in; never a file
+    secrets.py     the system keychain (keyring) for AI keys and the sign-in; never a file; carry_over() copies
+                   keys saved under the old name (Cobro) the first time
     account.py     accounts (not switched on yet); feedback.py Send Feedback (an outbox until sending is on)
     ai/            providers.py (every provider, live model lists, ask), tasks.py (Tidy Up Line Items, chat, apply)
   ui/
@@ -99,18 +103,24 @@ cobro/
                    ai_review.py, update.py
   app.py           QApplication, fonts, stylesheet (set_appearance: system / light / dark + accent), rounded
                    popups, plain-text labels, one window at a time, --smoke-test
-  cli.py           `python -m cobro cli sample OUT.pdf|png [--color] [--header] [--items] [--logo]`
-scripts/make_icon.py      draws cobro/assets/icon.png ("c." on the dark tile, the full stop in the accent)
+  cli.py           `python -m saldo cli sample OUT.pdf|png [--color] [--header] [--items] [--logo]`
+scripts/make_icon.py      draws saldo/assets/icon.png ("s." on the dark tile, the full stop in the accent)
 scripts/make_fonts.py     cuts Inter's fixed weights from Google Fonts' OFL files (results are committed)
 scripts/release_notes.py  a version's CHANGELOG notes + the downloads (the release uses it; CI checks it)
-cobro.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   building and releasing
+saldo.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   building and releasing
+.github/workflows/cobro-release.yml   copies a release to nickvenecia/cobro, for Cobro 2.0.0's updater (run by hand)
 ```
 
 ## Rules that matter
 - **Never lose an invoice.** Every write is atomic (`store.write_json`); unreadable files are renamed aside, never
   deleted. Edits save SAVE_DELAY_MS after typing stops, on switching invoices, and on quit
-  (`MainWindow.flush/shutdown`). Files written by Cobro 1.x (type styles and all) open as they were and are saved
+  (`MainWindow.flush/shutdown`). Files written by Saldo 1.x (type styles and all) open as they were and are saved
   back with everything they held; `tests/test_window.py` opens a 1.0-style data folder to prove it.
+- **The app used to be called Cobro.** The first time Saldo opens, everything in Cobro's data folder (Mac and
+  Windows "Cobro", Linux "cobro") is copied into Saldo's, and the AI key and sign-in are copied in the keychain
+  (`from_cobro.carry_over`, `secrets.carry_over`). Cobro's folder and keychain entries are only ever read. A copy
+  cut short changes nothing and is tried again next time; `tests/test_from_cobro.py` proves it. The old name
+  appears only in that code, the updater compatibility (below) and the notes about them (README, CHANGELOG).
 - **The page window is the export.** Everything goes through `render.layout` + `render.paint`. The one difference
   allowed is the Dark Page: the same layout in `looks.DARK` colors, in the page window only. Exports call
   `MainWindow.page_list()` (light) and never pass dark.
@@ -126,11 +136,11 @@ cobro.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   bu
   Invoices keep their own copy: drafts follow a client's edits, sent and paid invoices keep what they said.
   Deleting a client leaves every invoice as it was. `Library.invoices_by_client()` finds a client's invoices (by
   id, or else by name).
-- A draft's number follows its profile, client and year while Cobro picked it (`Invoice.auto_number`,
+- A draft's number follows its profile, client and year while Saldo picked it (`Invoice.auto_number`,
   `Library.renumber`). Typing a number, or the invoice being sent or paid, freezes it.
-- Another app may hand Cobro a draft by writing an invoice file into `invoices/` in this format, so the data
+- Another app may hand Saldo a draft by writing an invoice file into `invoices/` in this format, so the data
   folder's place, the file names and the fields stay as they are (new fields only with defaults).
-- Logos are redrawn by Cobro as PNGs no bigger than LOGO_MAX_PX before they're kept in data_dir()/logos, named by
+- Logos are redrawn by Saldo as PNGs no bigger than LOGO_MAX_PX before they're kept in data_dir()/logos, named by
   their content (`profile.import_logo`); the Look stores only the file name, read through `paths.logo_path`.
   A missing logo file just leaves the logo out.
 - **AI**: only line items' words go to a provider (never amounts, clients, the project or the profile); only a
@@ -144,20 +154,20 @@ cobro.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   bu
 ## Commands
 ```bash
 pip install -r requirements-dev.txt
-python -m cobro                         # run the app
-python -m cobro --smoke-test            # start, make a sample invoice, save it as a PDF, quit
-python -m cobro cli sample out.pdf      # a sample invoice without a window
+python -m saldo                         # run the app
+python -m saldo --smoke-test            # start, make a sample invoice, save it as a PDF, quit
+python -m saldo cli sample out.pdf      # a sample invoice without a window
 python -m pytest -q
 QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR   # every screen in dark, light and a yellow accent
-pyinstaller cobro.spec --noconfirm      # build the app into dist/
-COBRO_DATA_DIR=/tmp/x python -m cobro   # run against a throwaway data folder
+pyinstaller saldo.spec --noconfirm      # build the app into dist/
+SALDO_DATA_DIR=/tmp/x python -m saldo   # run against a throwaway data folder
 python scripts/make_icon.py             # redraw the app icon
 ```
 
 ## Releasing
 **Merging is releasing.** Nobody tags or releases by hand.
 - A pull request with a change users will notice (a fix, polish, a new feature) bumps `__version__` in
-  `cobro/__init__.py`, once per pull request: the last number for fixes and polish (2.0.0 → 2.0.1), the middle
+  `saldo/__init__.py`, once per pull request: the last number for fixes and polish (2.0.0 → 2.0.1), the middle
   one for a new feature (2.0.1 → 2.1.0), the first for a big change (a new window, a new way of working:
   2.1.0 → 3.0.0). A number that was released is never used again. Its notes go at the top of CHANGELOG.md under
   `## X.Y.Z`, that same number, never under "Unreleased". Changes users won't notice (tests, notes, code
@@ -167,19 +177,26 @@ python scripts/make_icon.py             # redraw the app icon
   and the CHANGELOG notes, all in that one run (about 15-20 min). A merge that doesn't bump the version builds
   and tests, and releases nothing. Pull requests never release.
 - The workflow checks, on every pull request too, that CHANGELOG's top section is the version in
-  `cobro/__init__.py` (`scripts/release_notes.py`). Two quick merges can't release the same version twice: the
+  `saldo/__init__.py` (`scripts/release_notes.py`). Two quick merges can't release the same version twice: the
   release job runs one at a time and only one run can make the tag. A tag pushed by hand still works, but only
   if it matches the version.
 - The Release's text is `## What's New` with this version's CHANGELOG entries, then the downloads: the update
   window shows the What's New part, so the CHANGELOG's plain words are what people read before updating.
-- CI attaches: Cobro-mac-apple-silicon.dmg, Cobro-mac-intel.dmg, Cobro-windows-setup.exe,
-  Cobro-windows-portable.zip, Cobro-linux-x64.AppImage, Cobro-linux-x64.tar.gz. **These names are a contract**:
+- CI attaches: Saldo-mac-apple-silicon.dmg, Saldo-mac-intel.dmg, Saldo-windows-setup.exe,
+  Saldo-windows-portable.zip, Saldo-linux-x64.AppImage, Saldo-linux-x64.tar.gz. **These names are a contract**:
   the README's download links (releases/latest/download/<name>) and the in-app updater (update.asset_name) both
-  depend on them, and the repo must stay public. update.REPO = "nickvenecia/cobro". The release checks all six
+  depend on them, and the repo must stay public. update.REPO = "nickvenecia/saldo". The release checks all six
   are there before it publishes.
+- **Copies for Cobro's updater.** Each download is also attached as Cobro-… (the app's old name), shaped the way
+  Cobro's updater expects: Cobro.app in the .dmg (it renames itself Saldo.app on its first start), a Cobro folder
+  with a Cobro.exe / Cobro beside Saldo's in the .zip and .tar.gz, the same installer (`saldo.iss` leaves a
+  Cobro.exe where the app was installed as Cobro, until the next update). GitHub forwards the old repo name here,
+  so Cobro 1.x updates straight from these. Cobro 2.0.0 also checks the download's address
+  (github.com/nickvenecia/cobro/…), so it needs a repo of that name carrying the release:
+  `.github/workflows/cobro-release.yml` says how and copies it there.
 
 ## Ideas not done yet
-- Email the PDF straight from Cobro (attach to a new mail)
+- Email the PDF straight from Saldo (attach to a new mail)
 - Recurring invoices / a monthly reminder for unpaid ones
 - Estimates / quotes that turn into invoices
 - Accounts (Settings › Account is ready; the service isn't switched on)

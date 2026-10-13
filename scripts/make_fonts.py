@@ -1,4 +1,4 @@
-"""Make the fonts in cobro/assets/fonts (Inter, IBM Plex Mono) from Google Fonts' open-source files (SIL OFL).
+"""Make the fonts in saldo/assets/fonts (Inter, IBM Plex Mono) from Google Fonts' open-source files (SIL OFL).
 
     python scripts/make_fonts.py            # downloads into build/fonts-src, writes the .ttf files
 
@@ -20,7 +20,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "cobro" / "assets" / "fonts"
+OUT = ROOT / "saldo" / "assets" / "fonts"
 SRC = ROOT / "build" / "fonts-src"
 BASE = "https://raw.githubusercontent.com/google/fonts/main/ofl/"
 
@@ -57,7 +57,7 @@ def rename(font: TTFont, family: str, style: str) -> None:
     for nid, value in (
         (1, family),
         (2, style),
-        (3, f"cobro;{ps}"),
+        (3, f"saldo;{ps}"),
         (4, full),
         (6, ps),
         (16, family),

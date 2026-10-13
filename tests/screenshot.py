@@ -19,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PySide6.QtWidgets import QApplication
 
-from cobro.app import set_appearance, setup_app
-from cobro.core import sample
-from cobro.core.paths import use_data_dir
-from cobro.core.store import Library
+from saldo.app import set_appearance, setup_app
+from saldo.core import sample
+from saldo.core.paths import use_data_dir
+from saldo.core.store import Library
 
 SIZE = (1600, 1000)
 LOOKS = {"dark": ("dark", "", ""), "light": ("light", "", "-light"), "yellow": ("light", "yellow", "-yellow")}
@@ -43,12 +43,12 @@ def shot(w, path: Path) -> None:
 
 
 def shots(out: Path, suffix: str) -> None:
-    from cobro.ui.dialogs.common import Alert
-    from cobro.ui.dialogs.preview import PageDialog
-    from cobro.ui.dialogs.settings import SettingsDialog
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.dialogs.common import Alert
+    from saldo.ui.dialogs.preview import PageDialog
+    from saldo.ui.dialogs.settings import SettingsDialog
+    from saldo.ui.window.main_window import MainWindow
 
-    tmp = Path(tempfile.mkdtemp(prefix="cobro-shots-"))
+    tmp = Path(tempfile.mkdtemp(prefix="saldo-shots-"))
     use_data_dir(tmp)
 
     def window(lib):
@@ -96,7 +96,7 @@ def shots(out: Path, suffix: str) -> None:
     w.assistant.say("You", "Is anything spelled wrong?")
     w.assistant.say("AI", "No, everything reads well. The details could be shorter.")
     shot(w, out / f"4b-assistant{suffix}.png")
-    from cobro.ui.style import tokens
+    from saldo.ui.style import tokens
 
     w.deselect()
     w.resize(*tokens.WINDOW_MIN)  # the smallest window: everything still fits
@@ -109,7 +109,7 @@ def shots(out: Path, suffix: str) -> None:
     w.deselect()
     w.go("unpaid")
     shot(w, out / f"5-unpaid{suffix}.png")
-    w.toast("Saved Cobro Unpaid 2026-10-13.csv.", "done")
+    w.toast("Saved Saldo Unpaid 2026-10-13.csv.", "done")
     shot(w, out / f"13-toast{suffix}.png")
     w.toast("Couldn't save the CSV. Check that there's free space on this computer.", "problem")
     shot(w, out / f"13b-toast-problem{suffix}.png")
@@ -160,15 +160,15 @@ def shots(out: Path, suffix: str) -> None:
         d.close()
     import importlib.util
 
-    from cobro.core import update
-    from cobro.ui.dialogs.client import ClientDialog
-    from cobro.ui.dialogs.update import UpdateDialog
+    from saldo.core import update
+    from saldo.ui.dialogs.client import ClientDialog
+    from saldo.ui.dialogs.update import UpdateDialog
 
     root = Path(__file__).resolve().parents[1]
     spec = importlib.util.spec_from_file_location("release_notes", root / "scripts" / "release_notes.py")
     rn = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rn)
-    from cobro import __version__
+    from saldo import __version__
 
     notes = rn.notes(rn.CHANGELOG.read_text(encoding="utf-8"), __version__)  # what the release will say
     d = UpdateDialog(update.Release(version=__version__, notes=notes), parent=w)
@@ -186,7 +186,7 @@ def shots(out: Path, suffix: str) -> None:
 def main(out: Path, only: str = "") -> int:
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv[:1])
-    use_data_dir(Path(tempfile.mkdtemp(prefix="cobro-shots-")))
+    use_data_dir(Path(tempfile.mkdtemp(prefix="saldo-shots-")))
     setup_app(app)
     for key, (appearance, accent, suffix) in LOOKS.items():
         if only and key != only:

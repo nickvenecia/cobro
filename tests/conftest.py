@@ -31,7 +31,7 @@ def pytest_unconfigure(config):
 @pytest.fixture(autouse=True)
 def data_folder(tmp_path):
     """Never touch the real invoices: every test gets its own empty data folder."""
-    from cobro.core.paths import use_data_dir
+    from saldo.core.paths import use_data_dir
 
     use_data_dir(tmp_path / "data")
     yield tmp_path / "data"
@@ -43,7 +43,7 @@ def qapp():
     from PySide6.QtWidgets import QApplication
 
     app = QApplication.instance() or QApplication(sys.argv[:1])
-    from cobro.app import setup_app
+    from saldo.app import setup_app
 
     setup_app(app)
     return app
@@ -86,7 +86,7 @@ class _MemoryKeychain:
 @pytest.fixture(autouse=True)
 def keychain(monkeypatch):
     """Never touch the computer's real keychain: every test gets an empty one in memory."""
-    from cobro.services import secrets
+    from saldo.services import secrets
 
     fake = _MemoryKeychain()
     monkeypatch.setattr(secrets, "_keyring", lambda: fake)

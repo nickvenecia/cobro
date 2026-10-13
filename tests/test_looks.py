@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from cobro.core import looks
-from cobro.core.model import Look
+from saldo.core import looks
+from saldo.core.model import Look
 
 
 def test_an_older_look_still_opens_and_keeps_what_it_said():
-    """Files from Cobro 1.x carry type styles and fonts. They open, print in Inter, and are saved back as
+    """Files from Saldo 1.x carry type styles and fonts. They open, print in Inter, and are saved back as
     they were (nothing in them is lost)."""
     old = {
         "type_style": "screenplay",
@@ -32,7 +32,7 @@ def test_an_older_look_still_opens_and_keeps_what_it_said():
 
 def test_a_new_profile_starts_turquoise_and_an_old_one_without_a_color_stays_ink():
     assert Look().color == looks.DEFAULT_COLOR == "turquoise"
-    assert Look.from_dict({"header": "clean"}).color == "ink"  # what older Cobros used
+    assert Look.from_dict({"header": "clean"}).color == "ink"  # what older versions used
     assert Look.from_dict(None).color == "ink"
 
 
@@ -60,7 +60,7 @@ def test_bad_values_fall_back():
 def test_bundled_fonts_ship_with_the_app():
     from pathlib import Path
 
-    folder = Path(__file__).resolve().parents[1] / "cobro" / "assets" / "fonts"
+    folder = Path(__file__).resolve().parents[1] / "saldo" / "assets" / "fonts"
     names = {p.stem.split("-")[0] for p in folder.glob("*.[ot]tf")}
     licenses = {p.name for p in folder.glob("OFL-*.txt")}
     assert licenses == {"OFL-Inter.txt", "OFL-ibmplexmono.txt"}

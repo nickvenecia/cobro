@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Wrap the PyInstaller folder into one double-clickable Linux file (an AppImage).
 #
-#   bash packaging/linux/build_appimage.sh dist/Cobro out/Cobro-linux-x64.AppImage
+#   bash packaging/linux/build_appimage.sh dist/Saldo out/Saldo-linux-x64.AppImage
 #
 # People download the .AppImage, mark it executable once (right-click > Properties > "Allow
 # executing" — most file managers ask automatically) and double-click. Nothing is installed.
@@ -17,22 +17,22 @@ TOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
-APPDIR="$WORK/Cobro.AppDir"
+APPDIR="$WORK/Saldo.AppDir"
 mkdir -p "$APPDIR/usr/lib" "$(dirname "$OUT")"
 
-cp -a "$SRC" "$APPDIR/usr/lib/cobro"
-cp "$ROOT/cobro/assets/icon.png" "$APPDIR/cobro.png"
-ln -s cobro.png "$APPDIR/.DirIcon"
+cp -a "$SRC" "$APPDIR/usr/lib/saldo"
+cp "$ROOT/saldo/assets/icon.png" "$APPDIR/saldo.png"
+ln -s saldo.png "$APPDIR/.DirIcon"
 
 cat > "$APPDIR/AppRun" <<'SH'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
-exec "$HERE/usr/lib/cobro/Cobro" "$@"
+exec "$HERE/usr/lib/saldo/Saldo" "$@"
 SH
 chmod +x "$APPDIR/AppRun"
 
-sed -e 's|^Exec=.*|Exec=Cobro|' -e 's|^Icon=.*|Icon=cobro|' \
-  "$ROOT/packaging/linux/cobro.desktop" > "$APPDIR/cobro.desktop"
+sed -e 's|^Exec=.*|Exec=Saldo|' -e 's|^Icon=.*|Icon=saldo|' \
+  "$ROOT/packaging/linux/saldo.desktop" > "$APPDIR/saldo.desktop"
 
 curl -fsSL -o "$WORK/appimagetool" "$TOOL_URL"
 echo "$TOOL_SHA256  $WORK/appimagetool" | sha256sum -c -

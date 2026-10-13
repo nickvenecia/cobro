@@ -1,4 +1,4 @@
-# Third-party software in Cobro
+# Third-party software in Saldo
 
 The packaged app includes these open-source components. Thank you to their authors.
 
@@ -11,7 +11,7 @@ The packaged app includes these open-source components. Thank you to their autho
 | IBM Plex Mono (invoice numbers; unmodified) | SIL Open Font License 1.1 | https://github.com/IBM/plex |
 | Icons (redrawn line icons) | ISC (Lucide) | https://lucide.dev |
 
-The fonts' license files are in `cobro/assets/fonts` (OFL-*.txt). Inter's variable font was cut into fixed
+The fonts' license files are in `saldo/assets/fonts` (OFL-*.txt). Inter's variable font was cut into fixed
 weights by `scripts/make_fonts.py` (Inter has no Reserved Font Name, so the OFL lets it keep its name); Inter
 Display Bold (the app icon's letters) and IBM Plex Mono are included exactly as published.
 Qt libraries are shipped as separate shared libraries in the app folder and can be replaced.

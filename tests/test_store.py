@@ -6,8 +6,8 @@ import json
 from dataclasses import replace
 from datetime import date
 
-from cobro.core.model import Business, Client, Invoice, LineItem
-from cobro.core.store import Library, write_json
+from saldo.core.model import Business, Client, Invoice, LineItem
+from saldo.core.store import Library, write_json
 
 
 def test_business_gets_sensible_defaults(data_folder):

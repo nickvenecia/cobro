@@ -5,7 +5,7 @@ from __future__ import annotations
 import colorsys
 import re
 
-from cobro.ui.style import tokens
+from saldo.ui.style import tokens
 
 COLOR = re.compile(r"^(#[0-9A-F]{6}|rgba\(\d+, \d+, \d+, [0-9.]+\))$")
 
@@ -21,7 +21,7 @@ def test_every_choice_has_every_shade_and_reads():
 
 
 def test_turquoise_comes_first_and_no_red_accent():
-    assert next(iter(tokens.ACCENTS)) == tokens.APP_ACCENT == "cobro"
+    assert next(iter(tokens.ACCENTS)) == tokens.APP_ACCENT == "saldo"
     for _name, dark, light in tokens.ACCENTS.values():
         for c in (dark, light):
             h, _l, sat = colorsys.rgb_to_hls(*(v / 255 for v in tokens._rgb(c)))
@@ -34,7 +34,7 @@ def test_use_switches_and_comes_back():
         assert tokens.ACCENTS["green"][1] == tokens.ACCENT and tokens.ON_ACCENT == tokens.DARK_ON_ACCENT
         tokens.use("light")  # keeps the accent
         assert tokens.ACCENTS["green"][2] == tokens.ACCENT
-        tokens.use("dark", "")  # Cobro's own: the hand-set shades, exactly
+        tokens.use("dark", "")  # Saldo's own: the hand-set shades, exactly
         assert tokens.DARK["ACCENT"] == tokens.ACCENT and tokens.DARK["DIVIDER"] == tokens.DIVIDER
         tokens.use("dark", "no-such-color")
         assert tokens.ACCENT_KEY == tokens.APP_ACCENT
@@ -47,7 +47,7 @@ def test_the_stylesheet_reads_in_every_look(qapp):
     from PySide6.QtCore import QtMsgType, qInstallMessageHandler
     from PySide6.QtWidgets import QPushButton
 
-    from cobro.app import set_appearance
+    from saldo.app import set_appearance
 
     shown = QPushButton("Save")  # Qt only reads the stylesheet for what's on screen
     shown.show()

@@ -1,12 +1,12 @@
-# Cobro design rules
+# Saldo design rules
 
-The rules for how Cobro looks and reads. Follow them for every screen, dialog and control.
+The rules for how Saldo looks and reads. Follow them for every screen, dialog and control.
 If a change needs something these rules don't cover, add a rule here in the same commit.
 
-All numbers and colors live in **`cobro/ui/style/tokens.py`**. The stylesheet (`cobro/ui/style/theme.py`) and
+All numbers and colors live in **`saldo/ui/style/tokens.py`**. The stylesheet (`saldo/ui/style/theme.py`) and
 every widget read from there. **Never type a size, spacing, font size or color anywhere else.**
 If you need a value that doesn't exist, add a token, give it a comment, and add it to the tables below.
-The paper (the invoice itself) has its own colors and sizes in `cobro/core/looks.py` and `cobro/doc/render.py` (§9).
+The paper (the invoice itself) has its own colors and sizes in `saldo/core/looks.py` and `saldo/doc/render.py` (§9).
 
 ---
 
@@ -70,7 +70,7 @@ window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NU
 | `SPACE_4` | 16 | Padding of panels, bars and the main areas |
 | `SPACE_5` | 24 | Padding of dialogs, empty states |
 
-- Build layouts with the helpers in `cobro/ui/components/widgets.py`: `vbox(widget, margins, spacing)` /
+- Build layouts with the helpers in `saldo/ui/components/widgets.py`: `vbox(widget, margins, spacing)` /
   `hbox(...)` (spacing defaults to `SPACE_2`), `combo(...)` for dropdowns, and `Section("Title")` for a labelled
   group (Title Case label + its controls, `SPACE_1` apart).
 - Margins are `SPACE_*` tokens or `0`. Nothing else. The glass panels sit `GLASS_GAP` (10) from the window's edge
@@ -87,7 +87,7 @@ window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NU
 | `TEXT_MD` | 13 | Body text and every control (the default) |
 | `TEXT_LG` | 14 | Emphasis: the profile card's name, alert titles, totals under the table |
 | `TEXT_XL` | 18 | Dialog titles, empty-state headlines |
-| `TEXT_BRAND` | 21 | The "cobro." wordmark only |
+| `TEXT_BRAND` | 21 | The "saldo." wordmark only |
 
 Weights: `WEIGHT_REGULAR` 400 for text, `WEIGHT_MEDIUM` 500 for controls, `WEIGHT_SEMIBOLD` 600 for titles,
 labels and the primary button, `WEIGHT_BOLD` 700 for the wordmark and page titles.
@@ -115,14 +115,14 @@ picked row is `ACCENT_TINT` with its words and icon in `ACCENT_HOVER`. Never giv
 
 ## 5. Color (dark and light)
 
-Cobro follows the computer's light or dark setting, switching live, or keeps the one picked in Settings › General
+Saldo follows the computer's light or dark setting, switching live, or keeps the one picked in Settings › General
 › Appearance (settings "appearance": system / light / dark). Every color token has a dark and a light value
 (`tokens.DARK`, `tokens.LIGHT`); `tokens.use()` swaps them and `theme.apply()` rebuilds the stylesheet. So: read
 colors as `tokens.X` when drawing, never copy one into a constant at import time. Both are read before the first
-window opens, so Cobro never flashes in the wrong colors.
+window opens, so Saldo never flashes in the wrong colors.
 
 **The accent is yours to pick** (Settings › General › Accent Color: `widgets.AccentPicker`, settings "accent";
-empty means Cobro's own turquoise, `#3CC8B4` on dark, `#0F8574` on light). `tokens.ACCENTS` lists the choices:
+empty means Saldo's own turquoise, `#3CC8B4` on dark, `#0F8574` on light). `tokens.ACCENTS` lists the choices:
 Turquoise, Blue, Purple, Pink, Orange, Yellow, Green, Graphite (never red: red means overdue or delete).
 `tokens.accent_set()` builds every accent shade from one color, with dark words on the accent wherever white
 wouldn't read. The accent never touches the paper: an invoice looks the same on every computer.
@@ -218,7 +218,7 @@ Choosing a control:
 
 ## 7. Words
 
-Cobro talks like a helpful person, not like software.
+Saldo talks like a helpful person, not like software.
 
 - **No explaining on screen.** No hint sentences under fields, no paragraphs in empty states or dialogs. If a label
   needs explaining, change the label; if it still does, a short tooltip.
@@ -230,7 +230,7 @@ Cobro talks like a helpful person, not like software.
   ALL-CAPS labels in the app (the paper's small capital labels are part of the paper's design, §9).
 - **Sentences stay sentences**: tooltips, placeholders, error messages and toasts.
 - Buttons are verbs ("Save PDF…", "Show File"). Use "…" when the button opens a window or a file picker.
-- Errors say what happened and what to do: "Cobro can't read logo.gif. Use a PNG, JPG or SVG file."
+- Errors say what happened and what to do: "Saldo can't read logo.gif. Use a PNG, JPG or SVG file."
 - Promise safety where it matters: "PDFs you already saved stay where they are."
 - No exclamation marks except a greeting ("Hi! What can I help with?"), no emoji, no jargon.
 - No company or personal brand names in the app, the About box or the installers (the developer's name is fine in
@@ -242,7 +242,7 @@ Cobro talks like a helpful person, not like software.
 
 ```
 ╭ sidebar (glass) ─╮ ┌ toolbar ─────────────────────────────────────────────────┐ ╭ right panel (glass) ─╮
-│ cobro.           │ │ All Invoices 4    [ Search            ] (≡)   (⇪) (☺) (+) │ │ Invoice       (⋯) (✕)│
+│ saldo.           │ │ All Invoices 4    [ Search            ] (≡)   (⇪) (☺) (+) │ │ Invoice       (⋯) (✕)│
 │                  │ ├──────────────────────────────────────────────────────────┤ │ ▾ From & Bill To     │
 │ Invoices      +  │ │ Invoice   Client          Issued   Due    Status  Amount │ │ ▾ Invoice            │
 │ ⌄ All Invoices 4 │ │ ▾ October 2026                                 $5,400.00 │ │ ▾ Project            │
@@ -306,9 +306,9 @@ Cobro talks like a helpful person, not like software.
 - **The assistant** is the right-hand panel too: the bubble or ⌘J slides it in and it stays while you move around;
   clicking an invoice shows the invoice instead, and the bubble brings the chat back. It works on the invoice you
   last opened, and every change it suggests waits in the Review window.
-- **One identity everywhere.** The app icon is "c." on the dark tile, the full stop in turquoise
-  (`scripts/make_icon.py`); the wordmark is "cobro." with the full stop in the accent; on the Mac the title bar is
-  Cobro's own (`components/titlebar.py`).
+- **One identity everywhere.** The app icon is "s." on the dark tile, the full stop in turquoise
+  (`scripts/make_icon.py`); the wordmark is "saldo." with the full stop in the accent; on the Mac the title bar is
+  Saldo's own (`components/titlebar.py`).
 
 ---
 
@@ -341,7 +341,7 @@ The paper is the product. It follows its own small set of rules (all in `doc/ren
 ## 10. Checklist before you commit a UI change
 
 1. No raw numbers or colors outside `tokens.py`. This should print nothing:
-   `grep -rnE '[^{_A-Z0-9][0-9]{2,}px|#[0-9A-Fa-f]{6}|rgba' cobro/ui | grep -v tokens.py`
+   `grep -rnE '[^{_A-Z0-9][0-9]{2,}px|#[0-9A-Fa-f]{6}|rgba' saldo/ui | grep -v tokens.py`
    (1px hairline borders and the icons' SVG drawings are the allowed literals.)
 2. New controls are `CONTROL_H` tall (or `SMALL_H` for small icon buttons) and line up with their neighbours.
 3. Every icon-only button has a tooltip.

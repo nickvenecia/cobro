@@ -11,12 +11,12 @@ import urllib.error
 
 import pytest
 
-from cobro.core import sample, web
-from cobro.core.model import LineItem
-from cobro.core.store import Library
-from cobro.services import secrets
-from cobro.services.ai import providers, tasks
-from cobro.services.ai.providers import AIError, Setup
+from saldo.core import sample, web
+from saldo.core.model import LineItem
+from saldo.core.store import Library
+from saldo.services import secrets
+from saldo.services.ai import providers, tasks
+from saldo.services.ai.providers import AIError, Setup
 
 
 class FakeResponse(io.BytesIO):
@@ -63,7 +63,7 @@ def an_invoice():
 # ---------------------------------------------------------------- keys
 def test_keys_live_in_the_keychain_not_settings(keychain):
     providers.save_key("openai", "  sk-123  ")
-    assert keychain.store[("Cobro", "ai:openai")] == "sk-123"
+    assert keychain.store[("Saldo", "ai:openai")] == "sk-123"
     settings = {}
     Setup("openai", "gpt-x").to_settings(settings)
     assert "sk-123" not in json.dumps(settings)
@@ -279,7 +279,7 @@ def test_clean_text_keeps_lines_for_details_only():
 # ---------------------------------------------------------------- the window
 @pytest.fixture
 def win(qapp, data_folder):
-    from cobro.ui.window.main_window import MainWindow
+    from saldo.ui.window.main_window import MainWindow
 
     w = MainWindow(sample.fill(Library(data_folder).load()))
     w._restored = True
@@ -305,7 +305,7 @@ def _answer(monkeypatch, text):
 
 
 def test_tidy_end_to_end_and_undo(win, monkeypatch):
-    from cobro.ui.dialogs import ai_review
+    from saldo.ui.dialogs import ai_review
 
     providers.save_key("anthropic", "sk-test")
     Setup("anthropic", "test-model").to_settings(win.lib.settings)
@@ -356,7 +356,7 @@ def test_the_assistant_is_the_right_panel(win):
 
 
 def test_ai_setup_saves_to_the_keychain_not_settings(win):
-    from cobro.ui.dialogs.ai_setup import AISetupDialog
+    from saldo.ui.dialogs.ai_setup import AISetupDialog
 
     d = AISetupDialog(win.lib, win)
     d.provider.setCurrentIndex(d.provider.findData("kimi"))
@@ -381,7 +381,7 @@ def test_a_question_is_answered_as_plain_text(win, monkeypatch):
 
 
 def test_settings_has_an_ai_section(win):
-    from cobro.ui.dialogs.settings import SettingsDialog
+    from saldo.ui.dialogs.settings import SettingsDialog
 
     d = SettingsDialog(win.lib, win, "ai")
     assert d.current_pane() == "ai" and d.windowTitle() == "AI"
