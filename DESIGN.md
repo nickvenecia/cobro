@@ -92,6 +92,12 @@ window), `NAV_H`, `PROFILE_CARD_H`, `AVATAR`, `TEXT_BOX_H`, `TEXT_BOX_TALL`, `NU
 Weights: `WEIGHT_REGULAR` 400 for text, `WEIGHT_MEDIUM` 500 for controls, `WEIGHT_SEMIBOLD` 600 for titles,
 labels and the primary button, `WEIGHT_BOLD` 700 for the wordmark and page titles.
 
+**Words are never cut off.** Fonts are wider on some computers than others (a Mac's system font is wider than
+Linux's), so anything in a fixed width, like a start tile, must make room for more than it needs here. Text that
+might not fit either **wraps** onto another line (`setWordWrap(True)`, the box grows taller) or is **cut short with
+"…"** and shows the whole text in its tooltip (`widgets.ElidedLabel`). It never just runs off an edge.
+`tests/test_window.py` checks every screen with `tests/cut_off.py`, in the first window size and the smallest.
+
 ---
 
 ## 4. Corners
@@ -202,7 +208,7 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Toast | `widgets.Toast`, through `MainWindow.toast(text, tone)` | A few words saying what just happened, never a question: centred over the page just above the totals, it rises and fades in, the pointer resting on it keeps it, and it never takes a click (what's under it still works). `tone`: "done" (a green check: Copied, Saved, Deleted), "problem" (amber: it didn't work, and the words say what to do), or "" for news (an info sign: Nothing to undo) |
 | Wrapping row | `widgets.FlowLayout` | A row of + buttons that wraps onto a second line in a narrow panel |
 | Empty page | `empty.EmptyPage` | Where the table would be with nothing in it: only its start tiles, centred (no headline; the page title says where you are). Search and the filter hide while it shows |
-| Start tile | `empty.StartTile` (`#StartTile`) | Every way to begin on an empty page (Add Your Profile…, New Invoice with the place's sidebar icon, Clear Filters): a raised `RADIUS_LG` tile, its icon in a small tinted circle, a name and a few words, all centred |
+| Start tile | `empty.StartTile` (`#StartTile`) | Every way to begin on an empty page (Add Your Profile…, New Invoice with the place's sidebar icon, Clear Filters): a raised `RADIUS_LG` tile, its icon in a small tinted circle, a name and a few words, all centred; both wrap onto a second line rather than being cut off |
 | What's new | `update.Notes` (`#WhatsNew`) | The update window's notes, read from the release (this version's CHANGELOG): a soft `FILL` box only as tall as its words (up to `NOTES_H`, then it scrolls); each section a small label, each change an accent dot and its words at `NOTES_LINE` line height. Release text is escaped, never read as HTML; only https links open |
 | Dialog buttons | `widgets.button_row()` | The bottom row of every dialog: right-aligned, the main one last |
 
@@ -346,6 +352,8 @@ The paper is the product. It follows its own small set of rules (all in `doc/ren
 2. New controls are `CONTROL_H` tall (or `SMALL_H` for small icon buttons) and line up with their neighbours.
 3. Every icon-only button has a tooltip.
 4. Labels are short and in Title Case; sentences (tooltips, placeholders, messages) are plain sentences.
-5. Screenshots look right in dark, in light and with a light accent:
+5. No words are cut off at an edge: they wrap or end in "…" (§3). A new screen gets a line in
+   `test_no_words_are_cut_off_anywhere`.
+6. Screenshots look right in dark, in light and with a light accent:
    `QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR` (the light ones end in `-light`, the light-accent
    ones in `-yellow`).

@@ -758,3 +758,96 @@ def test_one_line_item_has_nothing_to_drag(win):
     assert not only.grip.active
     only.grip.pressed.emit(only.grip.mapToGlobal(only.grip.rect().center()))
     assert win.panel._lift is None
+
+
+def test_the_checker_finds_words_that_dont_fit(qapp):
+    from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+
+    from tests.cut_off import cut_off
+
+    box = QWidget()
+    lay = QVBoxLayout(box)
+    words = "Your name, logo and how you get paid"
+    cut, wraps, button = QLabel(words), QLabel(words), QPushButton(words)
+    for w in (cut, wraps, button):
+        w.setFixedWidth(60)
+        lay.addWidget(w)
+    wraps.setWordWrap(True)
+    wraps.setMinimumHeight(wraps.heightForWidth(60))
+    box.show()
+    QApplication.processEvents()
+    found = cut_off(box)  # the label and the button; the one that wraps fits
+    assert len(found) == 2 and all(words in f for f in found)
+    box.close()
+
+
+def test_no_words_are_cut_off_anywhere(qapp, data_folder):
+    """Every label, button and tab has room for its words, in the first window size and the smallest: words that
+    might not fit wrap onto another line or end in "…", never run off an edge."""
+    import time
+
+    from saldo.ui.dialogs.client import ClientDialog
+    from saldo.ui.dialogs.settings import SettingsDialog
+    from saldo.ui.style import tokens
+    from saldo.ui.window.main_window import MainWindow
+    from tests.cut_off import cut_off
+
+    def check(w, where: str) -> None:
+        stop = time.monotonic() + (tokens.DOCK_MS + 150) / 1000  # the right panel has slid all the way in
+        while time.monotonic() < stop:
+            QApplication.processEvents()
+            time.sleep(0.01)
+        assert cut_off(w) == [], where
+
+    def window(lib):
+        w = MainWindow(lib)
+        w._restored = True
+        w.show()
+        return w
+
+    for size in (tokens.WINDOW_SIZE, tokens.WINDOW_MIN):
+        w = window(Library(data_folder / f"{size[0]}-first").load())
+        w.resize(*size)
+        check(w, f"first launch, {size}")
+        w.shutdown()
+        w.close()
+        lib = Library(data_folder / f"{size[0]}-no-invoices").load()
+        lib.add_business(sample.business())
+        w = window(lib)
+        w.resize(*size)
+        check(w, f"no invoices yet, {size}")
+        w.shutdown()
+        w.close()
+
+        lib = sample.fill(Library(data_folder / f"{size[0]}-sample").load())
+        w = window(lib)
+        w.resize(*size)
+        check(w, f"All Invoices, {size}")
+        first = lib.ordered()[0]
+        w.open(first.id)
+        w.panel.groups["adjustments"].set_open(True)
+        check(w, f"an invoice, {size}")
+        w.deselect()
+        w.go("clients")
+        check(w, f"All Clients, {size}")
+        w.open_client(lib.find_client("Desert Sun Records").id)
+        check(w, f"a client, {size}")
+        w.new_client()
+        check(w, f"a new client, {size}")
+        w.deselect()
+        w.go("all")
+        w.view_menu.filter.year = "1999"  # nothing showing: Clear Filters
+        w._view_picked()
+        check(w, f"Clear Filters, {size}")
+        if size == tokens.WINDOW_SIZE:
+            for pane in ("general", "profiles", "ai", "account", "shortcuts", "data"):
+                d = SettingsDialog(w.lib, w, pane)
+                d.show()
+                check(d, f"Settings › {pane}")
+                d.close()
+            d = ClientDialog(first.client, lib, True, show_code=True, parent=w)
+            d.show()
+            check(d, "the client window")
+            d.close()
+        w.shutdown()
+        w.close()

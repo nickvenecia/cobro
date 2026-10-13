@@ -146,6 +146,9 @@ saldo.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   bu
 - **AI**: only line items' words go to a provider (never amounts, clients, the project or the profile); only a
   line's name and details can change; every change waits in the Review window; `tasks.apply` keeps a copy first.
   Keys live in the keychain only.
+- **Words are never cut off.** Text that might not fit wraps onto another line or ends in "…" with the whole text
+  in its tooltip (`widgets.ElidedLabel`); fonts are wider on a Mac. `tests/cut_off.py` checks every screen
+  (`test_no_words_are_cut_off_anywhere`); a new screen gets a line there.
 - Only show what applies: Discount, Deposit and Sales Tax appear when an invoice has them (+ Discount adds one),
   a line item's details box once it has details.
 - New model fields need defaults that mean "off"/empty: old files are read through `from_dict()`.

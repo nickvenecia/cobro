@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.1.1
+- Words are never cut off: the tile that starts your profile (and every other start tile) puts its words on a second line when they don't fit on one
+
 ## 2.1.0
 - **cobro. is now saldo.** Same app, new name. Everything you made carries over
 - The first time Saldo opens, every invoice, client, profile, number and setting from Cobro is there, and so is your AI key. Cobro's own files are left as they were

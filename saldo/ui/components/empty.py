@@ -42,6 +42,7 @@ class StartTile(QFrame):
         sub.setObjectName("StartDetail")
         for w in (self.title, sub):
             w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            w.setWordWrap(True)  # the tile is a fixed width: words go onto a second line, never off its edges
             lay.addWidget(w)
 
     def mousePressEvent(self, e):
