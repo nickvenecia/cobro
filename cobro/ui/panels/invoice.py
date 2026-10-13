@@ -1,139 +1,59 @@
-"""Step 2, Details: everything on the invoice, top to bottom in the order it reads.
+"""The invoice you picked, on the right: everything on it, top to bottom in the order it reads.
 
-Every part folds away (From && Bill To, Invoice, Project, Line Items, Adjustments, Payment && Terms,
-Look), each fold remembered and, when folded, saying what's inside. From picks one of your profiles and
-Bill To one of your saved clients, each with Edit… beside it. Line items fold to one row each, and only
-one is open at a time, so a long list stays tidy.
-Edits go straight into the Invoice (or, for Look, the profile) and fire a signal; the window
-saves and redraws the preview.
+Every part folds away (From && Bill To, Invoice, Project, Line Items, Adjustments, Payment && Terms), each
+fold remembered and, when folded, saying what's inside. From picks one of your profiles and Bill To one of
+your saved clients, each with Edit… beside it. Line items fold to one row each, and only one is open at a
+time, so a long list stays tidy. Edits go straight into the Invoice and fire `changed`; the window saves.
+The page itself opens in its own window (Invoice…, across the bottom).
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
 
-from PySide6.QtCore import QDate, QLocale, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import (
-    QColorDialog,
-    QComboBox,
-    QDateEdit,
-    QFontDialog,
-    QFrame,
-    QLabel,
-    QLineEdit,
-    QMenu,
-    QPushButton,
-    QToolButton,
-    QWidget,
-)
+from PySide6.QtCore import QDate, Qt, QTimer, Signal
+from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QMenu, QToolButton, QWidget
 
 from cobro.core import dates, document, money
 from cobro.core.log import get_logger
-from cobro.core.looks import (
-    BUNDLED_FONTS,
-    COLORS,
-    CUSTOM,
-    DISPLAY_ONLY,
-    HEADERS,
-    LOGO_SIZES,
-    PAPERS,
-    TYPE_STYLES,
-    accent_of,
-)
-from cobro.core.model import STATUSES, TERMS_DAYS, Business, Client, Invoice, LineItem, Look
-from cobro.core.paths import logos_dir
+from cobro.core.model import STATUSES, TERMS_DAYS, Business, Client, Invoice, LineItem
 from cobro.core.store import Library
 from cobro.ui.components.widgets import (
-    Disclosure,
     ElidedLabel,
-    FitScroll,
     IconLabel,
+    MoneyField,
     Section,
-    StepHeader,
     TextBox,
     ToggleRow,
+    add_chip,
     combo,
+    date_field,
+    from_qdate,
     hbox,
-    hint,
+    icon_button,
+    picker,
+    qty_field,
     repolish,
     set_combo,
+    to_qdate,
     vbox,
 )
+from cobro.ui.panels.base import DetailsBase
 from cobro.ui.style import theme, tokens
 
 log = get_logger(__name__)
 
-OTHER_FONT = "__other__"
-PICK_COLOR = "__pick__"
 ADD_BUSINESS = "__add__"
 NEW_CLIENT = "__new__"
 THIS_CLIENT = "__this__"  # a client on this invoice that isn't saved (deleted, or from an older Cobro)
 STATUS_LABELS = {"draft": "Draft", "sent": "Sent", "paid": "Paid", "overdue": "Overdue"}
-# the fold-away groups, top to bottom: key -> (title, open the first time)
-GROUPS = {
-    "who": ("From && Bill To", True),
-    "invoice": ("Invoice", True),
-    "project": ("Project", True),
-    "items": ("Line Items", True),
-    "adjustments": ("Adjustments", False),
-    "payment": ("Payment && Terms", False),
-    "look": ("Look", False),
+STATUS_TIPS = {
+    "draft": "Not sent yet",
+    "sent": "Sent and waiting to be paid; Overdue once it's past due",
+    "paid": "The money's in",
 }
 
 
-def date_field() -> QDateEdit:
-    d = QDateEdit()
-    d.setCalendarPopup(True)
-    d.setDisplayFormat("MMM d, yyyy")
-    d.setLocale(QLocale(QLocale.Language.English, QLocale.Country.UnitedStates))
-    d.setCursor(Qt.CursorShape.PointingHandCursor)
-    return d
-
-
-def to_qdate(iso: str) -> QDate:
-    d = dates.parse(iso) or dates.today()
-    return QDate(d.year, d.month, d.day)
-
-
-def from_qdate(q: QDate) -> str:
-    return f"{q.year():04d}-{q.month():02d}-{q.day():02d}"
-
-
-def swatch(color: str) -> QIcon:
-    size = tokens.SWATCH * 2
-    pm = QPixmap(size, size)
-    pm.fill(Qt.GlobalColor.transparent)
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(QColor(color))
-    p.drawEllipse(1, 1, size - 2, size - 2)
-    p.end()
-    pm.setDevicePixelRatio(2)
-    return QIcon(pm)
-
-
-def icon_button(name: str, tip: str) -> QToolButton:
-    b = QToolButton()
-    b.setObjectName("IconBtn")
-    b.setIcon(theme.icon(name, theme.MUTED))
-    b.setToolTip(tip)
-    b.setCursor(Qt.CursorShape.PointingHandCursor)
-    return b
-
-
-def picker(placeholder: str = "") -> QComboBox:
-    """A dropdown of your own things (profiles, clients) that never widens the panel for a long name."""
-    c = QComboBox()
-    c.setCursor(Qt.CursorShape.PointingHandCursor)
-    c.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-    c.setMinimumContentsLength(1)
-    c.setPlaceholderText(placeholder)
-    return c
-
-
-# ---------------------------------------------------------------------------- one line item
 class _ItemHead(QFrame):
     clicked = Signal()
 
@@ -143,7 +63,7 @@ class _ItemHead(QFrame):
         super().mousePressEvent(e)
 
 
-class ItemEditor(QFrame):
+class LineEditor(QFrame):
     """One line item: a header row (what it is, its amount, ⋯) that folds the fields under it away.
     Duplicate, Move and Remove live in the ⋯ menu, so nothing is removed by a single stray click."""
 
@@ -163,7 +83,7 @@ class ItemEditor(QFrame):
         self.head = _ItemHead()
         self.head.setCursor(Qt.CursorShape.PointingHandCursor)
         hl = hbox(self.head, (tokens.SPACE_3, tokens.SPACE_2, tokens.SPACE_2, tokens.SPACE_2), tokens.SPACE_2)
-        self.chevron = IconLabel()
+        self.chevron = IconLabel("chevron-right")
         self.title = ElidedLabel()
         self.title.setObjectName("ItemTitle")
         self.amount = QLabel()
@@ -198,29 +118,29 @@ class ItemEditor(QFrame):
         self.details.set_text(item.details)
         bl.addWidget(self.details)
         row = hbox(spacing=tokens.SPACE_2)
-        self.qty = QLineEdit(item.qty)
-        self.qty.setPlaceholderText("Qty")
-        self.qty.setToolTip("Quantity: days, hours or units")
-        self.qty.setFixedWidth(tokens.NUM_FIELD_W - tokens.SPACE_5)
-        times = QLabel("×")
-        times.setObjectName("Muted")
-        self.rate = QLineEdit(item.rate)
-        self.rate.setPlaceholderText("Rate")
+        sec = Section("Qty")
+        self.qty = qty_field(item.qty)
+        self.qty.setToolTip("How many: days, hours or units")
+        sec.add(self.qty)
+        row.addWidget(sec)
+        sec = Section("Rate")
+        self.rate = MoneyField(currency)
+        self.rate.set_value(item.rate)
+        self.rate.setPlaceholderText(money.fmt(money.ZERO, currency))
         self.rate.setToolTip("Price for one. Leave at 0 for something included.")
-        self.rate.setFixedWidth(tokens.NUM_FIELD_W)
-        row.addWidget(self.qty)
-        row.addWidget(times)
-        row.addWidget(self.rate)
-        row.addStretch(1)
+        sec.add(self.rate)
+        row.addWidget(sec, 1)
         bl.addLayout(row)
         lay.addWidget(self.body)
 
-        self.set_open(True)
+        self.set_open(False)
         self._show_head()
         self.desc.textEdited.connect(lambda t: self._set("description", t))
         self.details.edited.connect(lambda: self._set("details", self.details.text()))
         self.qty.textEdited.connect(lambda t: self._set("qty", t))
-        self.rate.textEdited.connect(lambda t: self._set("rate", t))
+        self.rate.textEdited.connect(
+            lambda t: self._set("rate", t.replace(self.currency, "").replace(",", "").strip())
+        )
 
     def _later(self, signal, *args) -> None:
         QTimer.singleShot(0, self, lambda: signal.emit(*args))  # dropped if this item is gone by then
@@ -230,7 +150,7 @@ class ItemEditor(QFrame):
 
     def set_open(self, on: bool) -> None:
         self.body.setVisible(on)
-        self.chevron.set_icon(theme.icon("chevron" if on else "chevron-right", theme.MUTED))
+        self.chevron.set_icon("chevron" if on else "chevron-right")
         self.head.setToolTip("Fold away" if on else "Show the details")
         self.setProperty("open", on)
         repolish(self)
@@ -246,7 +166,7 @@ class ItemEditor(QFrame):
 
     def _show_head(self) -> None:
         name = self.item.description.strip()
-        self.title.set_full_text(name or "New line item")
+        self.title.set_full_text(name or "New Line Item")
         if self.title.property("blank") != (not name):
             self.title.setProperty("blank", not name)
             repolish(self.title)
@@ -259,94 +179,48 @@ class ItemEditor(QFrame):
 
 
 # ---------------------------------------------------------------------------- the panel
-class DetailsPanel(QFrame):
-    invoice_changed = Signal(object)  # Invoice
+class InvoicePanel(DetailsBase):
+    TITLE = "Invoice"
+    KEY = "invoice"
+    # the fold-away groups, top to bottom: key -> (title, open the first time)
+    GROUPS = {
+        "who": ("From && Bill To", True),
+        "invoice": ("Invoice", True),
+        "project": ("Project", True),
+        "items": ("Line Items", True),
+        "adjustments": ("Adjustments", False),
+        "payment": ("Payment && Terms", False),
+    }
+
+    changed = Signal(object)  # Invoice
     status_changed = Signal(object)  # Invoice
-    look_changed = Signal(object)  # Business
     business_wanted = Signal(str)  # "edit" or "add" (a profile)
     client_wanted = Signal(str)  # "edit" or "new"
     defaults_saved = Signal(object)  # Business
-    groups_changed = Signal(dict)  # {"adjustments": True, ...}
+    delete_wanted = Signal(str)  # invoice id
+    duplicate_wanted = Signal(str)
+    sheet_wanted = Signal(str)  # open the invoice's page
 
     def __init__(self, lib: Library, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setObjectName("Details")
-        self.setFixedWidth(tokens.DETAILS_W)
         self.lib = lib
         self.inv: Invoice | None = None
-        self._loading = False
-        self.items: list[ItemEditor] = []
-
-        outer = vbox(self, 0, 0)
-        outer.addWidget(StepHeader(2, "Details"))
-        self.scroll = FitScroll()
-        body = QWidget()
-        pad = tokens.SPACE_4
-        self.lay = vbox(body, (pad, pad, pad - tokens.SCROLL_GUTTER, pad), tokens.SPACE_3)
-        self.scroll.setWidget(body)
-        outer.addWidget(self.scroll, 1)
-
-        self._build_empty()
-        self._build_form()
-        self.lay.addStretch(1)
-        self.show_empty("business")
-
-    # ------------------------------------------------------------------ empty states
-    def _build_empty(self) -> None:
-        self.empty = QWidget()
-        lay = vbox(self.empty, (0, tokens.SPACE_5, 0, 0), tokens.SPACE_3)
-        self.empty_title = QLabel()
-        self.empty_title.setObjectName("EmptyTitle")
-        self.empty_title.setWordWrap(True)
-        self.empty_text = QLabel()
-        self.empty_text.setObjectName("EmptyText")
-        self.empty_text.setWordWrap(True)
-        self.empty_btn = QPushButton()
-        self.empty_btn.setObjectName("Primary")
-        row = hbox()
-        row.addWidget(self.empty_btn)
-        row.addStretch(1)
-        lay.addWidget(self.empty_title)
-        lay.addWidget(self.empty_text)
-        lay.addLayout(row)
-        self.lay.addWidget(self.empty)
-        self._empty_action = None
-        self.empty_btn.clicked.connect(lambda: self._empty_action and self._empty_action())
-
-    def show_empty(self, kind: str, action=None) -> None:
-        """kind: "business" (no profile set up yet) or "invoice" (no invoice picked)."""
-        self.inv = None
-        self.form.hide()
-        self.empty.show()
-        self._empty_action = action
-        if kind == "business":
-            self.empty_title.setText("Start with your profile")
-            self.empty_text.setText(
-                "Add your name, logo, address and how you like to be paid once. Every invoice starts with it."
-            )
-            self.empty_btn.setText("Add Your Profile…")
-        else:
-            self.empty_title.setText("No invoice open")
-            self.empty_text.setText("Make a new one, or pick one from the list.")
-            self.empty_btn.setText("New Invoice")
-
-    # ------------------------------------------------------------------ the form
-    def _build_form(self) -> None:
-        self.form = QWidget()
-        lay = vbox(self.form, 0, tokens.SPACE_3)
-        self.lay.addWidget(self.form)
-        self.groups: dict[str, Disclosure] = {}
-        for key, (title, is_open) in GROUPS.items():
-            self.groups[key] = Disclosure(title, is_open, first=not self.groups)
-            lay.addWidget(self.groups[key])
+        self.items: list[LineEditor] = []
         g = self.groups
+        self.sheet = self.footer_button("Invoice…", "receipt")
+        self.sheet.setToolTip("The invoice as it prints: Save PDF, Print, Mark as Sent")
+        self.sheet.clicked.connect(lambda: self.inv and self.sheet_wanted.emit(self.inv.id))
+        self.menu_action("copy", "Duplicate", lambda: self.inv and self.duplicate_wanted.emit(self.inv.id))
+        self.menu_action("", "-", None)
+        self.menu_action(
+            "trash", "Delete Invoice…", lambda: self.inv and self.delete_wanted.emit(self.inv.id)
+        )
 
         # From && Bill To: one of your profiles, one of your clients
         sec = Section("From")
         row = hbox(spacing=tokens.SPACE_2)
         self.business = picker()
-        self.edit_business = QPushButton("Edit…")
-        self.edit_business.setToolTip("Your name, logo, contact details and how you get paid")
+        self.edit_business = self._edit_button("Your name, logo, contact details and how you get paid")
         row.addWidget(self.business, 1)
         row.addWidget(self.edit_business)
         sec.add(row)
@@ -355,8 +229,7 @@ class DetailsPanel(QFrame):
         row = hbox(spacing=tokens.SPACE_2)
         self.client = picker("Choose a Client")
         self.client.setToolTip("Your saved clients. New Client… adds one.")
-        self.edit_client = QPushButton("Edit…")
-        self.edit_client.setToolTip("This client's name, contact, address and email")
+        self.edit_client = self._edit_button("This client's name, contact, address and email")
         row.addWidget(self.client, 1)
         row.addWidget(self.edit_client)
         sec.add(row)
@@ -365,8 +238,7 @@ class DetailsPanel(QFrame):
         # Invoice
         row = hbox(spacing=tokens.SPACE_2)
         sec = Section("Status")
-        self.status = combo([(k, STATUS_LABELS[k], "") for k in STATUSES], "draft")
-        self.status.setToolTip("Draft until you send it; Paid when the money arrives")
+        self.status = combo([(k, STATUS_LABELS[k], STATUS_TIPS[k]) for k in STATUSES], "draft")
         sec.add(self.status)
         row.addWidget(sec, 1)
         self.paid_sec = Section("Paid On")
@@ -393,7 +265,7 @@ class DetailsPanel(QFrame):
         self.project = QLineEdit()
         self.project.setPlaceholderText("Project name (optional)")
         self.work_dates = QLineEdit()
-        self.work_dates.setPlaceholderText("Shoot / work dates, like Sep 26–27, 2026")
+        self.work_dates.setPlaceholderText("Shoot or work dates, like Sep 26–27, 2026")
         self.show_delivered = ToggleRow("Show Delivery Date")
         self.show_delivered.setToolTip("Prints when the final files were delivered")
         self.delivered = date_field()
@@ -407,207 +279,108 @@ class DetailsPanel(QFrame):
         self.items_lay = vbox(self.items_box, 0, tokens.SPACE_2)
         g["items"].add(self.items_box)
         add_row = hbox()
-        self.add_item = QPushButton("Add Line Item")
-        self.add_item.setIcon(theme.icon("plus", theme.TEXT))
+        self.add_item = add_chip("Add Line Item")
         add_row.addWidget(self.add_item)
         add_row.addStretch(1)
         g["items"].add(add_row)
 
         # Adjustments
-        self.adj = g["adjustments"]
         row = hbox(spacing=tokens.SPACE_2)
-        self.discount = self._num_field(row, "Discount", "0.00")
-        self.deposit = self._num_field(row, "Deposit Paid", "0.00")
-        self.adj.add(row)
+        sec = Section("Discount")
+        self.discount = MoneyField()
+        self.discount.setPlaceholderText("None")
+        sec.add(self.discount)
+        row.addWidget(sec, 1)
+        sec = Section("Deposit Paid")
+        self.deposit = MoneyField()
+        self.deposit.setPlaceholderText("None")
+        sec.add(self.deposit)
+        row.addWidget(sec, 1)
+        g["adjustments"].add(row)
         sec = Section("Sales Tax %")
         self.tax = QLineEdit()
         self.tax.setPlaceholderText("None")
         sec.add(self.tax)
-        self.adj.add(sec)
+        g["adjustments"].add(sec)
 
         # Payment && Terms
-        self.pay = g["payment"]
         sec = Section("How to Pay")
         self.payment = TextBox("", tokens.TEXT_BOX_TALL)
         sec.add(self.payment)
-        self.pay.add(sec)
+        g["payment"].add(sec)
         sec = Section("Terms")
         self.terms = TextBox("", tokens.TEXT_BOX_TALL)
         self.terms.setToolTip("The due-date line is added on top automatically")
         sec.add(self.terms)
-        self.pay.add(sec)
+        g["payment"].add(sec)
         sec = Section("Closing Note")
         self.note = QLineEdit()
         sec.add(self.note)
-        self.pay.add(sec)
+        g["payment"].add(sec)
         row = hbox()
-        self.reset_pay = QPushButton("Use Profile Defaults")
-        self.reset_pay.setObjectName("Ghost")
-        self.reset_pay.setToolTip("Put back the payment text, terms and note from your profile")
-        self.save_pay = QPushButton("Make These the Defaults")
-        self.save_pay.setObjectName("Ghost")
-        self.save_pay.setToolTip("New invoices will start with this payment text, terms and note")
+        self.reset_pay = self._ghost(
+            "Use Profile Defaults", "Put back the payment text, terms and note from your profile"
+        )
+        self.save_pay = self._ghost(
+            "Make These the Defaults", "New invoices will start with this payment text, terms and note"
+        )
         row.addWidget(self.reset_pay)
         row.addWidget(self.save_pay)
         row.addStretch(1)
-        self.pay.add(row)
-
-        # Look
-        self.look = g["look"]
-        self._build_look()
+        g["payment"].add(row)
 
         self._connect()
+        self.form.hide()
 
-    def _num_field(self, row, label: str, placeholder: str) -> QLineEdit:
-        sec = Section(label)
-        f = QLineEdit()
-        f.setPlaceholderText(placeholder)
-        sec.add(f)
-        row.addWidget(sec, 1)
-        return f
+    @staticmethod
+    def _edit_button(tip: str):
+        from PySide6.QtWidgets import QPushButton
 
-    def _build_look(self) -> None:
-        L = self.look
-        self.logo_size_sec = Section("Logo Size")
-        self.logo_size = combo([(k, v[0], "") for k, v in LOGO_SIZES.items()], "medium")
-        self.logo_size_sec.add(self.logo_size)
-        self.name_with_logo = ToggleRow("Show Name Next to Logo", True)
-        self.name_with_logo.setToolTip("Turn off if your logo already spells out the name")
-        self.logo_size_sec.add(self.name_with_logo)
-        L.add(self.logo_size_sec)
+        b = QPushButton("Edit…")
+        b.setToolTip(tip)
+        return b
 
-        sec = Section("Type")
-        items = [(k, s.label, s.tip) for k, s in TYPE_STYLES.items()]
-        self.type_style = combo(items, "modern")
-        self.type_style.insertSeparator(self.type_style.count())
-        self.type_style.addItem("Custom Fonts", CUSTOM)
-        self.type_style.setItemData(
-            self.type_style.count() - 1,
-            "Pick the heading and body fonts yourself",
-            Qt.ItemDataRole.ToolTipRole,
-        )
-        sec.add(self.type_style)
-        L.add(sec)
-        self.custom_fonts = QWidget()
-        cl = vbox(self.custom_fonts, 0, tokens.SPACE_3)
-        s1 = Section("Heading Font")
-        self.heading_font = self._font_combo(display=True)
-        s1.add(self.heading_font)
-        self.caps = ToggleRow("Name in Capitals", True)
-        s1.add(self.caps)
-        s2 = Section("Body Font")
-        self.body_font = self._font_combo(display=False)
-        s2.add(self.body_font)
-        cl.addWidget(s1)
-        cl.addWidget(s2)
-        L.add(self.custom_fonts)
+    @staticmethod
+    def _ghost(text: str, tip: str):
+        from PySide6.QtWidgets import QPushButton
 
-        sec = Section("Color")
-        self.color = QComboBox()
-        self.color.setCursor(Qt.CursorShape.PointingHandCursor)
-        sec.add(self.color)
-        L.add(sec)
-        row = hbox(spacing=tokens.SPACE_2)
-        sec = Section("Header")
-        self.header = combo([(k, v, "") for k, v in HEADERS.items()], "clean")
-        sec.add(self.header)
-        row.addWidget(sec, 1)
-        sec = Section("Paper")
-        self.paper = combo([(k, v[0], "") for k, v in PAPERS.items()], "letter")
-        sec.add(self.paper)
-        row.addWidget(sec, 1)
-        L.add(row)
-        self.look_hint = hint("")
-        L.add(self.look_hint)
-
-    def _font_combo(self, display: bool) -> QComboBox:
-        c = QComboBox()
-        c.setCursor(Qt.CursorShape.PointingHandCursor)
-        for fam, tip in BUNDLED_FONTS:
-            if not display and fam in DISPLAY_ONLY:
-                continue
-            c.addItem(fam, fam)
-            c.setItemData(c.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
-        c.insertSeparator(c.count())
-        c.addItem("Fonts on This Computer…", OTHER_FONT)
-        return c
-
-    def _set_font_combo(self, c: QComboBox, family: str) -> None:
-        c.blockSignals(True)
-        i = c.findData(family)
-        if i < 0 and family:  # a font from this computer: list it at the top
-            c.insertItem(0, family, family)
-            i = 0
-        c.setCurrentIndex(max(0, i))
-        c.blockSignals(False)
-
-    def _fill_colors(self, look: Look) -> None:
-        c = self.color
-        c.blockSignals(True)
-        c.clear()
-        for k, s in COLORS.items():
-            c.addItem(swatch(s.accent), s.label, k)
-        if look.color == CUSTOM:
-            c.addItem(swatch(accent_of(look)), f"Custom {accent_of(look)}", CUSTOM)
-        c.insertSeparator(c.count())
-        c.addItem("Pick a Color…", PICK_COLOR)
-        c.setCurrentIndex(max(0, c.findData(look.color)))
-        c.blockSignals(False)
+        b = QPushButton(text)
+        b.setObjectName("Ghost")
+        b.setToolTip(tip)
+        return b
 
     # ------------------------------------------------------------------ wiring
     def _connect(self) -> None:
-        def inv_text(field: str):
+        def text(field: str):
             return lambda t: self._edit(field, t)
 
         self.client.activated.connect(self._client_picked)
         self.edit_client.clicked.connect(lambda: self.client_wanted.emit("edit"))
         self.edit_business.clicked.connect(lambda: self.business_wanted.emit("edit"))
+        self.business.activated.connect(self._business_picked)
         self.number.textEdited.connect(self._number_typed)
         self.issued.dateChanged.connect(self._issued_changed)
         self.terms_days.currentIndexChanged.connect(
             lambda _i: self._edit("terms_days", int(self.terms_days.currentData()))
         )
-        self.project.textEdited.connect(inv_text("project"))
-        self.work_dates.textEdited.connect(inv_text("work_dates"))
+        self.project.textEdited.connect(text("project"))
+        self.work_dates.textEdited.connect(text("work_dates"))
         self.show_delivered.toggled.connect(self._toggle_delivered)
         self.delivered.dateChanged.connect(lambda q: self._edit("delivered", from_qdate(q)))
         self.add_item.clicked.connect(self._add_item)
-        self.discount.textEdited.connect(inv_text("discount"))
-        self.deposit.textEdited.connect(inv_text("deposit"))
-        self.tax.textEdited.connect(inv_text("tax_rate"))
+        self.discount.textEdited.connect(lambda t: self._edit("discount", self._plain(t)))
+        self.deposit.textEdited.connect(lambda t: self._edit("deposit", self._plain(t)))
+        self.tax.textEdited.connect(text("tax_rate"))
         self.payment.edited.connect(lambda: self._edit("payment", self.payment.text()))
         self.terms.edited.connect(lambda: self._edit("terms", self.terms.text()))
-        self.note.textEdited.connect(inv_text("note"))
+        self.note.textEdited.connect(text("note"))
         self.reset_pay.clicked.connect(self._reset_pay)
         self.save_pay.clicked.connect(self._save_pay)
         self.status.currentIndexChanged.connect(self._status_picked)
         self.paid_on.dateChanged.connect(lambda q: self._edit("paid_on", from_qdate(q)))
-        self.business.activated.connect(self._business_picked)
 
-        self.logo_size.currentIndexChanged.connect(
-            lambda _i: self._edit_look("logo_size", self.logo_size.currentData())
-        )
-        self.name_with_logo.toggled.connect(lambda on: self._edit_look("name_with_logo", on))
-        self.type_style.currentIndexChanged.connect(self._style_picked)
-        self.heading_font.currentIndexChanged.connect(
-            lambda _i: self._font_picked(self.heading_font, "heading_font")
-        )
-        self.body_font.currentIndexChanged.connect(lambda _i: self._font_picked(self.body_font, "body_font"))
-        self.caps.toggled.connect(lambda on: self._edit_look("heading_caps", on))
-        self.color.currentIndexChanged.connect(self._color_picked)
-        self.header.currentIndexChanged.connect(
-            lambda _i: self._edit_look("header", self.header.currentData())
-        )
-        self.paper.currentIndexChanged.connect(lambda _i: self._edit_look("paper", self.paper.currentData()))
-        for d in self.groups.values():
-            d.toggled.connect(lambda _on: self.groups_changed.emit(self.open_groups()))
-
-    def open_groups(self) -> dict:
-        return {key: d.is_open() for key, d in self.groups.items()}
-
-    def set_open_groups(self, groups: dict) -> None:
-        for key, d in self.groups.items():
-            d.set_open(bool(groups.get(key, GROUPS[key][1])))
+    def _plain(self, t: str) -> str:
+        return t.replace(self._currency(), "").replace(",", "").strip()
 
     # ------------------------------------------------------------------ loading
     def current_business(self) -> Business | None:
@@ -616,9 +389,10 @@ class DetailsPanel(QFrame):
     def load(self, inv: Invoice) -> None:
         self._loading = True
         self.inv = inv
-        self.empty.hide()
-        self.form.show()
-        b = self.current_business()
+        self.show_form()
+        cur = self._currency()
+        for f in (self.discount, self.deposit):
+            f.currency = cur
         set_combo(self.status, inv.status)
         self.paid_on.setDate(to_qdate(inv.paid_on))
         self.paid_sec.setVisible(inv.status == "paid")
@@ -635,14 +409,13 @@ class DetailsPanel(QFrame):
         self.show_delivered.setChecked(bool(inv.delivered))
         self.delivered.setDate(to_qdate(inv.delivered))
         self.delivered.setVisible(bool(inv.delivered))
-        self.discount.setText(inv.discount)
-        self.deposit.setText(inv.deposit)
+        self.discount.set_value(inv.discount)
+        self.deposit.set_value(inv.deposit)
         self.tax.setText(inv.tax_rate)
         self.payment.set_text(inv.payment)
         self.terms.set_text(inv.terms)
         self.note.setText(inv.note)
         self._rebuild_items()
-        self.load_look(b)
         self._summaries()
         self._loading = False
 
@@ -688,37 +461,6 @@ class DetailsPanel(QFrame):
         self.edit_client.setVisible(key is not None)
         self._summaries()
 
-    def load_look(self, b: Business | None) -> None:
-        if b is None:
-            return
-        was = self._loading
-        self._loading = True
-        look = b.look
-        has_logo = bool(look.logo) and (logos_dir() / look.logo).is_file()
-        self.logo_size_sec.setVisible(has_logo)
-        set_combo(self.logo_size, look.logo_size)
-        self.name_with_logo.setChecked(look.name_with_logo)
-        set_combo(
-            self.type_style,
-            look.type_style if look.type_style in TYPE_STYLES else CUSTOM,
-        )
-        custom = look.type_style not in TYPE_STYLES
-        self.custom_fonts.setVisible(custom)
-        base = TYPE_STYLES["modern"]
-        self._set_font_combo(self.heading_font, look.heading_font or base.heading)
-        self._set_font_combo(self.body_font, look.body_font or base.body)
-        self.caps.setChecked(look.heading_caps)
-        self._fill_colors(look)
-        set_combo(self.header, look.header)
-        set_combo(self.paper, look.paper)
-        who = b.name or "this profile"
-        self.look_hint.setText(
-            f"Applies to every invoice from {who}."
-            + ("" if has_logo else " To add a logo, click Edit… next to From.")
-        )
-        self._summaries()
-        self._loading = was
-
     def _currency(self) -> str:
         b = self.current_business()
         return (b.currency if b else "$") or "$"
@@ -738,8 +480,8 @@ class DetailsPanel(QFrame):
             ed.set_open(ed is keep)
         self._positions()
 
-    def _add_editor(self, it: LineItem, currency: str, at: int | None = None) -> ItemEditor:
-        ed = ItemEditor(it, currency)
+    def _add_editor(self, it: LineItem, currency: str, at: int | None = None) -> LineEditor:
+        ed = LineEditor(it, currency)
         ed.changed.connect(self._changed)
         ed.open_wanted.connect(self._toggle_item)
         ed.remove_wanted.connect(self._remove_item)
@@ -754,16 +496,17 @@ class DetailsPanel(QFrame):
         for i, ed in enumerate(self.items):
             ed.set_position(i, len(self.items))
 
-    def _open_only(self, ed: ItemEditor | None, focus: bool = False) -> None:
+    def _open_only(self, ed: LineEditor | None, focus: bool = False) -> None:
         """One line item open at a time keeps a long list tidy."""
         for other in self.items:
             other.set_open(other is ed)
         if ed is not None:
             if focus:
                 ed.desc.setFocus()
-            QTimer.singleShot(0, ed, lambda: self.scroll.ensureWidgetVisible(ed))
+            if self.scroll is not None:
+                QTimer.singleShot(0, ed, lambda: self.scroll.ensureWidgetVisible(ed))
 
-    def _toggle_item(self, ed: ItemEditor) -> None:
+    def _toggle_item(self, ed: LineEditor) -> None:
         self._open_only(None if ed.is_open() else ed)
 
     def _add_item(self) -> None:
@@ -776,7 +519,7 @@ class DetailsPanel(QFrame):
         self._open_only(ed, focus=True)
         self._changed()
 
-    def _duplicate_item(self, ed: ItemEditor) -> None:
+    def _duplicate_item(self, ed: LineEditor) -> None:
         if self.inv is None or ed not in self.items:
             return
         i = self.items.index(ed) + 1
@@ -787,7 +530,7 @@ class DetailsPanel(QFrame):
         self._open_only(copy)
         self._changed()
 
-    def _move_item(self, ed: ItemEditor, step: int) -> None:
+    def _move_item(self, ed: LineEditor, step: int) -> None:
         if self.inv is None or ed not in self.items:
             return
         i = self.items.index(ed)
@@ -802,7 +545,7 @@ class DetailsPanel(QFrame):
         self._positions()
         self._changed()
 
-    def _remove_item(self, ed: ItemEditor) -> None:
+    def _remove_item(self, ed: LineEditor) -> None:
         if self.inv is None or ed not in self.items:
             return
         i = self.items.index(ed)
@@ -820,7 +563,7 @@ class DetailsPanel(QFrame):
     def _changed(self) -> None:
         if self.inv is not None and not self._loading:
             self._summaries()
-            self.invoice_changed.emit(self.inv)
+            self.changed.emit(self.inv)
 
     def _edit(self, field: str, value) -> None:
         if self.inv is None or self._loading:
@@ -898,7 +641,7 @@ class DetailsPanel(QFrame):
         self.status_changed.emit(self.inv)
 
     def set_status(self, st: str) -> None:
-        """From outside (Mark as Sent after exporting)."""
+        """From outside (Mark as Sent after saving the PDF)."""
         set_combo(self.status, st)
         self._status_picked(0)
 
@@ -949,83 +692,9 @@ class DetailsPanel(QFrame):
         n = sum(1 for it in inv.items if not it.is_blank())
         total = money.fmt(money.totals(inv).subtotal, self._currency())
         g["items"].set_summary(f"{n} {'item' if n == 1 else 'items'} · {total}" if n else "")
-        n = sum(1 for v in (self.inv.discount, self.inv.deposit, self.inv.tax_rate) if money.parse(v))
-        self.adj.set_summary(f"{n} set" if n else "")
-        same = b is not None and (self.inv.payment, self.inv.terms, self.inv.note) == (
-            b.payment,
-            b.terms,
-            b.note,
-        )
-        self.pay.set_summary("" if same else "Edited")
+        n = sum(1 for v in (inv.discount, inv.deposit, inv.tax_rate) if money.parse(v))
+        g["adjustments"].set_summary(f"{n} set" if n else "")
+        same = b is not None and (inv.payment, inv.terms, inv.note) == (b.payment, b.terms, b.note)
+        g["payment"].set_summary("" if same else "Edited")
         self.reset_pay.setVisible(not same)
         self.save_pay.setVisible(not same)
-        if b is not None:
-            style = TYPE_STYLES.get(b.look.type_style)
-            color = COLORS.get(b.look.color)
-            parts = [
-                style.label if style else "Custom Fonts",
-                color.label if color else accent_of(b.look),
-            ]
-            if b.look.logo:
-                parts.append("Logo")
-            self.look.set_summary(" · ".join(parts))
-
-    # ------------------------------------------------------------------ look edits
-    def _edit_look(self, field: str, value) -> None:
-        b = self.current_business()
-        if b is None or self._loading:
-            return
-        setattr(b.look, field, value)
-        self.load_look(b)
-        self.look_changed.emit(b)
-
-    def _style_picked(self, _i: int) -> None:
-        key = self.type_style.currentData()
-        b = self.current_business()
-        if b is None or self._loading:
-            return
-        if key == CUSTOM:
-            st = TYPE_STYLES.get(b.look.type_style, TYPE_STYLES["modern"])
-            b.look.heading_font = b.look.heading_font or st.heading
-            b.look.body_font = b.look.body_font or st.body
-            if b.look.type_style in TYPE_STYLES:  # start from the style you were on
-                b.look.heading_font, b.look.body_font, b.look.heading_caps = (
-                    st.heading,
-                    st.body,
-                    st.caps,
-                )
-        self._edit_look("type_style", key)
-
-    def _font_picked(self, c: QComboBox, field: str) -> None:
-        if self._loading:
-            return
-        b = self.current_business()
-        if b is None:
-            return
-        fam = c.currentData()
-        if fam == OTHER_FONT:
-            current = getattr(b.look, field) or TYPE_STYLES["modern"].body
-            from PySide6.QtGui import QFont
-
-            ok, font = QFontDialog.getFont(QFont(current), self, "Pick a Font")
-            if not ok:
-                self.load_look(b)
-                return
-            fam = font.family()
-        self._edit_look(field, fam)
-
-    def _color_picked(self, _i: int) -> None:
-        if self._loading:
-            return
-        b = self.current_business()
-        if b is None:
-            return
-        key = self.color.currentData()
-        if key == PICK_COLOR:
-            chosen = QColorDialog.getColor(QColor(accent_of(b.look)), self, "Pick a Color")
-            if not chosen.isValid():
-                self.load_look(b)
-                return
-            b.look.custom_color = chosen.name().upper()
-            key = CUSTOM
-        self._edit_look("color", key)

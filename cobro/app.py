@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import tempfile
@@ -241,8 +242,8 @@ def _system_changed(app: QApplication) -> None:
 
 
 def _smoke(app: QApplication) -> int:
-    """Used by the build pipeline: open the window on a throwaway data folder, add a business and an
-    invoice, save it as a PDF, check the file, quit."""
+    """Used by the build pipeline: open the window on a throwaway data folder with the sample profile and
+    invoices, save an invoice as a PDF, check the file, quit."""
     from cobro.core import sample
     from cobro.core.store import Library
     from cobro.doc import export
@@ -250,16 +251,12 @@ def _smoke(app: QApplication) -> int:
 
     tmp = Path(tempfile.mkdtemp(prefix="cobro-smoke-"))
     use_data_dir(tmp)
-    lib = Library(tmp).load()
-    b = lib.add_business(sample.business())
-    inv = lib.new_invoice(b)
-    inv.client.name = "Smoke Test Client"
-    inv.items[0].description, inv.items[0].rate = "Production", "1500"
-    lib.save_invoice(inv)
+    lib = sample.fill(Library(tmp).load())
     w = MainWindow(lib)
     w.show()
+    w.page_inv = lib.ordered()[0].id
     out = tmp / "smoke.pdf"
-    export.to_pdf(w.pages(), out)
+    export.to_pdf(w.page_list(), out)
     ok = out.exists() and out.stat().st_size > 1000 and out.read_bytes().startswith(b"%PDF")
     print(
         f"smoke: Cobro {__version__}, PDF {'ok' if ok else 'MISSING'} ({out.stat().st_size if out.exists() else 0} bytes)",
@@ -299,7 +296,11 @@ def main() -> int:
     app._server = _listen(w)
     w.show()
     w.raise_()
-    return app.exec()
+    code = app.exec()
+    if app.property("exit_now"):  # a download was still running: leave without waiting for it
+        logging.shutdown()
+        os._exit(code)
+    return code
 
 
 if __name__ == "__main__":

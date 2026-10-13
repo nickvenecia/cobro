@@ -1,9 +1,10 @@
-"""Screenshots of the window without a display, for checking UI changes.
+"""Screenshots of every screen without a display, for checking UI changes.
 
-    QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR
+    QT_QPA_PLATFORM=offscreen python tests/screenshot.py OUTDIR [--only dark|light|yellow]
 
-Every shot is taken in dark and in light (…-light.png). Uses a throwaway data folder with the made-up
-sample business, never your real invoices.
+Every shot is taken in dark, in light (…-light.png) and once in a light accent (…-yellow.png, to catch
+anything that assumed white words on the accent). Uses a throwaway data folder with the made-up sample
+business, never your real invoices.
 """
 
 from __future__ import annotations
@@ -20,91 +21,116 @@ from PySide6.QtWidgets import QApplication
 
 from cobro.app import set_appearance, setup_app
 from cobro.core import sample
-from cobro.core.model import Client
 from cobro.core.paths import use_data_dir
 from cobro.core.store import Library
 
+SIZE = (1600, 1000)
+LOOKS = {"dark": ("dark", "", ""), "light": ("light", "", "-light"), "yellow": ("light", "yellow", "-yellow")}
 
-def shot(w, path: Path) -> None:
+
+def wait(ms: int = 400) -> None:
     from PySide6.QtCore import QEventLoop, QTimer
 
     loop = QEventLoop()
-    QTimer.singleShot(400, loop.quit)  # let the preview fit itself to the panel
+    QTimer.singleShot(ms, loop.quit)
     loop.exec()
+
+
+def shot(w, path: Path) -> None:
+    wait()
     w.grab().save(str(path))
     print("wrote", path)
 
 
-def main(out: Path) -> int:
+def shots(out: Path, suffix: str) -> None:
+    from cobro.ui.dialogs.common import Alert
+    from cobro.ui.dialogs.preview import PageDialog
+    from cobro.ui.dialogs.settings import SettingsDialog
+    from cobro.ui.window.main_window import MainWindow
+
+    tmp = Path(tempfile.mkdtemp(prefix="cobro-shots-"))
+    use_data_dir(tmp)
+
+    def window(lib):
+        w = MainWindow(lib)
+        w._restored = True  # a fixed size, not the screen's
+        w.resize(*SIZE)
+        w.show()
+        return w
+
+    w = window(Library(tmp).load())
+    shot(w, out / f"1-first-launch{suffix}.png")
+    w.close()
+
+    lib = sample.fill(Library(tmp).load())
+    w = window(lib)
+    shot(w, out / f"2-all-invoices{suffix}.png")
+    first = lib.ordered()[0]
+    w.open(first.id)
+    wait()
+    shot(w, out / f"3-invoice-open{suffix}.png")
+    w.panel.items[0].set_open(True)
+    w.panel.groups["adjustments"].set_open(True)
+    wait()
+    w.panel.scroll.verticalScrollBar().setValue(w.panel.scroll.verticalScrollBar().maximum())
+    shot(w, out / f"4-line-items{suffix}.png")
+    w.deselect()
+    w.go("unpaid")
+    shot(w, out / f"5-unpaid{suffix}.png")
+    w.go("all")
+    for name, menu in (("6-filter-menu", w.view_menu.m), ("6b-share-menu", w.btn_export.menu())):
+        menu.popup(w.mapToGlobal(w.rect().center()))
+        shot(menu, out / f"{name}{suffix}.png")
+        menu.close()
+
+    names = iter([f"7-invoice-window{suffix}.png", f"7b-dark-page{suffix}.png"])
+
+    def page_shot(d):
+        d.show()
+        shot(d, out / next(names))
+        d.close()
+        return 0
+
+    PageDialog.exec = page_shot
+    w.show_page(first.id)
+    lib.settings["dark_preview"] = True
+    w.show_page(first.id)
+    lib.settings["dark_preview"] = False
+
+    d = Alert(
+        w, f"Delete {first.number}?", "PDFs you already saved stay where they are.", "Delete", "Cancel", True
+    )
+    d.show()
+    shot(d, out / f"8-alert{suffix}.png")
+    d.close()
+    for pane in ("general", "profiles", "account", "shortcuts", "data"):
+        d = SettingsDialog(w.lib, w, pane)
+        d.show()
+        shot(d, out / f"9-settings-{pane}{suffix}.png")
+        d.close()
+    from cobro.ui.dialogs.client import ClientDialog
+
+    d = ClientDialog(first.client, lib, True, show_code=True, parent=w)
+    d.show()
+    shot(d, out / f"10-client{suffix}.png")
+    d.close()
+    w.close()
+
+
+def main(out: Path, only: str = "") -> int:
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv[:1])
     use_data_dir(Path(tempfile.mkdtemp(prefix="cobro-shots-")))
     setup_app(app)
-    for dark in (True, False):  # every shot in dark, then again in light (…-light.png)
-        set_appearance(app, "dark" if dark else "light")
-        shots(out, "" if dark else "-light")
+    for key, (appearance, accent, suffix) in LOOKS.items():
+        if only and key != only:
+            continue
+        set_appearance(app, appearance, accent)
+        shots(out, suffix)
     return 0
 
 
-def shots(out: Path, suffix: str) -> None:
-    tmp = Path(tempfile.mkdtemp(prefix="cobro-shots-"))
-    use_data_dir(tmp)
-    from cobro.ui.dialogs.client import ClientDialog
-    from cobro.ui.dialogs.profile import ProfileDialog
-    from cobro.ui.window.main_window import MainWindow
-
-    # first launch: nothing set up yet
-    w = MainWindow(Library(tmp).load())
-    w.show()
-    shot(w, out / f"1-first-launch{suffix}.png")
-    w.close()
-
-    lib = Library(tmp).load()
-    b = lib.add_business(sample.business())
-    client = lib.save_client(sample.invoice().client)
-    for name in ("Desert Sun Records", "Mesa Coffee Co."):
-        lib.save_client(Client(name=name))
-    inv = sample.invoice()
-    inv.business_id = b.id
-    inv.client = client
-    lib.save_invoice(inv)
-    paid = lib.duplicate(inv)
-    paid.status, paid.paid_on, paid.client.name = (
-        "paid",
-        "2026-10-02",
-        "Desert Sun Records",
-    )
-    lib.save_invoice(paid)
-    sent = lib.duplicate(inv)
-    sent.status, sent.issued, sent.client.name = "sent", "2026-08-01", "Mesa Coffee Co."
-    lib.save_invoice(sent)
-    lib.settings["current"] = inv.id
-    lib.settings["groups"] = {"look": True}
-    w = MainWindow(lib)
-    w.show()
-    shot(w, out / f"2-invoice{suffix}.png")
-    w.details.items[0].set_open(True)
-    w.details.scroll.verticalScrollBar().setValue(w.details.scroll.verticalScrollBar().maximum())
-    shot(w, out / f"3-look{suffix}.png")
-    b.look.type_style, b.look.color, b.look.header = "screenplay", "oxblood", "band"
-    w.details.load_look(b)
-    w.redraw()
-    shot(w, out / f"4-screenplay-band{suffix}.png")
-    w.details.set_open_groups({"who": True, "invoice": False, "project": False, "items": True})
-    w.details.scroll.verticalScrollBar().setValue(0)
-    w.preview.btn_dark.click()
-    shot(w, out / f"5-folded-dark-page{suffix}.png")
-    w.preview.btn_dark.click()
-    d = ProfileDialog(b, False, w)
-    d.show()
-    shot(d, out / f"6-profile{suffix}.png")
-    d.close()
-    d = ClientDialog(client, lib, True, show_code=True, parent=w)
-    d.show()
-    shot(d, out / f"7-client{suffix}.png")
-    d.close()
-    w.close()
-
-
 if __name__ == "__main__":
-    sys.exit(main(Path(sys.argv[1] if len(sys.argv) > 1 else "shots")))
+    args = sys.argv[1:]
+    only = args[args.index("--only") + 1] if "--only" in args else ""
+    sys.exit(main(Path(args[0] if args else "shots"), only))

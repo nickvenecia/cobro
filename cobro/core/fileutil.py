@@ -32,3 +32,22 @@ def reveal(path: str | Path) -> None:
             subprocess.Popen(["xdg-open", target])
     except OSError:
         log.warning("couldn't show %s", path, exc_info=True)
+
+
+def zip_folder(folder: Path, dest: Path, skip: tuple[str, ...] = ()) -> int:
+    """Copy everything in `folder` into the zip file `dest` (written beside it first, then swapped in).
+    Top-level names in `skip` are left out. Returns how many files went in."""
+    import zipfile
+
+    folder, dest = Path(folder), Path(dest)
+    tmp = dest.with_name(dest.name + ".part")
+    n = 0
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+        for path in sorted(folder.rglob("*")):
+            rel = path.relative_to(folder)
+            if not path.is_file() or rel.parts[0] in skip or path in (tmp, dest):
+                continue
+            z.write(path, Path(folder.name) / rel)
+            n += 1
+    os.replace(tmp, dest)
+    return n

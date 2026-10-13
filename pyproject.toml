@@ -55,6 +55,7 @@ ignore = [
     "SIM105",   # contextlib.suppress — explicit try/except reads clearer here
     "RUF001", "RUF002", "RUF003",  # typographic characters (…, ’, ×, ·) are intentional UI text
     "B008",
+    "RUF012",   # class-level tables (GROUPS) are read-only by convention
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -1,9 +1,12 @@
-"""A made-up business and invoice, used by the smoke test, the tests and screenshots (never by real data)."""
+"""A made-up business, clients and invoices, used by the smoke test, the tests and screenshots (never by real
+data)."""
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from cobro.core.model import Business, Client, Invoice, LineItem, Look
-from cobro.core.store import DEFAULT_NOTE, DEFAULT_TERMS
+from cobro.core.store import DEFAULT_NOTE, DEFAULT_TERMS, Library
 
 
 def business(look: Look | None = None) -> Business:
@@ -55,3 +58,36 @@ def invoice(items: int = 3) -> Invoice:
         terms=DEFAULT_TERMS,
         note=DEFAULT_NOTE,
     )
+
+
+def fill(lib: Library) -> Library:
+    """Add the sample profile, three clients and four invoices (a draft, one sent, one overdue, one paid) to
+    an (empty) library."""
+    from datetime import timedelta
+
+    from cobro.core import dates
+
+    b = lib.add_business(business())
+    northwind = lib.save_client(invoice().client)
+    desert = lib.save_client(Client(name="Desert Sun Records", address="12 Mesa Rd\nTucson, AZ 85701"))
+    mesa = lib.save_client(Client(name="Mesa Coffee Co.", contact="Jordan Lee"))
+    today = dates.today()
+    plans = [
+        (northwind, "draft", today, "Fall Brand Film", 3),
+        (desert, "sent", today - timedelta(days=5), "Album Teaser", 2),
+        (mesa, "sent", today - timedelta(days=40), "Menu Spots", 1),
+        (desert, "paid", today - timedelta(days=60), "Live Session", 3),
+    ]
+    for client, status, issued, project, items in plans:
+        inv = lib.new_invoice(b, today=issued)
+        inv.client = replace(client)
+        inv.project = project
+        inv.items = invoice(items).items
+        inv.status = status
+        if status != "draft":
+            inv.sent_on = dates.iso(issued)
+            inv.auto_number = False
+        if status == "paid":
+            inv.paid_on = dates.iso(issued + timedelta(days=12))
+        lib.save_invoice(inv)
+    return lib

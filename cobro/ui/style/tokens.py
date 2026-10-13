@@ -131,11 +131,6 @@ ASSISTANT_ICON_BIG = 64  # and saying hi in an empty chat
 REVIEW_COL_W = (180, 64, 150, 0, 130)  # the AI Review window's columns (0: takes the room)
 REVIEW_W = 900
 TOAST_MAX_W = 520
-# ---- the old three-panel window, until the new one replaces it
-LIST_W = 300
-DETAILS_W = 380
-STEP_BADGE = 22
-CARD_H = 64
 
 # ---------------------------------------------------------------- timing (ms)
 DOCK_MS = 240  # the right panel sliding in or out

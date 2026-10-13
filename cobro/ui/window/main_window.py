@@ -1,45 +1,54 @@
-"""The window: ① Invoices | ② Details | ③ Preview, left to right in the order you work.
+"""The window: the sidebar (where you are) | a big table of your invoices | the one you picked, editable.
 
-Edits save themselves (a moment after you stop typing) and redraw the preview. Nothing needs a
-Save button except the PDF itself.
+Pick a place in the sidebar (All Invoices, Drafts, Unpaid, Paid), click an invoice, change it on the right.
+The invoice itself opens in its own window when you ask for it (Invoice…). Edits save themselves a moment
+after you stop typing.
 """
 
 from __future__ import annotations
 
-import time
-from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QTimer, QUrl
-from PySide6.QtGui import QAction, QDesktopServices, QGuiApplication, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QMenu, QWidget
+from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QStackedWidget,
+    QToolButton,
+    QWidget,
+)
 
-from cobro import __version__
-from cobro.core import document, update
-from cobro.core.fileutil import reveal
+from cobro.core import dates, document, money, update
+from cobro.core.history import History
 from cobro.core.log import get_logger
-from cobro.core.looks import resolve
 from cobro.core.model import Business, Invoice
-from cobro.core.paths import data_dir, documents_dir, log_dir, logos_dir
 from cobro.core.store import Library
-from cobro.doc import export, fonts, render
 from cobro.ui.components import titlebar
-from cobro.ui.components.widgets import Toast, hbox, vbox
-from cobro.ui.dialogs.client import ClientDialog
-from cobro.ui.dialogs.common import about, confirm
-from cobro.ui.dialogs.preview import PreviewPanel
-from cobro.ui.dialogs.profile import ProfileDialog
-from cobro.ui.panels.invoice import DetailsPanel
+from cobro.ui.components.glass import Dock, GlassRoot, glass
+from cobro.ui.components.widgets import ElidedLabel, SearchField, Toast, hbox, vbox
+from cobro.ui.dialogs.preview import PageDialog
+from cobro.ui.panels.invoice import InvoicePanel
 from cobro.ui.style import theme, tokens
-from cobro.ui.window.invoice_list import InvoiceList
+from cobro.ui.window.common import TITLES, in_place
+from cobro.ui.window.editing import EditingMixin
+from cobro.ui.window.filters import FilterButton
+from cobro.ui.window.menus import MenusMixin
+from cobro.ui.window.pages import PagesMixin
+from cobro.ui.window.services import ServicesMixin
+from cobro.ui.window.sidebar import Sidebar
+from cobro.ui.window.tables import InvoiceTable, menu
+from cobro.ui.window.transfer import TransferMixin
 
 log = get_logger(__name__)
 
-SAVE_DELAY_MS = 400  # save this long after the last keystroke
-DRAW_DELAY_MS = 90  # redraw the preview this long after the last change
 
-
-class MainWindow(QMainWindow):
+class MainWindow(MenusMixin, EditingMixin, TransferMixin, PagesMixin, ServicesMixin, QMainWindow):
     def __init__(self, lib: Library | None = None):
         super().__init__()
         self.lib = lib or Library().load()
@@ -47,504 +56,439 @@ class MainWindow(QMainWindow):
         self.resize(*tokens.WINDOW_SIZE)
         self.setMinimumSize(*tokens.WINDOW_MIN)
         self._dirty: set[str] = set()
-        self._fonts = fonts.installed_families()
+        self._dirty_businesses = False
+        self.history: History | None = None
+        self._fresh: tuple[str, dict] | None = None  # a new invoice not filled in yet
         self.last_export: Path | None = None
         self._release: update.Release | None = None
+        self.view_key = "all"
+        self.page: PageDialog | None = None
+        self.page_inv: str = ""  # the invoice the page window shows
 
-        root = QWidget()
-        root.setObjectName("Root")
+        root = GlassRoot()
+        self.root = root
         outer = vbox(root, 0, 0)
         self.titlebar = titlebar.install(self)
         if self.titlebar is not None:
             outer.addWidget(self.titlebar)
-        body = hbox(spacing=0)
-        self.list = InvoiceList(self.lib)
-        self.details = DetailsPanel(self.lib)
-        self.preview = PreviewPanel()
-        body.addWidget(self.list)
-        body.addWidget(self.details)
-        body.addWidget(self.preview, 1)
+        gap = tokens.GLASS_GAP
+        body = hbox(spacing=gap)
+        body.setContentsMargins(gap, 0 if self.titlebar is not None else gap, gap, gap)
+        self.sidebar = glass(Sidebar(self.lib))
+        root.float(self.sidebar)
+        body.addWidget(self.sidebar)
+        body.addWidget(self._build_center(), 1)
+        self.panel = InvoicePanel(self.lib)
+        self.inspector = glass(QStackedWidget())  # the glass panel on the right…
+        self.inspector.addWidget(self.panel)
+        self.dock = Dock(self.inspector, root, self.sidebar, body)  # …which slides in when something's picked
+        self.dock.follower = lambda: self.pages.currentWidget()
         outer.addLayout(body, 1)
+        esc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
+        esc.activated.connect(self.deselect)
         self.setCentralWidget(root)
         self.toaster = Toast(self)
 
-        self._save_timer = QTimer(self, singleShot=True, interval=SAVE_DELAY_MS, timeout=self.flush)
-        self._draw_timer = QTimer(self, singleShot=True, interval=DRAW_DELAY_MS, timeout=self.redraw)
+        self._save_timer = QTimer(self, singleShot=True, interval=tokens.SAVE_DELAY_MS, timeout=self.flush)
+        self._table_timer = QTimer(
+            self, singleShot=True, interval=tokens.TABLE_DELAY_MS, timeout=self.refresh
+        )
+        self._draw_timer = QTimer(self, singleShot=True, interval=tokens.DRAW_DELAY_MS, timeout=self.redraw)
 
         self._wire()
         self._menus()
         groups = self.lib.settings.get("groups", {})
-        self.details.set_open_groups(groups if isinstance(groups, dict) else {})
-        self.preview.set_dark(bool(self.lib.settings.get("dark_preview", False)))
-        geo = self.lib.settings.get("geometry")
-        if isinstance(geo, str) and geo:
-            self.restoreGeometry(QByteArray.fromHex(geo.encode()))
-        self.list.refresh()
-        self._start()
+        groups = groups if isinstance(groups, dict) else {}
+        state = groups.get(self.panel.KEY)
+        if isinstance(state, dict):
+            self.panel.set_open_groups(state)
+        folded = self.lib.settings.get("folded", [])
+        self.table.folded = {x for x in folded if isinstance(x, str)} if isinstance(folded, list) else set()
+        self.view_menu.set_divide(str(self.lib.settings.get("divide", "month")))
+        self._restored = False  # True: open at the size already set (screenshots), not the saved one
+        view = self.lib.settings.get("view", "all")
+        self.go(view if isinstance(view, str) else "all")
+        self.look_changed()
+        self.history = History(self.lib)  # undo/redo starts from how things are when the window opens
+        QTimer.singleShot(tokens.UPDATE_CHECK_DELAY_MS, self._auto_check_updates)
 
-    # ------------------------------------------------------------------ setup
+    # ------------------------------------------------------------------ building
+    def _build_center(self) -> QWidget:
+        center = QFrame()
+        center.setObjectName("Center")
+        lay = vbox(center, 0, 0)
+        bar = QFrame()
+        bar.setObjectName("Toolbar")
+        bar.setFixedHeight(tokens.TOOLBAR_H)
+        # three parts: the title on the left, the search and filter centred, the buttons on the right
+        grid = QGridLayout(bar)
+        grid.setContentsMargins(tokens.SPACE_4, 0, tokens.SPACE_2, 0)
+        grid.setHorizontalSpacing(tokens.SPACE_4)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(2, 1)
+        left = hbox(spacing=tokens.SPACE_2)
+        self.title = QLabel(TITLES["all"])
+        self.title.setObjectName("PageTitle")
+        self.count = ElidedLabel()  # "12", or "3 selected": gives way before the search does
+        self.count.setObjectName("PageCount")
+        self.count.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        left.addWidget(self.title)
+        left.addWidget(self.count)
+        left.addStretch(1)
+        grid.addLayout(left, 0, 0)
+        mid = hbox(spacing=tokens.SPACE_2)
+        self.search = SearchField()
+        self.search.setPlaceholderText("Search")
+        self.search.setProperty("capsule", True)
+        self.search.setClearButtonEnabled(True)
+        self.search.setMinimumWidth(tokens.SEARCH_MIN)  # shrinks before anything squeezes together
+        self.search.setMaximumWidth(tokens.SEARCH_W)
+        self.search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.search.addAction(theme.icon("search", theme.FAINT), QLineEdit.ActionPosition.LeadingPosition)
+        self.search.textChanged.connect(lambda _t: self._apply_search())
+        mid.addWidget(self.search)
+        # how the list is divided and what it shows, behind one icon (the accent while a filter hides some)
+        self.view_menu = FilterButton(self._profile_names, self._years)
+        self.view_menu.changed.connect(self._view_picked)
+        mid.addWidget(self.view_menu)
+        grid.addLayout(mid, 0, 1, Qt.AlignmentFlag.AlignCenter)
+        right = hbox(spacing=tokens.SPACE_2)
+        right.addStretch(1)
+        self.btn_export = QToolButton()
+        self.btn_export.setObjectName("Circle")
+        self.btn_export.setIcon(theme.icon("share", theme.MUTED))
+        self.btn_export.setToolTip("Export and back up")
+        self.btn_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_export.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        right.addWidget(self.btn_export)
+        self.ai_slot = right  # the assistant's button goes here (window/ai.py)
+        self.btn_new = QToolButton()
+        self.btn_new.setObjectName("CirclePrimary")
+        self.btn_new.setIcon(theme.icon("plus", theme.ON_ACCENT))
+        self.btn_new.setToolTip("New Invoice (⌘N)")
+        self.btn_new.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new.clicked.connect(self.new_invoice)
+        right.addWidget(self.btn_new)
+        grid.addLayout(right, 0, 2)
+        lay.addWidget(bar)
+        self.toolbar = bar
+
+        self.pages = QStackedWidget()
+        self.table = InvoiceTable()
+        self.empty = QWidget()
+        el = vbox(self.empty, tokens.SPACE_5, tokens.SPACE_3)
+        el.addStretch(1)
+        self.empty_text = QLabel()
+        self.empty_text.setObjectName("EmptyTitle")
+        self.empty_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_btn = QPushButton()
+        self.empty_btn.setObjectName("Primary")
+        self._empty_slot = None
+        self.empty_btn.clicked.connect(lambda: self._empty_slot and self._empty_slot())
+        row = hbox(spacing=tokens.SPACE_2)
+        row.addStretch(1)
+        row.addWidget(self.empty_btn)
+        row.addStretch(1)
+        el.addWidget(self.empty_text)
+        el.addLayout(row)
+        el.addStretch(2)
+        for w in (self.table, self.empty):
+            self.pages.addWidget(w)
+        lay.addWidget(self.pages, 1)
+        self.totals = QFrame()
+        self.totals.setObjectName("Totals")
+        tl = hbox(
+            self.totals, (tokens.SPACE_5, tokens.SPACE_3, tokens.SPACE_5, tokens.SPACE_3), tokens.SPACE_5
+        )
+        self.total_values: dict[str, QLabel] = {}
+        self.total_labels: dict[str, QLabel] = {}
+        tl.addStretch(1)
+        for key, label in (("unpaid", "Unpaid"), ("overdue", "Overdue"), ("paid", "Paid"), ("all", "Total")):
+            box = vbox(spacing=0)
+            k = QLabel(label)
+            k.setObjectName("TotalLabel")
+            v = QLabel()
+            v.setObjectName("TotalValue")
+            k.setAlignment(Qt.AlignmentFlag.AlignRight)
+            v.setAlignment(Qt.AlignmentFlag.AlignRight)
+            box.addWidget(k)
+            box.addWidget(v)
+            tl.addLayout(box)
+            self.total_values[key] = v
+            self.total_labels[key] = k
+        self.total_values["overdue"].setProperty("tone", "overdue")
+        lay.addWidget(self.totals)
+        return center
+
     def _wire(self) -> None:
-        self.list.picked.connect(self.open_invoice)
-        self.list.new_wanted.connect(self.new_invoice)
-        self.list.duplicate_wanted.connect(self.duplicate)
-        self.list.delete_wanted.connect(self.delete)
-        self.list.btn_update.clicked.connect(self.show_update)
-        self.details.invoice_changed.connect(self._invoice_edited)
-        self.details.status_changed.connect(self._status_changed)
-        self.details.look_changed.connect(self._look_edited)
-        self.details.business_wanted.connect(lambda kind: self.edit_business(kind == "add"))
-        self.details.client_wanted.connect(lambda kind: self.edit_client(kind == "new"))
-        self.details.defaults_saved.connect(self._defaults_saved)
-        self.details.groups_changed.connect(self._groups_changed)
-        self.preview.save_pdf.connect(self.save_pdf)
-        self.preview.print_wanted.connect(self.print_invoice)
-        self.preview.save_png.connect(self.save_png)
-        self.preview.copy_text.connect(self.copy_text)
-        self.preview.open_folder.connect(self.open_folder)
-        self.preview.show_file.connect(lambda: self.last_export and reveal(self.last_export))
-        self.preview.mark_sent.connect(self._mark_sent)
-        self.preview.dark_changed.connect(self._dark_changed)
+        sb = self.sidebar
+        sb.picked.connect(self.go)
+        sb.new_invoice.connect(self.new_invoice)
+        sb.profile_card.clicked.connect(self._app_menu)
+        sb.btn_update.clicked.connect(self.show_update)
+        t = self.table
+        t.picked.connect(self.open)
+        t.menu_wanted.connect(self._row_menu)
+        t.delete_wanted.connect(self.delete_invoices)
+        t.cleared.connect(self.deselect)
+        t.itemClicked.connect(lambda _r, _c: self.lib.settings.__setitem__("folded", sorted(t.folded)))
+        t.itemSelectionChanged.connect(self._selection_count)
+        p = self.panel
+        p.changed.connect(self._invoice_edited)
+        p.status_changed.connect(lambda _i: (self.flush(), self.refresh()))
+        p.business_wanted.connect(lambda kind: self.edit_business(kind == "add"))
+        p.client_wanted.connect(lambda kind: self.edit_client(kind == "new"))
+        p.defaults_saved.connect(self._defaults_saved)
+        p.delete_wanted.connect(lambda i: self.delete_invoices([i]))
+        p.duplicate_wanted.connect(self.duplicate)
+        p.sheet_wanted.connect(self.show_page)
+        p.close_wanted.connect(self.deselect)  # the round ✕
+        p.groups_changed.connect(self._groups_changed)
 
-    def _menus(self) -> None:
-        """Commands with shortcuts. The menu bar shows on the Mac; on Windows/Linux it's hidden (no strip
-        across the window) and the shortcuts still work, with the same commands in the ⋯ menus."""
-        bar = self.menuBar()
+    # ------------------------------------------------------------------ where you are
+    def business(self) -> Business | None:
+        """The profile you're working as (new invoices start from it)."""
+        cur = self.lib.settings.get("business", "")
+        return self.lib.businesses.get(cur) or next(iter(self.lib.businesses.values()), None)
 
-        def act(menu: QMenu, text: str, slot, keys=None) -> QAction:
-            a = menu.addAction(text)
-            a.triggered.connect(slot)
-            if keys is not None:
-                a.setShortcut(QKeySequence(keys))
-                self.addAction(a)  # shortcuts work with the bar hidden
-            return a
+    def _profile_names(self) -> list[tuple[str, str]]:
+        return [(b.id, b.name or "Unnamed Profile") for b in self.lib.businesses.values()]
 
-        f = bar.addMenu("File")
-        act(f, "New Invoice", self.new_invoice, QKeySequence.StandardKey.New)
-        act(f, "Duplicate Invoice", self._duplicate_current, "Ctrl+D")
-        act(f, "New Client…", lambda: self.edit_client(True, assign=False))
-        f.addSeparator()
-        act(f, "Save PDF…", self.save_pdf, QKeySequence.StandardKey.Save)
-        act(f, "Save as PNG…", self.save_png)
-        act(f, "Print…", self.print_invoice, QKeySequence.StandardKey.Print)
-        f.addSeparator()
-        act(f, "Delete Invoice…", self._delete_current)
-        b = bar.addMenu("Profile")
-        act(b, "Edit Profile…", lambda: self.edit_business(False))
-        act(b, "Add a Profile…", lambda: self.edit_business(True))
-        h = bar.addMenu("Help")
-        act(h, "Check for Updates…", self.check_updates)
-        act(
-            h,
-            "Open Data Folder",
-            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(data_dir()))),
+    def _years(self) -> list[str]:
+        return sorted(
+            {i.issued[:4] for i in self.lib.invoices.values() if i.issued[:4].isdigit()}, reverse=True
         )
-        act(h, "Open Log File", lambda: reveal(log_dir() / "cobro.log"))
-        act(h, "About Cobro", lambda: about(self, __version__, str(data_dir())))
-        bar.setVisible(sys_is_mac())
 
-        # the same tools under ⋯ in the list's bottom bar, on every system
-        m = QMenu(self.list.btn_more)
-        m.addAction(theme.menu_icon("edit"), "Edit Profile…", lambda: self.edit_business(False))
-        m.addAction(theme.menu_icon("plus"), "Add a Profile…", lambda: self.edit_business(True))
-        m.addAction(theme.menu_icon("plus"), "New Client…", lambda: self.edit_client(True, assign=False))
-        m.addSeparator()
-        m.addAction(theme.menu_icon("retry"), "Check for Updates…", self.check_updates)
-        auto = m.addAction("Check for Updates Daily")
-        auto.setCheckable(True)
-        auto.setChecked(bool(self.lib.settings.get("auto_update", True)))
-        auto.toggled.connect(self._set_auto_update)
-        m.addSeparator()
-        m.addAction(
-            theme.menu_icon("folder"),
-            "Open Data Folder",
-            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(data_dir()))),
-        )
-        m.addAction(
-            theme.menu_icon("info"),
-            "About Cobro",
-            lambda: about(self, __version__, str(data_dir())),
-        )
-        self.list.btn_more.setMenu(m)
+    def _view_picked(self) -> None:
+        self.lib.settings["divide"] = self.view_menu.divide
+        self.refresh()
 
-    def _start(self) -> None:
+    def go(self, view: str) -> None:
+        """Show a place from the sidebar."""
+        self.flush()
+        self._drop_fresh()
+        view = view if view in TITLES else "all"
+        self.view_key = view
+        self.lib.settings["view"] = view
+        self.sidebar.select(view)
+        self.title.setText(TITLES[view])
+        self.refresh()
+        cur = self.panel.inv
+        if cur is not None and self.dock.opened and cur.id in self._shown_ids():
+            self.table.select_id(cur.id)
+        else:
+            self._inspector_empty()
+
+    def _showing(self) -> list[Invoice]:
+        """The invoices this place and the filter keep (before searching)."""
+        today = dates.today()
+        f = self.view_menu.filter
+        return [
+            inv for inv in self.lib.ordered() if in_place(inv, self.view_key, today) and f.keep(inv, today)
+        ]
+
+    def _shown_ids(self) -> set[str]:
+        return {r.data(0, Qt.ItemDataRole.UserRole) for r in self.table.showing_rows()}
+
+    def refresh(self) -> None:
+        """Fill the table for where you are (and the sidebar's counts)."""
+        self.sidebar.refresh()
+        invoices = self._showing()
+        self.table.fill(self.lib, invoices, self.view_menu.divide)
+        if invoices:
+            self.pages.setCurrentWidget(self.table)
+        else:
+            self.pages.setCurrentWidget(self._empty_page())
+            if not self.lib.businesses or not self.lib.invoices:
+                self.dock.set_open(False)
+        self._apply_search()
+        if self.history is not None:
+            self.history.mark()
+
+    def _empty_page(self) -> QWidget:
         if not self.lib.businesses:
-            self.details.show_empty("business", lambda: self.edit_business(True))
-            self.preview.clear("Your invoice shows up here.")
-            return
-        last = self.lib.settings.get("current", "")
-        if last in self.lib.invoices:
-            self.open_invoice(last)
-        elif self.lib.invoices:
-            self.open_invoice(self.lib.ordered()[0].id)
-        else:
-            self.details.show_empty("invoice", self.new_invoice)
-            self.preview.clear("Your invoice shows up here.")
-        QTimer.singleShot(8000, self._auto_check_updates)
-
-    # ------------------------------------------------------------------ invoices
-    @property
-    def inv(self) -> Invoice | None:
-        return self.details.inv
-
-    def open_invoice(self, inv_id: str) -> None:
-        if self.inv is not None and self.inv.id == inv_id:
-            return
-        self.flush()
-        inv = self.lib.invoices.get(inv_id)
-        if inv is None:
-            return
-        if inv.business_id not in self.lib.businesses and self.lib.businesses:
-            inv.business_id = next(iter(self.lib.businesses))  # its business was deleted
-        self.details.load(inv)
-        self.list.select(inv.id)
-        self.preview.saved_hint(None, False)
-        self.lib.settings["current"] = inv.id
-        self.redraw()
-
-    def default_business(self) -> Business | None:
-        cur = self.details.current_business()
-        if cur is not None:
-            return cur
-        last = self.lib.settings.get("business", "")
-        return self.lib.businesses.get(last) or next(iter(self.lib.businesses.values()), None)
-
-    def new_invoice(self) -> None:
-        b = self.default_business()
-        if b is None:
-            self.edit_business(True)
-            return
-        self.flush()
-        inv = self.lib.new_invoice(b)
-        self.list.refresh()
-        self.open_invoice(inv.id)
-        self.details.client.setFocus()
-
-    def _duplicate_current(self) -> None:
-        if self.inv is not None:
-            self.duplicate(self.inv.id)
-
-    def duplicate(self, inv_id: str) -> None:
-        self.flush()
-        src = self.lib.invoices.get(inv_id)
-        if src is None:
-            return
-        copy = self.lib.duplicate(src)
-        self.list.refresh()
-        self.open_invoice(copy.id)
-        self.toast(f"Made {copy.number} from {src.number}.")
-
-    def _delete_current(self) -> None:
-        if self.inv is not None:
-            self.delete(self.inv.id)
-
-    def delete(self, inv_id: str) -> None:
-        inv = self.lib.invoices.get(inv_id)
-        if inv is None:
-            return
-        who = f" for {inv.client.name}" if inv.client.name.strip() else ""
-        if not confirm(
-            self,
-            f"Delete {inv.number}?",
-            f"The invoice{who} will be removed from Cobro. PDFs you already saved stay where they are.",
-            "Delete Invoice",
-        ):
-            return
-        self._dirty.discard(inv_id)
-        self.lib.delete_invoice(inv_id)
-        log.info("deleted invoice %s", inv.number)
-        if self.inv is not None and self.inv.id == inv_id:
-            self.details.inv = None
-            rest = self.lib.ordered()
-            if rest:
-                self.list.refresh()
-                self.open_invoice(rest[0].id)
-            else:
-                self.details.show_empty("invoice", self.new_invoice)
-                self.preview.clear("Your invoice shows up here.")
-        self.list.refresh()
-
-    def _invoice_edited(self, inv: Invoice) -> None:
-        self._dirty.add(inv.id)
-        self._save_timer.start()
-        self._draw_timer.start()
-        self.list.update_card(inv)
-        self.preview.saved_hint(None, False)
-
-    def _status_changed(self, inv: Invoice) -> None:
-        self.flush()
-        self.list.refresh()
-
-    def flush(self) -> None:
-        """Write any edited invoices now."""
-        for inv_id in list(self._dirty):
-            inv = self.lib.invoices.get(inv_id)
-            if inv is not None:
-                try:
-                    self.lib.save_invoice(inv)
-                except OSError:
-                    log.warning("couldn't save %s", inv.number, exc_info=True)
-                    self.toast("Couldn't save the invoice. Check that there's free space on this computer.")
-                    continue
-            self._dirty.discard(inv_id)
-
-    # ------------------------------------------------------------------ clients
-    def edit_client(self, new: bool, assign: bool = True) -> None:
-        """New Client… or Edit… under Bill To: the saved client goes on the open invoice, and drafts billed
-        to them follow the change (other sent and paid invoices keep what they said). From the menus
-        (`assign=False`) a new client is only saved, for picking later."""
-        inv = self.inv
-        current = None
-        saved = None
-        if not new and inv is not None:
-            saved = self.lib.match_client(inv.client)
-            current = replace(inv.client, id=saved.id) if saved else inv.client
-        per_client = any(b.number_style != "year" for b in self.lib.businesses.values())
-        d = ClientDialog(current, self.lib, saved is not None, per_client, parent=self)
-        if d.exec() != ClientDialog.DialogCode.Accepted:
-            return
-        self.flush()
-        if d.deleted:
-            self.lib.delete_client(d.client.id)
-            log.info("deleted client %s", d.client.name)
-            self.toast(f"Deleted {d.client.name}. Invoices you already made keep their details.")
-            if inv is not None:
-                self.details.refresh_clients()
-        else:
-            client = self.lib.save_client(d.client)
-            if inv is not None and assign:
-                self.details.use_client(client)  # saves and redraws through invoice_changed
-            else:
-                self.toast(f"Saved {client.name}. Pick them under Bill To.")
-                if inv is not None:
-                    self.details.refresh_clients()
-        self.list.refresh()
-
-    # ------------------------------------------------------------------ profiles + look
-    def edit_business(self, add: bool) -> None:
-        current = None if add else self.default_business()
-        can_delete = (
-            current is not None
-            and len(self.lib.businesses) > 1
-            and not any(i.business_id == current.id for i in self.lib.invoices.values())
-        )
-        d = ProfileDialog(current, can_delete, self)
-        if d.exec() != ProfileDialog.DialogCode.Accepted:
-            return
-        if d.deleted and current is not None:
-            self.lib.delete_business(current.id)
-            self.toast(f"Deleted {current.name}.")
-            return
-        b = d.business
-        first = not self.lib.businesses
-        if current is None:
-            self.lib.add_business(b)
-            log.info("added profile %s", b.name)
-        else:
-            self.lib.businesses[b.id] = b
-            self.lib.save_businesses()
-        self.lib.settings["business"] = b.id
-        if first or (add and self.inv is None):
-            self.new_invoice()
-        elif add and self.inv is not None:
-            self.toast(f"Added {b.name}. Pick it under From, or start a new invoice.")
-            self.details.refresh_businesses()
-        else:
-            if self.inv is not None:
-                if self.lib.renumber(self.inv):  # new letters or number style: an untouched draft follows
-                    self._dirty.add(self.inv.id)
-                    self.flush()
-                self.details.load(self.inv)
-            self.list.refresh()
-            self.redraw()
-
-    def _look_edited(self, b: Business) -> None:
-        self.lib.businesses[b.id] = b
-        try:
-            self.lib.save_businesses()
-        except OSError:
-            log.warning("couldn't save the look", exc_info=True)
-        self._draw_timer.start()
-
-    def _defaults_saved(self, b: Business) -> None:
-        self.lib.save_businesses()
-        self.toast(f"New invoices from {b.name} will start with this payment text and terms.")
-
-    def _groups_changed(self, groups: dict) -> None:
-        self.lib.settings["groups"] = groups
-
-    # ------------------------------------------------------------------ drawing
-    def pages(self, dark: bool = False) -> list[render.Page]:
-        """The invoice, laid out. `dark` is only ever for the preview's Dark Page: everything that
-        leaves Cobro (PDF, PNG, print) is drawn on white paper."""
-        inv = self.inv
-        b = self.details.current_business()
-        if inv is None or b is None:
-            return []
-        view = document.build(inv, b)
-        logo = logos_dir() / b.look.logo if b.look.logo else None
-        return render.layout(view, resolve(b.look, self._fonts, dark), logo)
-
-    def redraw(self) -> None:
-        pages = self.pages(dark=self.preview.dark)
-        if pages:
-            self.preview.set_pages(pages)
-        else:
-            self.preview.clear("Your invoice shows up here.")
-
-    # ------------------------------------------------------------------ exporting
-    def _export_folder(self) -> Path:
-        saved = self.lib.settings.get("export_dir")
-        if isinstance(saved, str) and Path(saved).is_dir():
-            return Path(saved)
-        return documents_dir()
-
-    def _ask_path(self, title: str, suffix: str, kinds: str) -> Path | None:
-        if self.inv is None:
-            return None
-        self.flush()
-        folder = self._export_folder()
-        try:
-            folder.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            folder = Path.home()
-        default = folder / f"{document.file_stem(self.inv)}{suffix}"
-        path, _ = QFileDialog.getSaveFileName(self, title, str(default), kinds)
-        if not path:
-            return None
-        p = Path(path)
-        if p.suffix.lower() != suffix:
-            p = p.with_name(p.name + suffix)
-        self.lib.settings["export_dir"] = str(p.parent)
-        return p
-
-    def _exported(self, path: Path) -> None:
-        self.last_export = path
-        self.flush()
-        self.preview.saved_hint(path.name, self.inv is not None and self.inv.status == "draft")
-
-    def save_pdf(self) -> None:
-        pages = self.pages()
-        if not pages:
-            return
-        path = self._ask_path("Save PDF", ".pdf", "PDF (*.pdf)")
-        if path is None:
-            return
-        try:
-            export.to_pdf(pages, path, title=f"Invoice {self.inv.number}")
-        except OSError as e:
-            log.warning("PDF not saved", exc_info=True)
-            self.toast(str(e) or "Couldn't save the PDF.")
-            return
-        self._exported(path)
-
-    def save_png(self) -> None:
-        pages = self.pages()
-        if not pages:
-            return
-        path = self._ask_path("Save as PNG", ".png", "PNG picture (*.png)")
-        if path is None:
-            return
-        try:
-            files = export.to_png(pages, path)
-        except OSError as e:
-            log.warning("PNG not saved", exc_info=True)
-            self.toast(str(e) or "Couldn't save the picture.")
-            return
-        self._exported(files[0])
-
-    def print_invoice(self) -> None:
-        pages = self.pages()
-        if not pages:
-            return
-        try:
-            from PySide6.QtPrintSupport import QPrintDialog, QPrinter
-        except ImportError:
-            self.toast("Printing isn't available here. Save a PDF and print that instead.")
-            return
-        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        printer.setDocName(f"Invoice {self.inv.number}")
-        dlg = QPrintDialog(printer, self)
-        if dlg.exec() != QPrintDialog.DialogCode.Accepted:
-            return
-        try:
-            export.print_pages(printer, pages)
-        except OSError as e:
-            log.warning("print failed", exc_info=True)
-            self.toast(str(e))
-            return
-        self.toast("Sent to the printer.")
-
-    def copy_text(self) -> None:
-        if self.inv is None:
-            return
-        b = self.details.current_business()
-        if b is None:
-            return
-        QGuiApplication.clipboard().setText(document.summary_text(document.build(self.inv, b)))
-        self.toast("Copied. Paste it into an email or a message.")
-
-    def open_folder(self) -> None:
-        folder = self._export_folder()
-        folder.mkdir(parents=True, exist_ok=True)
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
-
-    def _dark_changed(self, on: bool) -> None:
-        self.lib.settings["dark_preview"] = on
-        self.redraw()
-
-    def _mark_sent(self) -> None:
-        if self.inv is not None and self.inv.status == "draft":
-            self.details.set_status("sent")
-            self.preview.saved_hint(self.last_export.name if self.last_export else None, False)
-
-    # ------------------------------------------------------------------ updates
-    def _set_auto_update(self, on: bool) -> None:
-        self.lib.settings["auto_update"] = on
-
-    def _auto_check_updates(self) -> None:
-        if not self.lib.settings.get("auto_update", True) or update.install_kind() == "source":
-            return
-        last = float(self.lib.settings.get("last_update_check", 0) or 0)
-        if time.time() - last < update.CHECK_EVERY_S:
-            return
-        self.check_updates(quiet=True)
-
-    def check_updates(self, quiet: bool = False) -> None:
-        from cobro.ui.dialogs.update import CheckThread
-
-        self._check = CheckThread(self)
-        self._check.found.connect(lambda rel: self._found_release(rel, quiet))
-        self._check.failed.connect(
-            lambda _m: (
-                None if quiet else self.toast("Couldn't reach GitHub. Check your internet and try again.")
+            text, action, slot = (
+                "Add your profile to start.",
+                "Add Your Profile…",
+                lambda: self.edit_business(True),
             )
-        )
-        self._check.start()
+        elif not self.lib.invoices:
+            text, action, slot = "No invoices yet.", "New Invoice", self.new_invoice
+        elif self.view_menu.filter.active():
+            text, action, slot = "Nothing matches the filter.", "Clear Filters", self._clear_filters
+        else:
+            text = {
+                "drafts": "No drafts.",
+                "unpaid": "Nothing waiting to be paid.",
+                "paid": "Nothing paid yet.",
+            }
+            text, action, slot = text.get(self.view_key, "No invoices yet."), "", None
+        self.empty_text.setText(text)
+        self.empty_btn.setText(action)
+        self.empty_btn.setVisible(bool(action))
+        self._empty_slot = slot
+        return self.empty
 
-    def _found_release(self, rel: update.Release, quiet: bool) -> None:
-        self.lib.settings["last_update_check"] = time.time()
-        if rel.newer:
-            self._release = rel
-            self.list.btn_update.setText(f"Update to {rel.version}")
-            self.list.btn_update.show()
-            if not quiet:
-                self.show_update()
-        elif not quiet:
-            self.toast(f"You have the newest Cobro ({__version__}).")
+    def _clear_filters(self) -> None:
+        self.view_menu.clear()
+        self._view_picked()
 
-    def show_update(self) -> None:
-        if self._release is None:
+    def _apply_search(self) -> None:
+        shown = self.table.show_only(self.search.text())
+        self._totals([self.lib.invoices[i] for i in shown if i in self.lib.invoices])
+        self.totals.setVisible(bool(self.lib.invoices) and self.pages.currentWidget() is self.table)
+        self.count.set_full_text(f"{len(shown):,}" if shown else "")
+
+    def _totals(self, invoices: list[Invoice]) -> None:
+        """The bar under the table: what the invoices showing add up to."""
+        today = dates.today()
+        sums = {k: money.ZERO for k in ("unpaid", "overdue", "paid", "all")}
+        for inv in invoices:
+            t = money.totals(inv)
+            st = document.status_of(inv, today)
+            sums["all"] += t.total
+            if st in ("sent", "overdue"):
+                sums["unpaid"] += t.balance
+            if st == "overdue":
+                sums["overdue"] += t.balance
+            if st == "paid":
+                sums["paid"] += t.total
+        b = self.business()
+        cur = (b.currency if b else "$") or "$"
+        for k, v in sums.items():
+            self.total_values[k].setText(money.fmt(v, cur))
+        late = bool(sums["overdue"])  # only what applies: Overdue only when something is
+        self.total_labels["overdue"].setVisible(late)
+        self.total_values["overdue"].setVisible(late)
+
+    def _selection_count(self) -> None:
+        picked = len(self.table.chosen_ids()) if len(self.table.selectedItems()) > 1 else 0
+        shown = sum(1 for _r in self.table.showing_rows())
+        self.count.set_full_text(f"{picked} selected" if picked > 1 else (f"{shown:,}" if shown else ""))
+
+    def _inspector_empty(self) -> None:
+        """Nothing picked: the panel slides away (still showing what was picked while it goes)."""
+
+        def blank() -> None:
+            if not self.lib.businesses:
+                self.panel.show_empty(
+                    "Add your profile", "", "Add Your Profile…", lambda: self.edit_business(True)
+                )
+            else:
+                self.panel.show_empty("Nothing selected", "", "", None)
+                self.panel.empty_btn.hide()
+
+        self.dock.after_close(blank)
+        self.panel.inv = None
+        self.dock.set_open(False)
+
+    def deselect(self) -> None:
+        """Esc, or a click on empty space: nothing picked, the panel slides away (and a new invoice you
+        didn't fill in goes away)."""
+        self.flush()
+        self._drop_fresh()
+        t = self.table
+        t._quiet = True
+        t.clearSelection()
+        t.setCurrentItem(None)
+        t._quiet = False
+        self._inspector_empty()
+
+    # ------------------------------------------------------------------ opening
+    def open(self, inv_id: str) -> None:
+        """Open an invoice on the right (moving to All Invoices if this place doesn't show it)."""
+        inv = self.lib.invoices.get(inv_id)
+        if inv is None:
+            self.toast("That's been deleted.")
             return
-        from cobro.ui.dialogs.update import UpdateDialog, restart_into
+        if self.panel.inv is inv and self.dock.opened:
+            return
+        self.flush()
+        self._drop_fresh(keep=inv_id)
+        if inv_id not in self._shown_ids():
+            self.search.blockSignals(True)
+            self.search.clear()
+            self.search.blockSignals(False)
+            if not in_place(inv, self.view_key) or not self.view_menu.filter.keep(inv):
+                self.view_menu.clear()
+                self.view_key = "all"
+                self.lib.settings["view"] = "all"
+                self.sidebar.select("all")
+                self.title.setText(TITLES["all"])
+            self.refresh()
+        self.table.select_id(inv_id)
+        if inv.business_id not in self.lib.businesses and self.lib.businesses:
+            inv.business_id = next(iter(self.lib.businesses))  # its profile was deleted
+        self.panel.load(inv)
+        self.lib.settings["current"] = inv.id
+        self.dock.set_open(True)
 
-        d = UpdateDialog(self._release, parent=self)
-        if d.exec() == UpdateDialog.DialogCode.Accepted and d.plan is not None:
-            self.shutdown()
-            restart_into(d.plan)
+    def _row_menu(self, inv_id: str, pos) -> None:
+        ids = self.table.chosen_ids()
+        if inv_id not in ids:
+            ids = [inv_id]
+        if len(ids) > 1:
+            items = [("trash", f"Delete {len(ids)} Invoices…", lambda: self.delete_invoices(ids))]
+        else:
+            items = [
+                ("copy", "Duplicate", lambda: self.duplicate(inv_id)),
+                ("receipt", "Invoice…", lambda: self.show_page(inv_id)),
+                ("", "-", None),
+                ("trash", "Delete…", lambda: self.delete_invoices([inv_id])),
+            ]
+        menu(self, items).exec(pos)
 
     # ------------------------------------------------------------------ misc
     def toast(self, text: str) -> None:
         self.toaster.show_message(text)
+
+    def show(self) -> None:
+        """The first time: filling the screen (all of it but the menu bar and Dock). After that: the size
+        and place you left it, if it still fits a screen you have (else filling the screen again)."""
+        if self._restored:
+            super().show()
+            return
+        geo = self.lib.settings.get("geometry")
+        if isinstance(geo, str) and geo and self._fits_after(geo):
+            super().show()
+        elif self.titlebar is not None:  # the Mac: fill the free area ourselves (zooming is unreliable here)
+            titlebar.fill_screen(self)
+            super().show()
+        else:
+            self.showMaximized()
+
+    def _fits_after(self, geo: str) -> bool:
+        """Put the window back where it was; True if that lands wholly on a screen."""
+        try:
+            if not self.restoreGeometry(QByteArray.fromHex(geo.encode())):
+                return False
+        except (TypeError, ValueError):
+            return False
+        frame = self.frameGeometry()
+        return any(
+            s.availableGeometry().adjusted(-2, -2, 2, 2).contains(frame) for s in QGuiApplication.screens()
+        )
+
+    def resizeEvent(self, e):
+        """The right panel gives up some width on a smaller window, so the toolbar never crowds."""
+        super().resizeEvent(e)
+        w = max(tokens.INSPECTOR_MIN, min(tokens.INSPECTOR_W, int(self.width() * tokens.INSPECTOR_SHARE)))
+        self.dock.set_target(w)
+        for i in range(self.inspector.count()):  # every right-hand panel, whatever it is
+            self.inspector.widget(i).setFixedWidth(w)
+
+    def _let_work_finish(self) -> None:
+        """An update check may still be waiting on GitHub. Give it a moment; if it's still busy, quit
+        without waiting for it (everything's saved by now), instead of crashing on the way out."""
+        from PySide6.QtCore import QThread
+        from PySide6.QtWidgets import QApplication
+
+        busy = [t for t in self.findChildren(QThread) if t.isRunning()]
+        for t in busy:
+            t.wait(tokens.QUIT_WAIT_MS)
+        if any(t.isRunning() for t in busy):
+            log.info("quitting while a download is still running")
+            QApplication.instance().setProperty("exit_now", True)
 
     def showEvent(self, e):
         super().showEvent(e)
@@ -556,16 +500,12 @@ class MainWindow(QMainWindow):
         super().closeEvent(e)
 
     def shutdown(self) -> None:
-        """Save everything before quitting."""
+        """Save everything before quitting (and the window's size and place for next time)."""
         self.flush()
-        self.lib.settings["geometry"] = bytes(self.saveGeometry().toHex()).decode()
+        if not self._restored:
+            self.lib.settings["geometry"] = bytes(self.saveGeometry().toHex()).decode()
+        self._let_work_finish()
         try:
             self.lib.save_settings()
         except OSError:
             log.warning("couldn't save settings", exc_info=True)
-
-
-def sys_is_mac() -> bool:
-    import sys
-
-    return sys.platform == "darwin"

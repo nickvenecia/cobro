@@ -9,8 +9,8 @@ from PySide6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QWidget
 from cobro.core import numbering
 from cobro.core.model import Client
 from cobro.core.store import Library
-from cobro.ui.components.widgets import Section, TextBox, hbox, hint, vbox
-from cobro.ui.style.tokens import DIALOG_W, NUM_FIELD_W, SPACE_2, SPACE_3, SPACE_4, SPACE_5
+from cobro.ui.components.widgets import Section, TextBox, button_row, hbox, hint, vbox
+from cobro.ui.style.tokens import DIALOG_W_WIDE, NUM_FIELD_W, SPACE_2, SPACE_3, SPACE_5
 
 
 class ClientDialog(QDialog):
@@ -32,18 +32,16 @@ class ClientDialog(QDialog):
         self.deleted = False
         title_text = "Edit Client" if self.editing else "New Client"
         self.setWindowTitle(title_text)
-        self.setMinimumWidth(DIALOG_W + 2 * SPACE_5)
+        self.setMinimumWidth(DIALOG_W_WIDE)
         lay = vbox(self, SPACE_5, SPACE_3)
 
         title = QLabel(title_text)
         title.setObjectName("DialogTitle")
-        lay.addWidget(title)
-        lay.addWidget(
-            hint(
-                "Saved for next time: pick them under Bill To. Changes reach this invoice and your drafts; "
-                "other invoices you already sent keep what they said."
-            )
+        title.setToolTip(
+            "Saved for next time: pick them under Bill To. Changes reach this invoice and your drafts; "
+            "invoices you already sent keep what they said."
         )
+        lay.addWidget(title)
 
         c = self.client
         sec = Section("Name")
@@ -81,14 +79,12 @@ class ClientDialog(QDialog):
         lay.addLayout(row)
 
         lay.addStretch(1)
-        buttons = hbox(spacing=SPACE_2)
-        buttons.setContentsMargins(0, SPACE_4 - SPACE_3, 0, 0)
+        buttons = button_row()
         if self.editing and can_delete:
             delete = QPushButton("Delete Client…")
             delete.setObjectName("Danger")
             delete.clicked.connect(self._delete)
-            buttons.addWidget(delete)
-        buttons.addStretch(1)
+            buttons.insertWidget(0, delete)
         cancel = QPushButton("Cancel")
         cancel.clicked.connect(self.reject)
         self.save = QPushButton("Save")

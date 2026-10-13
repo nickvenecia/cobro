@@ -33,6 +33,7 @@ import sys
 import tarfile
 import tempfile
 import threading
+import urllib.parse
 import urllib.request
 import zipfile
 from collections.abc import Callable
@@ -42,13 +43,13 @@ from pathlib import Path
 from cobro import __version__
 from cobro.core.log import get_logger
 from cobro.core.net import ssl_context
+from cobro.core.paths import data_dir
 
 log = get_logger(__name__)
 
 REPO = "nickvenecia/cobro"  # github.com/<owner>/<repo> the releases come from
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 PAGE = f"https://github.com/{REPO}/releases/latest"
-CHECK_EVERY_S = 20 * 3600  # the automatic check: at most about once a day
 
 
 class Canceled(Exception):
@@ -134,9 +135,16 @@ def install_kind() -> str:
         return "mac-app" if app_bundle() else "source"
     if sys.platform == "win32":
         return "windows-installed" if any(exe.parent.glob("unins*.exe")) else "windows-portable"
-    if os.environ.get("APPIMAGE"):
+    if os.environ.get("APPIMAGE") and _inside_appimage():
         return "appimage"
     return "linux-folder"
+
+
+def _inside_appimage() -> bool:
+    """APPIMAGE is passed down to programs an AppImage starts, so only trust it when Cobro itself runs
+    from inside the AppImage (else another app's AppImage could be the one replaced)."""
+    appdir = os.environ.get("APPDIR")
+    return bool(appdir) and Path(sys.executable).resolve().is_relative_to(Path(appdir).resolve())
 
 
 def app_bundle() -> Path | None:
@@ -197,19 +205,45 @@ def can_update_here(kind: str) -> str:
         return "Couldn't find where Cobro is installed."
     if kind == "windows-installed":
         return ""  # the installer handles it
+    if _overlaps(t, data_dir()):  # replacing the program would take your invoices with it
+        return "Cobro is installed inside its data folder, so it can't replace itself. Download the new version from GitHub."
     if not os.access(t.parent, os.W_OK):
         return f"Cobro can't write to {t.parent}. Download the new version from GitHub instead."
     return ""
 
 
+def _overlaps(a: Path, b: Path) -> bool:
+    a, b = a.resolve(), b.resolve()
+    return a == b or a.is_relative_to(b) or b.is_relative_to(a)
+
+
 # ---------------------------------------------------------------------------- download + install
+DOWNLOAD_FROM = f"https://github.com/{REPO}/releases/download/"
+DOWNLOAD_HOSTS = ("github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com")
+
+
+def _trusted(url: str, hosts: tuple[str, ...] | None = None) -> bool:
+    """A release file's link: Cobro's own releases page (or, after GitHub's redirect, its file hosts)."""
+    if hosts is None:
+        return url.startswith(DOWNLOAD_FROM)
+    u = urllib.parse.urlparse(url)
+    return u.scheme == "https" and u.hostname in hosts
+
+
 def download(
     asset: Asset,
     folder: Path,
     on_progress: Callable[[float], None],
     cancel: threading.Event | None = None,
 ) -> Path:
-    """Fetch one release file into `folder`, checking its size and SHA-256. Returns its path."""
+    """Fetch one release file into `folder`, checking where it comes from, its size and its SHA-256.
+    Nothing is installed that GitHub didn't publish a checksum for. Returns its path."""
+    if not _trusted(asset.url):
+        raise ValueError("That update isn't from Cobro's GitHub releases, so it wasn't used.")
+    if not asset.sha256:
+        raise ValueError(
+            "GitHub didn't say what the update should look like, so it wasn't used. Try again later."
+        )
     out = folder / asset.name
     req = urllib.request.Request(asset.url, headers={"User-Agent": f"Cobro/{__version__}"})
     h = hashlib.sha256()
@@ -218,6 +252,8 @@ def download(
         urllib.request.urlopen(req, timeout=60, context=ssl_context()) as r,
         out.open("wb") as f,
     ):
+        if not _trusted(r.geturl(), DOWNLOAD_HOSTS):  # where GitHub's redirect ended up
+            raise ValueError("The update came from somewhere unexpected, so it wasn't used.")
         total = int(r.headers.get("Content-Length") or asset.size or 0)
         while True:
             if cancel is not None and cancel.is_set():
@@ -232,7 +268,7 @@ def download(
                 on_progress(min(1.0, got / total))
     if asset.size and got != asset.size:
         raise ValueError(f"The download was cut short ({got} of {asset.size} bytes). Try again.")
-    if asset.sha256 and h.hexdigest() != asset.sha256:
+    if h.hexdigest() != asset.sha256:
         raise ValueError("The download doesn't match what GitHub published, so it wasn't used. Try again.")
     log.info("update: downloaded %s (%d bytes, sha256 %s)", asset.name, got, h.hexdigest())
     return out
@@ -276,6 +312,7 @@ def prepare(kind: str, file: Path, pid: int | None = None) -> Plan:
                 'ditto "$MNT/Cobro.app" "$NEW"; OK=$?',
                 'hdiutil detach "$MNT" -quiet',
                 "[ $OK -eq 0 ] || exit 1",
+                *_signature_lines(t, '"$NEW"'),
                 'xattr -dr com.apple.quarantine "$NEW" 2>/dev/null',
                 *_swap_lines(t, '"$NEW"'),
                 f"open {_q(t)}",
@@ -310,6 +347,21 @@ def run(plan: Plan) -> None:
 
 def _q(p) -> str:
     return shlex.quote(str(p))
+
+
+def _signature_lines(old: Path, new: str) -> list[str]:
+    """If this Cobro is signed by a developer (it has a Team ID), the new one must be signed by the same
+    one, or it's thrown away. An unsigned build (no Team ID) relies on the download's checksum."""
+    team = "codesign -dv {} 2>&1 | sed -n 's/^TeamIdentifier=//p'"
+    requirement = 'anchor apple generic and certificate leaf[subject.OU] = \\"$OLD_TEAM\\"'
+    return [
+        f"OLD_TEAM=$({team.format(_q(old))})",
+        'if [ -n "$OLD_TEAM" ] && [ "$OLD_TEAM" != "not set" ]; then',
+        f'  if ! codesign --verify --deep --strict -R="={requirement}" {new}; then',
+        f"    rm -rf {new}; exit 1",
+        "  fi",
+        "fi",
+    ]
 
 
 def _swap_lines(old: Path, new: str) -> list[str]:

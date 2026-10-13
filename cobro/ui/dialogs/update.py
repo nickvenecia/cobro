@@ -24,13 +24,15 @@ from cobro import __version__
 from cobro.core import update
 from cobro.core.log import get_logger
 from cobro.ui.components.widgets import hbox, hint, vbox
-from cobro.ui.style.tokens import DIALOG_W, SPACE_2, SPACE_3, SPACE_5
+from cobro.ui.style.tokens import DIALOG_W_XWIDE, NOTES_H, SPACE_2, SPACE_3, SPACE_5
 
 log = get_logger(__name__)
 
 
 def open_url(url: str) -> None:
-    QDesktopServices.openUrl(QUrl(url))
+    """Open a web page in the browser (only https: release notes are written by other people too)."""
+    if QUrl(url).scheme() == "https":
+        QDesktopServices.openUrl(QUrl(url))
 
 
 class CheckThread(QThread):
@@ -84,7 +86,7 @@ class UpdateDialog(QDialog):
         self.plan: update.Plan | None = None
         self.thread: DownloadThread | None = None
         self.setWindowTitle("Update Cobro")
-        self.setMinimumWidth(DIALOG_W + 2 * SPACE_5 * 3)
+        self.setMinimumWidth(DIALOG_W_XWIDE)
         lay = vbox(self, SPACE_5, SPACE_3)
         title = QLabel(f"Cobro {release.version} is here")
         title.setObjectName("DialogTitle")
@@ -92,9 +94,10 @@ class UpdateDialog(QDialog):
         lay.addWidget(hint(f"You have {__version__}. Your invoices and settings stay as they are."))
         notes = QTextBrowser()
         notes.setObjectName("Notes")
-        notes.setOpenExternalLinks(True)
+        notes.setOpenLinks(False)  # links go through open_url, which only opens https pages
+        notes.anchorClicked.connect(lambda u: open_url(u.toString()))
         notes.setMarkdown(_whats_new(release.notes))
-        notes.setMinimumHeight(220)
+        notes.setMinimumHeight(NOTES_H)
         lay.addWidget(notes, 1)
         self.status = hint("")
         self.status.hide()

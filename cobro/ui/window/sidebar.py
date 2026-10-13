@@ -1,0 +1,249 @@
+"""The sidebar: where you are. Invoices (All Invoices, Drafts, Unpaid, Paid), each with a count; Unpaid's turns
+amber while something's waiting to be paid and red once something is overdue. The section's + makes a new
+invoice. At the bottom: your profile card (your profiles, feedback, updates and Settings).
+"""
+
+from __future__ import annotations
+
+from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QFrame, QGraphicsOpacityEffect, QLabel, QPushButton, QToolButton, QWidget
+
+from cobro.core import dates, document
+from cobro.core.store import Library
+from cobro.ui.components.panels import LeftPanel
+from cobro.ui.components.widgets import ElidedLabel, IconLabel, hbox, section_label, vbox
+from cobro.ui.style import theme, tokens
+from cobro.ui.window.common import PLACES, in_place
+
+
+class SectionHead(QFrame):
+    """A heading over a list in the sidebar. Click it to fold the list away (or bring it back)."""
+
+    toggled = Signal(bool)  # folded
+
+    def __init__(self, text: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("NavHead")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.folded = False
+        self.lay = hbox(
+            self, (tokens.SPACE_2, tokens.SPACE_1, tokens.SPACE_1, tokens.SPACE_1), tokens.SPACE_1
+        )
+        self.label = section_label(text)
+        self.chevron = IconLabel("chevron", "FAINT")
+        self.lay.addWidget(self.label)
+        self.lay.addWidget(self.chevron)
+        self.lay.addStretch(1)
+        self.setFixedHeight(tokens.NAV_H)
+        self._draw()
+
+    def _draw(self) -> None:
+        self.chevron.set_icon("chevron-right" if self.folded else "chevron")
+
+    def set_folded(self, on: bool) -> None:
+        self.folded = on
+        self._draw()
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.set_folded(not self.folded)
+            self.toggled.emit(self.folded)
+        super().mousePressEvent(e)
+
+
+class ProfileCard(QFrame):
+    """The bottom of the sidebar: your profile (its initials, its name), and your account's email once you're
+    signed in. Click for your profiles, feedback, updates and Settings."""
+
+    clicked = Signal()
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("ProfileCard")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(tokens.PROFILE_CARD_H)
+        lay = hbox(self, (tokens.SPACE_2, 0, tokens.SPACE_2, 0), tokens.SPACE_2)
+        self.avatar = QLabel()
+        self.avatar.setObjectName("Avatar")
+        self.avatar.setFixedSize(tokens.AVATAR, tokens.AVATAR)
+        self.avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.avatar)
+        texts = vbox(spacing=0)  # the name (and who's signed in, when someone is), tight and centred
+        self.name = ElidedLabel()
+        self.name.setObjectName("ProfileName")
+        self.sub = ElidedLabel()
+        self.sub.setObjectName("ProfileSub")
+        texts.addStretch(1)
+        texts.addWidget(self.name)
+        texts.addWidget(self.sub)
+        texts.addStretch(1)
+        lay.addLayout(texts, 1)
+        lay.addWidget(IconLabel("updown", "FAINT"))
+
+    def show_who(self, name: str, sub: str) -> None:
+        words = [w for w in name.replace("&", " ").split() if w[:1].isalnum()]
+        self.avatar.setText("".join(w[0] for w in words[:2]).upper() or "C")
+        self.name.set_full_text(name)
+        self.sub.set_full_text(sub)
+        self.sub.setVisible(bool(sub))  # nothing to say until someone's signed in
+        self.setToolTip("Profiles and Settings")
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(e)
+
+
+class Sidebar(LeftPanel):
+    picked = Signal(str)  # a PLACES key
+    new_invoice = Signal()
+
+    def __init__(self, lib: Library, parent: QWidget | None = None):
+        super().__init__(tokens.SIDEBAR_W, tokens.TOOLBAR_H, parent)
+        self.lib = lib
+        self.current = "all"
+        self.word = word = QLabel(theme.wordmark())
+        word.setObjectName("Wordmark")
+        word.setTextFormat(Qt.TextFormat.RichText)
+        self.top_lay.addWidget(word)
+
+        self.heads: dict[str, SectionHead] = {}
+        self.boxes: dict[str, QWidget] = {}
+        self.btn_new = self._plus("New Invoice")
+        self.btn_new.clicked.connect(self.new_invoice.emit)
+        inv = self._section("invoices", "Invoices", self.btn_new)
+        for key, (label, icon) in PLACES.items():
+            r = self.add_row(key, label, icon, inv, foldable=False)
+            r.clicked.connect(self.pick)
+        self.lay.addStretch(1)
+        folded = lib.settings.get("sidebar_folded", [])
+        for key in folded if isinstance(folded, list) else []:
+            if key in self.heads:
+                self._show_fold(key, True)
+
+        self.btn_update = QPushButton()
+        self.add_to_foot(self.btn_update)
+        self.btn_update.hide()
+        self.profile_card = ProfileCard()  # your profiles, and Settings (⌘,)
+        self.add_to_foot(self.profile_card)
+        self.refresh()
+
+    def _plus(self, tip: str) -> QToolButton:
+        """A section's add button, as on the Mac: a small plain gray +, faded in while the pointer is over its
+        own section (heading or rows) and faded out when it leaves. Always there for the layout, so nothing
+        shifts."""
+        b = QToolButton()
+        b.setObjectName("SectionAdd")
+        b.setIcon(theme.icon("plus", theme.MUTED, tokens.ICON_SM))
+        b.setToolTip(tip)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the same command is in the menus, with its key
+        fx = QGraphicsOpacityEffect(b)
+        fx.setOpacity(0.0)
+        b.setGraphicsEffect(fx)
+        anim = QPropertyAnimation(fx, b"opacity", b)
+        anim.setDuration(tokens.FADE_MS)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        b._fade = anim
+        return b
+
+    @staticmethod
+    def _fade(b: QToolButton, on: bool) -> None:
+        fx, anim = b.graphicsEffect(), b._fade
+        target = 1.0 if on else 0.0
+        if anim.endValue() == target and anim.state() == QPropertyAnimation.State.Running:
+            return
+        if abs(fx.opacity() - target) < 0.01:
+            return
+        anim.stop()
+        anim.setStartValue(fx.opacity())
+        anim.setEndValue(target)
+        anim.start()
+
+    def _hover_check(self) -> None:
+        """Show the + of the section under the pointer, and only that one."""
+        at = QCursor.pos()
+        for key, plus in getattr(self, "_section_plus", {}).items():
+            head, box = self.heads[key], self.boxes[key]
+            area = QRect(head.mapToGlobal(QPoint(0, 0)), head.size())
+            if box.isVisible():
+                area = area.united(QRect(box.mapToGlobal(QPoint(0, 0)), box.size()))
+            self._fade(plus, self.underMouse() and area.contains(at))
+
+    def eventFilter(self, obj, e):
+        if e.type() in (QEvent.Type.Enter, QEvent.Type.Leave, QEvent.Type.HoverMove):
+            QTimer.singleShot(0, self._hover_check)
+        return super().eventFilter(obj, e)
+
+    def leaveEvent(self, e):
+        for plus in getattr(self, "_section_plus", {}).values():
+            self._fade(plus, False)
+        super().leaveEvent(e)
+
+    def _section(self, key: str, text: str, extra: QWidget | None = None):
+        """A heading and the list under it; returns the list's layout."""
+        head = SectionHead(text)
+        if extra is not None:
+            head.lay.addWidget(extra)
+        box = QWidget()
+        if isinstance(extra, QToolButton) and extra.objectName() == "SectionAdd":
+            self._section_plus = {**getattr(self, "_section_plus", {}), key: extra}
+            for w in (head, box):
+                w.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+                w.installEventFilter(self)
+        lay = vbox(box, (0, 0, 0, tokens.SPACE_3), tokens.NAV_GAP)
+        head.toggled.connect(lambda folded, k=key: self._fold(k, folded))
+        self.lay.addWidget(head)
+        self.lay.addWidget(box)
+        self.heads[key], self.boxes[key] = head, box
+        return lay
+
+    def show_who(self) -> None:
+        """The profile card: your profile, and whether you're signed in."""
+        from cobro.services import account
+
+        lib = self.lib
+        b = lib.businesses.get(lib.settings.get("business", "")) or next(iter(lib.businesses.values()), None)
+        who = account.current()
+        self.profile_card.show_who((b.name if b and b.name else "Your Profile"), who.email if who else "")
+
+    def recolor(self) -> None:
+        """The look changed: redraw the icons."""
+        for h in self.heads.values():
+            h._draw()
+        for r in self.rows.values():
+            r.recolor()
+        self.btn_new.setIcon(theme.icon("plus", theme.MUTED, tokens.ICON_SM))
+
+    def _show_fold(self, key: str, folded: bool) -> None:
+        self.boxes[key].setVisible(not folded)
+        self.heads[key].set_folded(folded)
+
+    def _fold(self, key: str, folded: bool) -> None:
+        self._show_fold(key, folded)
+        self.lib.settings["sidebar_folded"] = sorted(k for k, h in self.heads.items() if h.folded)
+        self.lib.save_settings()
+
+    def pick(self, key: str) -> None:
+        self.select(key)
+        self.picked.emit(key)
+
+    def select(self, key: str) -> None:
+        self.current = key
+        super().select(key)
+
+    def refresh(self) -> None:
+        """Every place's count; Unpaid amber while invoices wait, red once one is overdue."""
+        today = dates.today()
+        invoices = list(self.lib.invoices.values())
+        for key in PLACES:
+            self.rows[key].set_count(sum(1 for inv in invoices if in_place(inv, key, today)))
+        overdue = any(document.status_of(inv, today) == "overdue" for inv in invoices)
+        unpaid = sum(1 for inv in invoices if in_place(inv, "unpaid", today))
+        self.rows["unpaid"].set_count(unpaid, "overdue" if overdue else ("sent" if unpaid else ""))
+        self.show_who()
+        self.select(self.current if self.current in self.rows else "all")

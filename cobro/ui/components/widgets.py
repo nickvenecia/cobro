@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter
+from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -11,11 +11,13 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QSizePolicy,
     QStyledItemDelegate,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -108,48 +110,17 @@ class ElidedLabel(QLabel):
     def _elide(self) -> None:
         shown = self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, max(1, self.width()))
         self.setText(shown)
-        self.setToolTip(self._full if shown != self._full else "")
+        self.setToolTip(theme.plain_tip(self._full) if shown != self._full else "")
 
     def resizeEvent(self, e):
         super().resizeEvent(e)
         self._elide()
 
+    def sizeHint(self) -> QSize:  # as wide as the whole text, when there's room
+        return QSize(self.fontMetrics().horizontalAdvance(self._full) + 2, super().sizeHint().height())
 
-class Wordmark(QLabel):
-    """The "cobro." wordmark with its turquoise dot. Rich text doesn't follow the stylesheet, so the dot
-    is colored again whenever the stylesheet is (a switch between light and dark)."""
-
-    def __init__(self, object_name: str = "Wordmark", parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setObjectName(object_name)
-        self.setTextFormat(Qt.TextFormat.RichText)
-        self._color_dot()
-
-    def _color_dot(self) -> None:
-        self.setText(theme.wordmark())
-
-    def changeEvent(self, e):
-        if e.type() == QEvent.Type.StyleChange:
-            self._color_dot()
-        super().changeEvent(e)
-
-
-class IconLabel(QWidget):
-    """An icon on its own, not a button (a line item's fold arrow). Clicks go through to what's under it."""
-
-    def __init__(self, size: int = tokens.ICON_SM, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setFixedSize(size, size)
-        self._icon = QIcon()
-
-    def set_icon(self, icon: QIcon) -> None:
-        self._icon = icon
-        self.update()
-
-    def paintEvent(self, _e):
-        p = QPainter(self)
-        self._icon.paint(p, self.rect())
-        p.end()
+    def minimumSizeHint(self) -> QSize:  # …but it gives way to everything else first
+        return QSize(0, super().minimumSizeHint().height())
 
 
 class _FoldHeader(QPushButton):
@@ -173,27 +144,52 @@ class _FoldHeader(QPushButton):
         self._elide()
 
 
-class Disclosure(QWidget):
-    """A fold-away group: a header row that opens and closes the controls under it.
+class Card(QFrame):
+    """A titled group in a panel: a soft tinted card (the look every panel's groups share)."""
+
+    def __init__(self, title: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("Card")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.outer = vbox(self, tokens.SPACE_3, tokens.SPACE_2)
+        self.head = hbox(spacing=tokens.SPACE_2)
+        self.title = QLabel(title)
+        self.title.setObjectName("CardTitle")
+        self.title.setVisible(bool(title))
+        self.head.addWidget(self.title, 1)
+        self.outer.addLayout(self.head)
+        self.lay = vbox(spacing=tokens.SPACE_2)
+        self.outer.addLayout(self.lay)
+
+    def add(self, item: QWidget | QHBoxLayout | QVBoxLayout) -> None:
+        if isinstance(item, QWidget):
+            self.lay.addWidget(item)
+        else:
+            self.lay.addLayout(item)
+
+
+class Disclosure(QFrame):
+    """A fold-away group: a Card whose title opens and closes the controls under it.
 
     Folded, the header says what's inside ("Line Items · 3 items · $2,700.00"), so nothing that changes
-    the invoice is ever hidden silently. `first` drops the hairline above the top group of a panel."""
+    the invoice is ever hidden silently."""
 
     toggled = Signal(bool)
 
-    def __init__(self, title: str, is_open: bool = False, first: bool = False, parent: QWidget | None = None):
+    def __init__(self, title: str, is_open: bool = False, parent: QWidget | None = None):
         super().__init__(parent)
         self._title = title
         self._summary = ""
-        outer = vbox(self, 0, tokens.SPACE_3)
+        self.setObjectName("Card")  # looks like every other group in a panel
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        outer = vbox(self, tokens.SPACE_3, tokens.SPACE_2)
         self.header = _FoldHeader()
         self.header.setObjectName("Disclosure")
-        self.header.setProperty("first", first)
         self.header.setCursor(Qt.CursorShape.PointingHandCursor)
         self.header.clicked.connect(lambda: self.set_open(not self.body.isVisibleTo(self), emit=True))
         outer.addWidget(self.header)
         self.body = QWidget()
-        self.lay = vbox(self.body, 0, tokens.SPACE_3)
+        self.lay = vbox(self.body, 0, tokens.SPACE_2)
         outer.addWidget(self.body)
         self.set_open(is_open)
 
@@ -231,14 +227,107 @@ def repolish(w: QWidget) -> None:
     w.update()
 
 
+class AccentPicker(QWidget):
+    """A row of color circles (tokens.ACCENTS), the chosen one ringed. Click, or the arrow keys."""
+
+    picked = Signal(str)
+
+    def __init__(self, current: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.keys = list(tokens.ACCENTS)
+        self.current = current if current in tokens.ACCENTS else tokens.APP_ACCENT
+        self._hover = ""
+        self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(tokens.CONTROL_H)
+        self.setMinimumWidth(self._pitch() * len(self.keys))
+
+    @staticmethod
+    def _pitch() -> int:
+        return tokens.SWATCH + 2 * tokens.SWATCH_RING * 2 + tokens.SPACE_1
+
+    def _rect(self, i: int) -> QRectF:
+        outer = tokens.SWATCH + 4 * tokens.SWATCH_RING
+        y = (self.height() - outer) / 2
+        return QRectF(i * self._pitch(), y, outer, outer)
+
+    def _key_at(self, pos) -> str:
+        for i, k in enumerate(self.keys):
+            if self._rect(i).contains(pos):
+                return k
+        return ""
+
+    def set_value(self, key: str) -> None:
+        self.current = key if key in tokens.ACCENTS else tokens.APP_ACCENT
+        self.update()
+
+    def _pick(self, key: str) -> None:
+        if key and key != self.current:
+            self.current = key
+            self.update()
+            self.picked.emit(key)
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        ring = tokens.SWATCH_RING
+        for i, k in enumerate(self.keys):
+            r = self._rect(i)
+            dot = r.adjusted(2 * ring, 2 * ring, -2 * ring, -2 * ring)
+            if k == self.current or k == self._hover:
+                pen = QPen(theme.qcolor(tokens.TEXT if k == self.current else tokens.BORDER_HOVER))
+                pen.setWidthF(ring)
+                p.setPen(pen)
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawEllipse(r.adjusted(ring / 2, ring / 2, -ring / 2, -ring / 2))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(theme.qcolor(tokens.accent_of(k)))
+            p.drawEllipse(dot)
+        if self.hasFocus():
+            pen = QPen(theme.qcolor(tokens.ACCENT_EDGE))
+            pen.setWidthF(1)
+            p.setPen(pen)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawEllipse(self._rect(self.keys.index(self.current)))
+
+    def mouseMoveEvent(self, e) -> None:
+        k = self._key_at(e.position())
+        if k != self._hover:
+            self._hover = k
+            self.update()
+        name = tokens.ACCENTS[k][0] if k else ""
+        if k == tokens.APP_ACCENT:
+            name += " (Cobro's own)"
+        self.setToolTip(name)
+
+    def leaveEvent(self, _e) -> None:
+        self._hover = ""
+        self.update()
+
+    def mousePressEvent(self, e) -> None:
+        if e.button() == Qt.MouseButton.LeftButton:
+            self._pick(self._key_at(e.position()))
+
+    def keyPressEvent(self, e) -> None:
+        step = {Qt.Key.Key_Left: -1, Qt.Key.Key_Right: 1}.get(e.key())
+        if step is None:
+            super().keyPressEvent(e)
+            return
+        i = (self.keys.index(self.current) + step) % len(self.keys)
+        self._pick(self.keys[i])
+
+
 class Segmented(QFrame):
     """A row of mutually exclusive buttons."""
 
     changed = Signal(str)
 
-    def __init__(self, items: list[tuple[str, str]], parent: QWidget | None = None):
+    def __init__(self, items: list[tuple[str, str]], compact: bool = False, parent: QWidget | None = None):
+        """`compact`: each button as wide as its word, instead of sharing the full width."""
         super().__init__(parent)
         self.setObjectName("Seg")
+        self.setFixedHeight(tokens.CONTROL_H)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(*(tokens.SEG_INSET,) * 4)
         lay.setSpacing(tokens.SEG_INSET)
@@ -250,7 +339,10 @@ class Segmented(QFrame):
             b.setObjectName("SegBtn")
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            b.setSizePolicy(
+                QSizePolicy.Policy.Preferred if compact else QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
             b.clicked.connect(lambda _=False, k=key: self.changed.emit(k))
             self.group.addButton(b)
             lay.addWidget(b)
@@ -279,12 +371,12 @@ class Toast(QLabel):
         self._t.setSingleShot(True)
         self._t.timeout.connect(self.hide)
 
-    def show_message(self, text: str, ms: int = 3500) -> None:
+    def show_message(self, text: str, ms: int = tokens.TOAST_MS) -> None:
         self.setText(text)
-        self.setMaximumWidth(min(520, self.parentWidget().width() - 40))
+        self.setMaximumWidth(min(tokens.TOAST_MAX_W, self.parentWidget().width() - 2 * tokens.SPACE_5))
         self.adjustSize()
         p = self.parentWidget()
-        self.move((p.width() - self.width()) // 2, p.height() - self.height() - 20)
+        self.move((p.width() - self.width()) // 2, p.height() - self.height() - tokens.SPACE_5)
         self.raise_()
         self.show()
         self._t.start(ms)
@@ -303,6 +395,44 @@ def combo(items: list[tuple[str, str, str]], current: str) -> QComboBox:
     return c
 
 
+class Embeddable:
+    """A dialog that can also sit inside another window (a Settings pane): no title of its own, no Cancel,
+    and finishing (Save, Delete, Sign In) tells its host instead of closing. Dialogs name the parts:
+    `title_label` and `cancel_btn`."""
+
+    embedded = False
+
+    def embed(self) -> None:
+        self.embedded = True
+        self.setWindowFlags(Qt.WindowType.Widget)
+        self.setObjectName("Embedded")  # no background of its own: the window's shows through
+        for name in ("title_label", "cancel_btn"):
+            w = getattr(self, name, None)
+            if w is not None:
+                w.hide()
+
+    def keyPressEvent(self, e) -> None:
+        if self.embedded and e.key() == Qt.Key.Key_Escape:
+            e.ignore()  # Esc closes the window it sits in, not the pane
+            return
+        super().keyPressEvent(e)
+
+    def done(self, r: int) -> None:
+        if not self.embedded:
+            super().done(r)
+            return
+        self.setResult(r)
+        self.finished.emit(r)
+        (self.accepted if r else self.rejected).emit()
+
+
+class SearchField(QLineEdit):
+    """The toolbar's search: asks for SEARCH_W, gives way down to SEARCH_MIN on a narrow window."""
+
+    def sizeHint(self) -> QSize:
+        return QSize(tokens.SEARCH_W, super().sizeHint().height())
+
+
 def set_combo(c: QComboBox, key: str) -> None:
     """Select the item with this key without firing change signals."""
     c.blockSignals(True)
@@ -319,11 +449,22 @@ def disable_item(c: QComboBox, key: str, why: str) -> None:
         item.setToolTip(why)
 
 
+def suggestions(c):
+    """A type-ahead list (QCompleter) in the shared list look: rounded, rows inset like the sidebar's."""
+    pop = c.popup()
+    pop.setObjectName("Suggestions")
+    pop.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+    pop.setWindowFlag(Qt.WindowType.NoDropShadowWindowHint, True)
+    pop.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    pop.setItemDelegate(ComboItemDelegate(pop))
+    return c
+
+
 class ComboItemDelegate(QStyledItemDelegate):
     """Draws dropdown rows: rounded highlight from the stylesheet, standard row height,
     and a thin line for separators (Qt's default painter ignores the stylesheet on macOS)."""
 
-    ROW_H = tokens.CONTROL_H - tokens.SPACE_2
+    ROW_H = tokens.LIST_ROW_H + tokens.LIST_GAP
     SEP_H = tokens.SPACE_2 + 1
 
     @staticmethod
@@ -374,26 +515,35 @@ class FitScroll(QScrollArea):
             self.widget().setFixedWidth(self.viewport().width())
 
 
-class StepHeader(QFrame):
-    """The top of each panel: a numbered step and its name ("1 Invoices", "2 Details", "3 Preview").
-    All three are the same height so the panels line up; `.actions` takes buttons on the right."""
+class PanelHeader(QFrame):
+    """The top of each panel, the same height everywhere so the panels line up.
 
-    def __init__(self, number: int, title: str, parent: QWidget | None = None):
+    It says what the panel holds ("Invoice", "Preview"), or holds a control instead of a title.
+    `.lead` takes widgets on the left, `.actions` on the right."""
+
+    def __init__(self, title: str = "", parent: QWidget | None = None):
         super().__init__(parent)
-        self.setObjectName("StepHeader")
+        self.setObjectName("PanelHeader")
         self.setFixedHeight(tokens.HEADER_H)
         lay = hbox(self, (tokens.SPACE_4, 0, tokens.SPACE_4, 0), tokens.SPACE_2)
-        badge = QLabel(str(number))
-        badge.setObjectName("StepBadge")
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setFixedSize(tokens.STEP_BADGE, tokens.STEP_BADGE)
-        name = QLabel(title)
-        name.setObjectName("StepTitle")
-        lay.addWidget(badge)
-        lay.addWidget(name)
-        lay.addStretch(1)
+        self.title = QLabel(title)
+        self.title.setObjectName("PanelTitle")
+        self.title.setVisible(bool(title))
+        lay.addWidget(self.title)
+        self.lead = hbox(spacing=tokens.SPACE_2)
+        lay.addLayout(self.lead, 1)
         self.actions = hbox(spacing=tokens.SPACE_2)
         lay.addLayout(self.actions)
+
+    def set_title(self, title: str) -> None:
+        self.title.setText(title)
+        self.title.setVisible(bool(title))
+
+    def add_close(self, tip: str = "Close") -> QToolButton:
+        """The round ✕, at the far right (after the ⋯ and any other buttons)."""
+        b = circle_button("x", tip)
+        self.layout().addWidget(b)
+        return b
 
 
 class ToggleRow(QAbstractButton):
@@ -491,3 +641,185 @@ class TextBox(QPlainTextEdit):
         self._quiet = True
         self.setPlainText(text)
         self._quiet = False
+
+
+# ------------------------------------------------------------------ fields shared by the panels
+def date_field():
+    """Every date: a calendar popup, shown as "Sat, Oct 10, 2026"."""
+    from PySide6.QtCore import QLocale
+    from PySide6.QtWidgets import QDateEdit
+
+    d = QDateEdit()
+    d.setCalendarPopup(True)
+    d.setDisplayFormat("ddd, MMM d, yyyy")
+    d.setLocale(QLocale(QLocale.Language.English, QLocale.Country.UnitedStates))
+    d.setCursor(Qt.CursorShape.PointingHandCursor)
+    return d
+
+
+def to_qdate(iso: str):
+    from PySide6.QtCore import QDate
+
+    from cobro.core import dates
+
+    d = dates.parse(iso) or dates.today()
+    return QDate(d.year, d.month, d.day)
+
+
+def from_qdate(q) -> str:
+    return f"{q.year():04d}-{q.month():02d}-{q.day():02d}"
+
+
+def button_row() -> QHBoxLayout:
+    """The row of buttons at the bottom of a dialog: right-aligned (add the main one last), SPACE_4 below
+    the content in every dialog (dialogs lay out with SPACE_3 between rows)."""
+    row = hbox(spacing=tokens.SPACE_2)
+    row.setContentsMargins(0, tokens.SPACE_4 - tokens.SPACE_3, 0, 0)
+    row.addStretch(1)
+    return row
+
+
+class IconLabel(QLabel):
+    """A small icon that isn't a button. `tone` names a theme color ("MUTED", "ACCENT", "BAD"…); it redraws
+    itself when the look changes between light and dark."""
+
+    def __init__(self, name: str = "", tone: str = "MUTED", size: int = tokens.ICON_SM, parent=None):
+        super().__init__(parent)
+        self._name, self._tone, self._size = name, tone, size
+        self.setFixedSize(size, size)
+        self._draw()
+
+    def set_icon(self, name: str) -> None:
+        if name != self._name:
+            self._name = name
+            self._draw()
+
+    def _draw(self) -> None:
+        if self._name:
+            self.setPixmap(theme.pixmap(self._name, self._size, getattr(tokens, self._tone)))
+        else:
+            self.clear()
+
+    def changeEvent(self, e):
+        super().changeEvent(e)
+        if e.type() == e.Type.StyleChange:  # the app's stylesheet changed: light or dark
+            self._draw()
+
+
+def circle_button(name: str, tip: str, color: str = "") -> QToolButton:
+    """The standard icon button: a round, raised button the height of every control (toolbars, panel
+    headers). Always has a tooltip."""
+    b = QToolButton()
+    b.setObjectName("Circle")
+    b.setIcon(theme.icon(name, color or theme.MUTED))
+    b.setToolTip(tip)
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    return b
+
+
+def icon_button(name: str, tip: str, color: str = "", size: int = tokens.ICON_SM):
+    """A small icon button inside a row or a card (a line's ⋯): round, no frame until you point at it.
+    Always has a tooltip. Without a `color` it's the muted grey of the look in use
+    (read now, not when this file loaded, so light mode gets light mode's grey)."""
+
+    b = QToolButton()
+    b.setObjectName("IconBtn")
+    b.setIcon(theme.icon(name, color or theme.MUTED, size))
+    b.setToolTip(tip)
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    return b
+
+
+def picker(placeholder: str = "") -> QComboBox:
+    """A dropdown of your own things (profiles, clients) that never widens the panel for a long name."""
+    c = QComboBox()
+    c.setCursor(Qt.CursorShape.PointingHandCursor)
+    c.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    c.setMinimumContentsLength(1)
+    c.setPlaceholderText(placeholder)
+    return c
+
+
+class QtyField(QLineEdit):
+    """How many: typed (days, hours, units; "2.5" is fine), and the arrow keys count up and down by one.
+    `textEdited` fires for typing and for the arrows alike."""
+
+    def __init__(self, value: str = "1", parent: QWidget | None = None):
+        super().__init__(value, parent)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setFixedWidth(tokens.QTY_FIELD_W)
+
+    def keyPressEvent(self, e):
+        step = {Qt.Key.Key_Up: 1, Qt.Key.Key_Down: -1}.get(e.key())
+        if step is None:
+            super().keyPressEvent(e)
+            return
+        from cobro.core import money
+
+        n = max(money.ZERO, money.parse(self.text()) + step)
+        self.setText(money.fmt_qty(n))
+        self.textEdited.emit(self.text())
+
+
+def qty_field(value: str = "1") -> QtyField:
+    return QtyField(value)
+
+
+def chip(text: str = "", tone: str = "") -> QLabel:
+    lbl = QLabel(text)
+    lbl.setObjectName("Chip")
+    lbl.setProperty("tone", tone)
+    return lbl
+
+
+def set_tone(lbl: QLabel, tone: str, text: str) -> None:
+    if lbl.property("tone") != tone:
+        lbl.setProperty("tone", tone)
+        repolish(lbl)
+    lbl.setText(text)
+    lbl.setVisible(bool(text))
+
+
+class MoneyField(QLineEdit):
+    """A money amount: reads "$1,500.00" until you click in, then it's the plain number to type over.
+    `value()` is what you typed ("1500"); textEdited still fires with the typed text."""
+
+    def __init__(self, currency: str = "$", parent: QWidget | None = None):
+        super().__init__(parent)
+        self.currency = currency
+        self._raw = ""
+
+    def value(self) -> str:
+        return self.text() if self.hasFocus() else self._raw
+
+    def set_value(self, raw: str) -> None:
+        self._raw = (raw or "").strip()
+        self._show()
+
+    def _show(self) -> None:
+        from cobro.core import money
+
+        if self.hasFocus() or not self._raw:
+            self.setText(self._raw)
+            return
+        n = money.parse(self._raw)
+        self.setText(money.fmt(n, self.currency) if n or self._raw.strip("0.") == "" else self._raw)
+
+    def focusInEvent(self, e):
+        self.setText(self._raw)
+        super().focusInEvent(e)
+        QTimer.singleShot(0, self.selectAll)
+
+    def focusOutEvent(self, e):
+        self._raw = self.text().strip().replace(self.currency, "").replace(",", "")
+        super().focusOutEvent(e)
+        self._show()
+
+
+def add_chip(text: str, icon: str = "plus") -> QPushButton:
+    """A tinted capsule with a small icon (+ Add Line Item): the app's "add something" button."""
+    b = QPushButton(text)
+    b.setObjectName("AddChip")
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    b.setIcon(theme.icon(icon, theme.ACCENT, tokens.ICON_SM))
+    return b
