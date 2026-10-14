@@ -114,6 +114,31 @@ def test_first_launch_asks_for_your_profile(qapp, data_folder):
     w.shutdown()
 
 
+def test_the_mac_title_bar_never_fits_a_window_that_is_gone(qapp, data_folder, monkeypatch):
+    """The Mac's title bar fits itself just after the window shows. A window thrown away before then is left
+    alone: reaching into it broke every test after it on the Mac."""
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    from saldo.ui.components import titlebar
+    from saldo.ui.window.main_window import MainWindow
+
+    monkeypatch.setattr(titlebar, "supported", lambda: True)  # the Mac's bar, on any computer
+    fits = []
+    monkeypatch.setattr(titlebar.TitleBar, "fit", lambda bar: fits.append(bar))
+    w = MainWindow(Library(data_folder).load())
+    w._restored = True
+    w.show()
+    wait_for(lambda: fits)  # a window that stays fits its bar
+    gone = MainWindow(Library(data_folder).load())
+    gone._restored = True
+    gone.show()
+    gone.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QTest.qWait(20)
+    assert len(fits) == 1
+    w.shutdown()
+
+
 def test_adding_your_first_profile_from_its_tile(qapp, data_folder):
     """Add Your Profile… opens Settings; saving there swaps the tile for New Invoice. That used to crash."""
     from saldo.ui.dialogs.settings import SettingsDialog
