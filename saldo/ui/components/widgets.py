@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from PySide6.QtCore import (
+    QDate,
     QEasingCurve,
+    QLocale,
     QPoint,
     QPointF,
     QRect,
@@ -14,10 +18,11 @@ from PySide6.QtCore import (
     QVariantAnimation,
     Signal,
 )
-from PySide6.QtGui import QColor, QCursor, QFontMetrics, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QCursor, QFontMetrics, QPainter, QPainterPath, QPen, QTextCharFormat
 from PySide6.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
+    QCalendarWidget,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -34,6 +39,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from saldo.core import dates
 from saldo.ui.components import glass
 from saldo.ui.style import theme, tokens
 
@@ -795,24 +801,208 @@ class TextBox(QPlainTextEdit):
 
 
 # ------------------------------------------------------------------ fields shared by the panels
-def date_field():
-    """Every date: a calendar popup, shown as "Sat, Oct 10, 2026"."""
-    from PySide6.QtCore import QLocale
-    from PySide6.QtWidgets import QDateEdit
+class DayWords(ElidedLabel):
+    """A date in words: "Tue, Oct 13, 2026", or "Oct 13, 2026" where that won't fit (and only then "…")."""
 
-    d = QDateEdit()
-    d.setCalendarPopup(True)
-    d.setDisplayFormat("ddd, MMM d, yyyy")
-    d.setLocale(QLocale(QLocale.Language.English, QLocale.Country.UnitedStates))
-    d.setCursor(Qt.CursorShape.PointingHandCursor)
-    return d
+    _short = ""
+
+    def set_day(self, d: date) -> None:
+        self._short = dates.fmt(d)
+        self.set_full_text(dates.fmt_day(d))
+
+    def _elide(self) -> None:
+        fm = self.fontMetrics()
+        if not self._short or fm.horizontalAdvance(self._full) <= self.width():
+            super()._elide()
+            return
+        self.setText(fm.elidedText(self._short, Qt.TextElideMode.ElideRight, max(1, self.width())))
+        self.setToolTip(theme.plain_tip(self._full))
 
 
-def to_qdate(iso: str):
-    from PySide6.QtCore import QDate
+class DateField(QFrame):
+    """Every date: the day in words ("Sat, Oct 10, 2026") and a calendar that opens with a click (or Space,
+    Return or ↓). Dates are picked, never typed, and scrolling over one never changes it. Works like a
+    QDateEdit: date(), setDate(), dateChanged (also when the window sets it, so the panels check _loading)."""
 
-    from saldo.core import dates
+    dateChanged = Signal(object)  # QDate
 
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("DateField")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(tokens.CONTROL_H)
+        lay = hbox(self, (tokens.SPACE_3, 0, tokens.SPACE_2, 0), tokens.SPACE_2)
+        self.words = DayWords()
+        self.words.setObjectName("DateWords")
+        lay.addWidget(self.words, 1)
+        lay.addWidget(IconLabel("calendar", "MUTED", tokens.ICON_SM))
+        self.popup: CalendarPopup | None = None
+        self._date = QDate.currentDate()
+        self._show()
+
+    def date(self):
+        return self._date
+
+    def setDate(self, q) -> None:
+        if q.isValid() and q != self._date:
+            self._date = q
+            self._show()
+            self.dateChanged.emit(q)
+
+    def _show(self) -> None:
+        q = self._date
+        self.words.set_day(date(q.year(), q.month(), q.day()))
+
+    def open_calendar(self) -> None:
+        if not self.isEnabled() or self.popup is not None:
+            return
+        self.popup = CalendarPopup(self._date, self)
+        self.popup.picked.connect(self.setDate)
+        self.popup.destroyed.connect(self._closed)
+        self.setProperty("open", True)
+        repolish(self)
+        self.popup.show_under(self)
+
+    def _closed(self) -> None:
+        self.popup = None
+        self.setProperty("open", False)
+        repolish(self)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            e.accept()
+            self.setFocus(Qt.FocusReason.MouseFocusReason)
+            self.open_calendar()
+            return
+        super().mousePressEvent(e)
+
+    def keyPressEvent(self, e):
+        if e.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Down, Qt.Key.Key_F4):
+            self.open_calendar()
+            return
+        super().keyPressEvent(e)
+
+
+class MonthGrid(QCalendarWidget):
+    """The days of a month, the picked one on a rounded tile in the accent (Qt's own is a square)."""
+
+    def paintCell(self, painter: QPainter, rect: QRect, day: QDate) -> None:
+        if day != self.selectedDate():
+            super().paintCell(painter, rect, day)
+            return
+        painter.save()
+        painter.fillRect(rect, theme.qcolor(tokens.RAISED))
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(theme.qcolor(tokens.ACCENT))
+        side = min(rect.width(), rect.height()) - tokens.SPACE_1
+        tile = QRectF(0, 0, side, side)
+        tile.moveCenter(QRectF(rect).center())
+        painter.drawRoundedRect(tile, tokens.RADIUS, tokens.RADIUS)
+        font = painter.font()
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(theme.qcolor(tokens.ON_ACCENT))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(day.day()))
+        painter.restore()
+
+
+class CalendarPopup(QFrame):
+    """The calendar a DateField opens, just below it: the month with ‹ and ›, the days Sunday first, today in
+    the accent. A click (or the arrow keys, then Return) picks a day and closes it; Esc or a click outside
+    closes it as it was."""
+
+    picked = Signal(object)  # QDate
+
+    def __init__(self, current: QDate, field: QWidget):
+        flags = Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint | Qt.WindowType.NoDropShadowWindowHint
+        super().__init__(field, flags)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # the card's rounded corners show
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoMouseReplay)  # a click on the field again only closes it
+        self._field = field
+        card = QFrame()
+        card.setObjectName("CalendarCard")
+        vbox(self, 0, 0).addWidget(card)
+        lay = vbox(card, tokens.SPACE_2, tokens.SPACE_1)
+
+        head = hbox(spacing=tokens.SPACE_1)
+        self.back = icon_button("chevron-left", "Previous Month")
+        self.title = QLabel()
+        self.title.setObjectName("CalendarTitle")
+        self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.next = icon_button("chevron-right", "Next Month")
+        head.addWidget(self.back)
+        head.addWidget(self.title, 1)
+        head.addWidget(self.next)
+        lay.addLayout(head)
+
+        cal = self.cal = MonthGrid()
+        cal.setLocale(QLocale(QLocale.Language.English, QLocale.Country.UnitedStates))
+        cal.setFirstDayOfWeek(Qt.DayOfWeek.Sunday)  # like a wall calendar (dates.CAL_WEEKDAYS)
+        cal.setNavigationBarVisible(False)  # ‹ › above instead: its own has a year you could type
+        cal.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
+        cal.setHorizontalHeaderFormat(QCalendarWidget.HorizontalHeaderFormat.ShortDayNames)
+        cal.setGridVisible(False)
+        cal.setMinimumSize(7 * tokens.CALENDAR_DAY, 7 * tokens.CALENDAR_DAY)  # wider if the font needs it
+        plain = QTextCharFormat()
+        plain.setForeground(theme.qcolor(tokens.TEXT))
+        for day in Qt.DayOfWeek:  # weekends in the same ink as every other day
+            cal.setWeekdayTextFormat(day, plain)
+        head_ink = QTextCharFormat()
+        head_ink.setForeground(theme.qcolor(tokens.FAINT))
+        cal.setHeaderTextFormat(head_ink)
+        today = QTextCharFormat()
+        today.setForeground(theme.qcolor(tokens.ACCENT))
+        today.setFontWeight(tokens.WEIGHT_BOLD)
+        t = dates.today()
+        cal.setDateTextFormat(QDate(t.year, t.month, t.day), today)
+        cal.setSelectedDate(current)
+        lay.addWidget(cal)
+
+        self.back.clicked.connect(cal.showPreviousMonth)
+        self.next.clicked.connect(cal.showNextMonth)
+        cal.currentPageChanged.connect(lambda y, m: self.title.setText(f"{dates.MONTH_NAMES[m - 1]} {y}"))
+        cal.clicked.connect(self._pick)
+        cal.activated.connect(self._pick)  # Return on a day
+        self.title.setText(f"{dates.MONTH_NAMES[current.month() - 1]} {current.year()}")
+
+    def _pick(self, q) -> None:
+        self.picked.emit(q)
+        self.close()
+
+    def show_under(self, field: QWidget) -> None:
+        """Just below the field, with a little air (above it when there's no room below), on the screen."""
+        self.adjustSize()
+        size = self.sizeHint()
+        top_left = field.mapToGlobal(QPoint(0, 0))
+        x, y = top_left.x(), top_left.y() + field.height() + tokens.MENU_GAP
+        screen = field.screen().availableGeometry() if field.screen() else None
+        if screen is not None:
+            if y + size.height() > screen.bottom():
+                y = top_left.y() - size.height() - tokens.MENU_GAP
+            x = max(screen.left(), min(x, screen.right() - size.width()))
+        self.move(x, y)
+        self.show()
+        self.cal.setFocus()
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key.Key_Escape:
+            self.close()
+            return
+        super().keyPressEvent(e)
+
+    def closeEvent(self, e):
+        super().closeEvent(e)
+        self._field.setFocus(Qt.FocusReason.PopupFocusReason)
+
+
+def date_field() -> DateField:
+    return DateField()
+
+
+def to_qdate(iso: str) -> QDate:
     d = dates.parse(iso) or dates.today()
     return QDate(d.year, d.month, d.day)
 

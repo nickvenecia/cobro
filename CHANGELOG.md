@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0
+- **Fixed a crash when adding your first profile.** Saving it from the Add Your Profile… tile could close Saldo. Right-clicking a client in the sidebar and choosing Delete Client… could too
+- **Every date is picked in a calendar**, never typed: click a date (or press Space) and pick the day. Today is in your accent color and the day you picked sits on a rounded tile
+- **Work dates are picked too**: Show Work Dates, then the first and last day. They print just as before ("Sep 26–27, 2026"). Dates you typed in an older version stay as they were until you pick new ones
+- **Not every job is a delivery**: a new invoice starts without a delivery date. Show Delivery Date adds one when there was a delivery. A new profile's terms no longer say the work "has been delivered"
+- **Save Client**: a new client has Save Client across the bottom, so you know they're kept. Once saved, New Invoice takes its place to bill them right away
+
 ## 2.1.1
 - Words are never cut off: the tile that starts your profile (and every other start tile) puts its words on a second line when they don't fit on one
 

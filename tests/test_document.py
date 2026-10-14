@@ -57,3 +57,17 @@ def test_file_names_are_safe():
     inv.client.name = 'Northwind: Media/"West"'
     assert document.file_stem(inv) == "JLF-2026-001 Northwind- Media--West-"
     assert document.file_stem(Invoice()) == "Invoice"
+
+
+def test_work_days_read_back_what_the_calendar_wrote():
+    from datetime import timedelta
+
+    from saldo.core import dates
+
+    for first in (date(2026, 9, 26), date(2026, 9, 30), date(2026, 12, 30)):
+        for n in (0, 1, 3, 40):
+            last = first + timedelta(days=n)
+            assert document.work_days(dates.span(first, last)) == (first, last)
+    assert document.work_days("Oct 1–3, 2026") == (date(2026, 10, 1), date(2026, 10, 3))
+    for typed in ("Sep 26, 27 and Oct 2", "Feb 30, 2026", "Oct 5–3, 2026", "Fall 2026", ""):
+        assert document.work_days(typed) is None  # typed in an older Saldo: kept as it is

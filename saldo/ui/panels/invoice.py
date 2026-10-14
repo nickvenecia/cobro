@@ -317,13 +317,29 @@ class InvoicePanel(DetailsBase):
         # Project
         self.project = QLineEdit()
         self.project.setPlaceholderText("Project name (optional)")
-        self.work_dates = QLineEdit()
-        self.work_dates.setPlaceholderText("Shoot or work dates, like Sep 26–27, 2026")
+        self.show_work = ToggleRow("Show Work Dates")
+        self.show_work.setToolTip("Prints the shoot or work days under the project")
+        self.work_typed = ElidedLabel()  # work dates typed in an older Saldo, until you pick days instead
+        self.work_typed.setObjectName("Muted")
+        self.work_days = QWidget()
+        row = hbox(self.work_days, 0, tokens.SPACE_2)
+        self.work_first, self.work_last = date_field(), date_field()
+        for label, field in (("First Day", self.work_first), ("Last Day", self.work_last)):
+            day = Section(label)
+            day.add(field)
+            row.addWidget(day, 1)
         self.show_delivered = ToggleRow("Show Delivery Date")
         self.show_delivered.setToolTip("Prints when the final files were delivered")
         self.delivered = date_field()
         sec = Section()
-        for w in (self.project, self.work_dates, self.show_delivered, self.delivered):
+        for w in (
+            self.project,
+            self.show_work,
+            self.work_typed,
+            self.work_days,
+            self.show_delivered,
+            self.delivered,
+        ):
             sec.add(w)
         g["project"].add(sec)
 
@@ -420,7 +436,9 @@ class InvoicePanel(DetailsBase):
             lambda _i: self._edit("terms_days", int(self.terms_days.currentData()))
         )
         self.project.textEdited.connect(text("project"))
-        self.work_dates.textEdited.connect(text("work_dates"))
+        self.show_work.toggled.connect(self._toggle_work)
+        self.work_first.dateChanged.connect(lambda _q: self._work_day_picked(self.work_first))
+        self.work_last.dateChanged.connect(lambda _q: self._work_day_picked(self.work_last))
         self.show_delivered.toggled.connect(self._toggle_delivered)
         self.delivered.dateChanged.connect(lambda q: self._edit("delivered", from_qdate(q)))
         self.add_item.clicked.connect(self._add_item)
@@ -461,7 +479,7 @@ class InvoicePanel(DetailsBase):
             self.terms_days.addItem(billing.terms_label(inv.terms_days), str(inv.terms_days))
             set_combo(self.terms_days, str(inv.terms_days))
         self.project.setText(inv.project)
-        self.work_dates.setText(inv.work_dates)
+        self._load_work_dates(inv)
         self.show_delivered.setChecked(bool(inv.delivered))
         self.delivered.setDate(to_qdate(inv.delivered))
         self.delivered.setVisible(bool(inv.delivered))
@@ -729,6 +747,45 @@ class InvoicePanel(DetailsBase):
         self.inv.issued = from_qdate(q)
         self._renumber()
         self._changed()
+
+    def _load_work_dates(self, inv: Invoice) -> None:
+        """Work dates are two days picked in a calendar, written on the invoice as dates.span writes them.
+        Words typed in an older Saldo show as they are (and print as they are) until you pick days."""
+        days = document.work_days(inv.work_dates)
+        issued = dates.parse(inv.issued) or dates.today()
+        first, last = days or (issued, issued)
+        self.work_first.setDate(QDate(first.year, first.month, first.day))
+        self.work_last.setDate(QDate(last.year, last.month, last.day))
+        on = bool(inv.work_dates.strip())
+        self.show_work.setChecked(on)
+        self.work_days.setVisible(on)
+        typed = on and days is None
+        self.work_typed.set_full_text(inv.work_dates.strip() if typed else "")
+        self.work_typed.setToolTip("As typed in an older Saldo. Pick the days to change it.")
+        self.work_typed.setVisible(typed)
+
+    def _toggle_work(self, on: bool) -> None:
+        self.work_days.setVisible(on)
+        if self.inv is None or self._loading:
+            return
+        self.work_typed.hide()
+        self.inv.work_dates = self._work_span() if on else ""
+        self._changed()
+
+    def _work_day_picked(self, picked) -> None:
+        if self.inv is None or self._loading:
+            return
+        first, last = self.work_first.date(), self.work_last.date()
+        if first > last:  # the other day follows, so the first day is never after the last
+            self._loading, was = True, self._loading
+            (self.work_last if picked is self.work_first else self.work_first).setDate(picked.date())
+            self._loading = was
+        self.work_typed.hide()
+        self.inv.work_dates = self._work_span()
+        self._changed()
+
+    def _work_span(self) -> str:
+        return dates.span(*(dates.parse(from_qdate(f.date())) for f in (self.work_first, self.work_last)))
 
     def _toggle_delivered(self, on: bool) -> None:
         self.delivered.setVisible(on)

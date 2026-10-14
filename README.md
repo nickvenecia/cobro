@@ -40,7 +40,7 @@ Everything comes bundled, fonts included. There's no Python or terminal needed.
 
 **Numbers your way.** One count for all your invoices (`JLF-2026-001`), or a separate count for each client with their code in it (`JLF-NRTH-2026-001`, or just `NRTH-2026-001`). Pick it under your profile's **Numbers & Tax**.
 
-**Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date, line items with details, quantities and rates (a rate of 0 prints as *Included*), and, only when you add them, a discount, sales tax and a deposit already paid.
+**Everything on the invoice, in the order it reads:** who it's for, the invoice number and date, payment terms (due on receipt, Net 7 to Net 60), the project with its shoot or work dates and delivery date (picked in a calendar, shown only when you want them), line items with details, quantities and rates (a rate of 0 prints as *Included*), and, only when you add them, a discount, sales tax and a deposit already paid.
 
 **Make it look like yours:**
 - **Logo** (PNG, JPG or SVG), in three sizes, with or without your name next to it

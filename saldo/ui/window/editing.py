@@ -180,6 +180,17 @@ class EditingMixin:
         self.sidebar.select(f"client:{c.id}" if f"client:{c.id}" in self.sidebar.rows else "clients")
         self.dock.set_open(True)
 
+    def save_new_client(self) -> None:
+        """Save Client, under a new client: kept now (and in the table and the sidebar), then New Invoice."""
+        cp = self.client_panel
+        if cp.c is None or not cp.can_save():
+            return
+        self._dirty_client = True
+        self.flush()
+        cp.saved()
+        self.refresh()
+        self.toast(f"Saved {cp.c.name}.", "done")
+
     def _client_edited(self, _c: Client) -> None:
         self._dirty_client = True
         self._save_timer.start()

@@ -254,6 +254,7 @@ class MainWindow(AIMixin, MenusMixin, EditingMixin, TransferMixin, PagesMixin, S
         ct.cleared.connect(self.deselect)
         cp = self.client_panel
         cp.changed.connect(self._client_edited)
+        cp.save_wanted.connect(self.save_new_client)
         cp.open_invoice.connect(self.open)
         cp.new_invoice_wanted.connect(self.new_invoice_for)
         cp.delete_wanted.connect(self.delete_client)

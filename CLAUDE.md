@@ -38,9 +38,9 @@ on the right that slides in when something is picked.
 - **Right panel**: the invoice (`panels/invoice.py`): From && Bill To, Invoice, Project, Line Items (drag one by its
   grip to reorder), Adjustments, Payment && Terms, each folding away (remembered); Invoice… across the bottom opens
   the page. Or a client (`panels/client.py`): their name as the title, Contact, Invoice Numbers (only when a
-  profile counts per client), their Invoices (click to open), New Invoice across the bottom. Or the assistant
-  (`panels/assistant.py`), which stays while you move around. Esc or ✕ closes it; a new invoice left empty goes
-  away, and a new client is kept only once it has a name.
+  profile counts per client), their Invoices (click to open), New Invoice across the bottom (Save Client while it's
+  a new one). Or the assistant (`panels/assistant.py`), which stays while you move around. Esc or ✕ closes it; a
+  new invoice left empty goes away, and a new client is kept only once it has a name.
 - **The page** opens in its own window (`dialogs/preview.py`): Save PDF…, Print…, ⋯ (Save as PNG…, Copy as Text,
   Email Client…, Open Invoices Folder), Show File, Mark as Sent, and the moon for the Dark Page.
 - **Settings** (⌘,) is one window with its own sidebar: General (Appearance, Accent Color, Updates), Profiles (the
@@ -90,7 +90,8 @@ saldo/
   ui/
     style/         tokens.py (every number and color, DARK and LIGHT, the accent choices), theme.py (the
                    stylesheet, the SVG icons in _SVG, fonts)
-    components/    widgets.py (Disclosure, Section, fields…, Toast: MainWindow.toast(text, tone) with "done" /
+    components/    widgets.py (Disclosure, Section, fields, DateField + CalendarPopup (every date, picked, never
+                   typed)…, Toast: MainWindow.toast(text, tone) with "done" /
                    "problem" / "" for news), panels.py (LeftPanel, SidePanel), glass.py (backdrop, Dock),
                    titlebar.py (Mac), worker.py (background jobs), empty.py (EmptyPage, StartTile), lift.py
                    (drag to reorder)
@@ -150,7 +151,11 @@ saldo.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   bu
   in its tooltip (`widgets.ElidedLabel`); fonts are wider on a Mac. `tests/cut_off.py` checks every screen
   (`test_no_words_are_cut_off_anywhere`); a new screen gets a line there.
 - Only show what applies: Discount, Deposit and Sales Tax appear when an invoice has them (+ Discount adds one),
-  a line item's details box once it has details.
+  a line item's details box once it has details, Work Dates and the Delivery Date once switched on.
+- **Dates are picked in a calendar, never typed** (`widgets.date_field`). Work dates are two picked days saved as
+  the text `dates.span` writes ("Sep 26–27, 2026", read back by `document.work_days`); older typed text is kept.
+- **Act once the click is over.** A tile, a sidebar row or a line item a refresh can rebuild never opens a window or
+  a menu inside its own click (CONTRIBUTING rule 19): the window can throw it away mid-click, which crashes Saldo.
 - New model fields need defaults that mean "off"/empty: old files are read through `from_dict()`.
 - Personal details never go in the code or the repo (it's public). Use core/sample.py's made-up business.
 

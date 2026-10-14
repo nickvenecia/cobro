@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QWidget
 
 from saldo.ui.components.widgets import IconLabel, hbox, vbox
@@ -14,7 +14,10 @@ from saldo.ui.style import theme, tokens
 
 
 class StartTile(QFrame):
-    """One way to start: an icon, what it is, a few words. A click, Space or Return picks it."""
+    """One way to start: an icon, what it is, a few words. A click, Space or Return picks it.
+
+    What a tile starts runs just after the click is over: Add Your Profile… opens Settings, and saving there
+    swaps this very tile for New Invoice. A tile still busy with its click when that happens would crash."""
 
     clicked = Signal()
 
@@ -53,14 +56,17 @@ class StartTile(QFrame):
 
     def mouseReleaseEvent(self, e):
         if e.button() == Qt.MouseButton.LeftButton and self.rect().contains(e.position().toPoint()):
-            self.clicked.emit()
+            self._pick()
         super().mouseReleaseEvent(e)
 
     def keyPressEvent(self, e):
         if e.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            self.clicked.emit()
+            self._pick()
             return
         super().keyPressEvent(e)
+
+    def _pick(self) -> None:
+        QTimer.singleShot(0, self, self.clicked.emit)  # once this click is over (see above)
 
 
 class EmptyPage(QWidget):

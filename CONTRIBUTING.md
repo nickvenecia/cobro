@@ -103,6 +103,13 @@ packaging/     Installer files per OS
 18. Messages shown to the user are plain English and say what to do next (see DESIGN.md §7).
     Technical details go to the log (`core/log.py`, `saldo.log` in the data folder).
 
+**The window**
+19. Anything a refresh can rebuild (start tiles, the sidebar's client rows, line items) acts once its click is
+    over (`QTimer.singleShot(0, self, …)`, `DetailsBase.later`, `LineEditor._later`), never inside it. Its click
+    may open a window or a menu, and whatever that window throws away is gone before the click is over: if it's
+    the very thing that was clicked, Saldo crashes (on a Mac, every time). `still_there_after` in
+    `tests/test_window.py` catches it.
+
 ---
 
 ## 4. Threads

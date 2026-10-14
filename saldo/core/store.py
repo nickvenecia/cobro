@@ -29,7 +29,7 @@ from saldo.core.paths import data_dir
 log = get_logger(__name__)
 
 DEFAULT_TERMS = (
-    "The work listed above is complete and has been delivered.\n"
+    "The work listed above is complete.\n"
     "Balances not paid by the due date accrue a late fee of 1.5% per month.\n"
     "Usage rights to the final deliverables transfer to the client upon payment in full."
 )
@@ -222,8 +222,7 @@ class Library:
             auto_number=True,
             issued=dates.iso(today),
             terms_days=business.terms_days,
-            delivered=dates.iso(today),
-            items=[LineItem()],
+            items=[LineItem()],  # no delivery date: not every job is a delivery (Show Delivery Date adds one)
             tax_rate=tax,
             payment=business.payment,
             terms=business.terms,

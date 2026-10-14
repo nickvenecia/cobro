@@ -128,6 +128,7 @@ PAGE_SHADOW = 18  # the paper's shadow there
 NOTES_H = 320  # what's new, in the update window: as tall as its words, up to this (then it scrolls)
 NOTES_LINE = 140  # what's new: the line height, in % of the font size
 MENU_GAP = 6  # between a button and the menu it opens
+CALENDAR_DAY = 40  # one day in the calendar a date opens, at least (a week is seven of these across)
 # ---- every list of choices looks like the sidebar and Settings: menus, dropdown lists, pickers, suggestions.
 # Rows sit LIST_INSET inside a list whose corners are LIST_R, so their corners (LIST_ROW_R) run parallel to it.
 LIST_R = GLASS_R

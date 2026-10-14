@@ -196,7 +196,7 @@ is a capsule `CONTROL_H` tall; every icon button is a circle:
 | Multi-line text | `widgets.TextBox` | Addresses, line-item details, payment text, terms |
 | How many | `widgets.qty_field()` | A line item's Qty: typed (2.5 is fine), arrow keys count up and down |
 | Money | `widgets.MoneyField` | Rates, discount, deposit |
-| Date | `widgets.date_field()` | Every date (calendar popup, "Tue, Oct 13, 2026") |
+| Date | `widgets.date_field()` (`DateField`) | Every date: "Tue, Oct 13, 2026" ("Oct 13, 2026" where that won't fit) and a calendar icon; a click, Space or Return opens the calendar (`CalendarPopup`: the month with ‹ ›, Sunday first, today in the accent, the picked day on a rounded accent tile). Picked, never typed |
 | Fold-away group | `widgets.Disclosure` | Every group in the invoice and client panels and the profile: folded, it says what's inside |
 | Big name | `widgets.TitleEdit` (`#BigName`) | A client's name as their panel's title: edited in place, wraps onto a second line instead of being cut off |
 | A client's invoice | `client.InvoiceLine` (`#InvoiceLine`) | One of their invoices in their panel: number, date and project, its status in its color (`#LineStatus`), its amount; click to open it |
@@ -276,11 +276,13 @@ Saldo talks like a helpful person, not like software.
   (`widgets.Disclosure`), each remembered; a folded header says what's inside ("JLF-2026-001 · Draft", "3 items ·
   $2,700.00"). Basic groups start open; Adjustments and Payment && Terms start folded. A client's panel has their
   name as its title (`TitleEdit`), then Contact, Invoice Numbers (only when a profile counts per client) and
-  their Invoices (what's unpaid and billed, then each one; click to open it), and New Invoice across the bottom.
+  their Invoices (what's unpaid and billed, then each one; click to open it), and New Invoice across the bottom
+  (Save Client there while it's a new client).
 - **The toolbar, right to left**: the round + (New Invoice; New Client in All Clients) at the far right, then the assistant's bubble, then
   share (Invoice…, Export as CSV…, Back Up…). The filter sits right after the search. Nothing else.
 - **Nothing to save by hand.** Edits save themselves a moment after you stop typing (`SAVE_DELAY_MS`), when you
-  switch invoices and when you quit. The only "save" is the PDF.
+  switch invoices and when you quit. The only "save" buttons are Save PDF… and Save Client under a new client (so
+  you know it's kept; it's kept as you type either way, then New Invoice takes its place).
 - **An empty place shows the ways to start**, as tiles (`EmptyPage`): Add Your Profile… the first time, then New
   Invoice (with the place's icon), New Client in All Clients, or Clear Filters when a filter hides everything.
 - **A new invoice you leave empty isn't kept** (Esc, or opening something else), and leaves no undo step.
@@ -298,7 +300,11 @@ Saldo talks like a helpful person, not like software.
 - **Only show what applies.** Paid On only for paid invoices; Discount, Deposit Paid and Sales Tax only when the
   invoice has them (+ Discount adds one, × takes an empty one off); a line item's details once it has some
   (+ Details); Overdue under the table only when something is; Use Profile Defaults only when the text differs;
-  Edit… beside Bill To only once a client is picked; a client's Code only when a profile counts per client.
+  Edit… beside Bill To only once a client is picked; a client's Code only when a profile counts per client; Work
+  Dates (First Day, Last Day) and the Delivery Date only once they're switched on (a new invoice has neither: not
+  every job is a delivery).
+- **Dates are picked, never typed**: every date opens a calendar. Work dates print as `dates.span` writes them
+  ("Sep 26–27, 2026"); words typed in an older Saldo stay as they were until you pick days.
 - **Removing goes through a menu or an alert, never a single click.** The Alert is narrow (`ALERT_W`), the app icon
   at the top, a bold question, one short line, Cancel and the action side by side. Return does it, Esc cancels.
 - **Undo / Redo** (⌘Z / ⇧⌘Z; Ctrl+Y too on Windows) cover every change to invoices, clients and profiles; in a text
