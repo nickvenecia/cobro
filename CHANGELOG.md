@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.1
+- **Fixed: saving your profile closed Saldo.** Save Changes (or Add Profile) in Settings › Profiles could close Saldo, on a Mac every time, however you got there: Edit Profile…, Edit… beside From, Add a Profile… or Add Your Profile… the first time. The fix in 2.2.0 missed the real cause; this one is tested in a Mac's own windows on every build
+- **The invoice list stays where you scrolled it.** It used to jump back to the top a moment after every change you made
+- **Scrolling the panel on the right no longer gets stuck on a text box.** Long terms, payment text or a line item's details used to catch the wheel and scroll inside their box, and the panel stopped. Click into a box to scroll what's in it
+- **Another invoice or client opens at its top**, not partway down where you left the last one
+
 ## 2.2.0
 - **Fixed a crash when adding your first profile.** Saving it from the Add Your Profile… tile could close Saldo. Right-clicking a client in the sidebar and choosing Delete Client… could too
 - **Every date is picked in a calendar**, never typed: click a date (or press Space) and pick the day. Today is in your accent color and the day you picked sits on a rounded tile
