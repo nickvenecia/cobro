@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from saldo.core import dates, sample
-from saldo.core.model import Client, LineItem
+from saldo.core.model import Client, LineItem, new_id
 from saldo.core.store import Library
 
 
@@ -51,6 +52,27 @@ def wheel(widget) -> None:
         False,
     )
     QApplication.sendEvent(widget, ev)
+
+
+def roll(widget) -> None:
+    """The wheel as a mouse delivers it: to what's under the pointer, then up through what holds it until
+    something takes it (wheel() stops at the widget it's given)."""
+    at = widget.mapToGlobal(QPointF(widget.width() / 2, widget.height() / 2))
+    w = widget
+    while w is not None:
+        ev = QWheelEvent(
+            w.mapFromGlobal(at),
+            at,
+            QPoint(0, 0),
+            QPoint(0, -120),
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.NoScrollPhase,
+            False,
+        )
+        if (QApplication.sendEvent(w, ev) and ev.isAccepted()) or w.isWindow():
+            return
+        w = w.parentWidget()
 
 
 def showing(w) -> list[str]:
@@ -348,6 +370,70 @@ def test_scrolling_never_changes_a_date_or_dropdown(win):
     wheel(win.panel.issued)
     wheel(win.panel.terms_days)
     assert win.panel.issued.date() == issued and win.panel.terms_days.currentData() == terms
+
+
+def test_the_wheel_scrolls_the_panel_past_a_text_box(win):
+    """Long terms (or a line item's details) used to catch the wheel and scroll inside their box, and the
+    panel stopped there. A box you're typing in still scrolls what's in it."""
+    inv = next(i for i in win.lib.invoices.values() if i.status == "draft")
+    inv.terms = "\n".join(
+        f"Term {n}: payment is due within thirty days of the invoice date." for n in range(12)
+    )
+    win.open(inv.id)
+    p = win.panel
+    p.groups["payment"].set_open(True)
+    bar, box = p.scroll.verticalScrollBar(), p.terms
+    wait_for(lambda: bar.maximum() > 0 and box.verticalScrollBar().maximum() > 0)
+    bar.setValue(0)
+    p.scroll.ensureWidgetVisible(box)
+    at = bar.value()
+    assert at < bar.maximum()
+    roll(box.viewport())
+    assert bar.value() > at and box.verticalScrollBar().value() == 0
+    win.activateWindow()
+    QTest.qWaitForWindowActive(win)
+    box.setFocus()
+    if box.hasFocus():  # (only once the window is active)
+        at = bar.value()
+        roll(box.viewport())
+        assert box.verticalScrollBar().value() > 0 and bar.value() == at
+
+
+def test_another_invoice_opens_at_its_top(win):
+    """The panel used to keep the last invoice's place, so the next one opened partway down."""
+    a, b = win.lib.ordered()[:2]
+    win.open(a.id)
+    p = win.panel
+    for g in p.groups.values():
+        g.set_open(True)
+    bar = p.scroll.verticalScrollBar()
+    wait_for(lambda: bar.maximum() > 0)
+    bar.setValue(bar.maximum())
+    p.load(a)  # the same invoice again (undo, a client picked under Bill To…): it stays where you are
+    assert bar.value() == bar.maximum() > 0
+    win.open(b.id)
+    assert bar.value() == 0
+
+
+def test_the_table_stays_where_you_left_it(win):
+    """Every edit refills the table a moment later; it used to jump back to the top each time."""
+    first = win.lib.ordered()[0]
+    for n in range(40):
+        win.lib.save_invoice(replace(first, id=new_id(), number=f"JLF-2026-{100 + n}"))
+    win.refresh()
+    bar = win.table.verticalScrollBar()
+    wait_for(lambda: bar.maximum() > 0)
+    bar.setValue(bar.maximum() // 2)
+    at = bar.value()
+    win.refresh()
+    assert bar.value() == at
+    win.open(first.id)  # picked, then scrolled away from to look at the others while you edit it
+    bar.setValue(bar.maximum())
+    at = bar.value()
+    win.panel.project.setText("Brand film")
+    win.panel.project.textEdited.emit("Brand film")
+    win._table_timer.timeout.emit()  # the refill after an edit
+    assert bar.value() == at and win.table.current_id() == first.id
 
 
 def test_dates_are_picked_in_a_calendar_never_typed(win, data_folder):

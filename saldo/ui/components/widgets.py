@@ -550,6 +550,9 @@ class TitleEdit(QPlainTextEdit):
         if e.type() in (e.Type.FontChange, e.Type.StyleChange):
             self._fit()
 
+    def wheelEvent(self, e):
+        e.ignore()  # it's as tall as its words: the wheel scrolls the panel, never the title inside its box
+
 
 def set_tone(lbl: QLabel, tone: str, text: str) -> None:
     if lbl.property("tone") != tone:
@@ -766,7 +769,8 @@ class ToggleRow(QAbstractButton):
 
 class TextBox(QPlainTextEdit):
     """A multi-line text field (addresses, details, payment text) that looks like the one-line fields.
-    `edited` fires on typing only, never when the window fills it in with set_text()."""
+    `edited` fires on typing only, never when the window fills it in with set_text(). The wheel scrolls what's
+    in it only while you're typing in it; otherwise it scrolls the panel."""
 
     edited = Signal()
 
@@ -798,6 +802,14 @@ class TextBox(QPlainTextEdit):
         self._quiet = True
         self.setPlainText(text)
         self._quiet = False
+
+    def wheelEvent(self, e):
+        if not self.hasFocus():
+            # the panel scrolls on past it: long terms or details used to catch the wheel and scroll inside
+            # their box instead. Click in to scroll what's in the box.
+            e.ignore()
+            return
+        super().wheelEvent(e)
 
 
 # ------------------------------------------------------------------ fields shared by the panels

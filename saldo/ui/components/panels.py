@@ -204,6 +204,11 @@ class SidePanel(QFrame):
         self.footer.hide()
         outer.addWidget(self.footer)
 
+    def to_top(self) -> None:
+        """Back to the top: something else opened here, so it starts at its beginning."""
+        if self.scroll is not None:
+            self.scroll.verticalScrollBar().setValue(0)
+
     def header_icon(self, icon: str, tip: str) -> QToolButton:
         """A round button in the header, before the ⋯ and the ✕."""
         b = circle_button(icon, tip)

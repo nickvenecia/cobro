@@ -328,7 +328,8 @@ class Table(QTreeWidget):
         it = self.currentItem()
         return it.data(0, ID) if it is not None else ""
 
-    def select_id(self, obj_id: str) -> None:
+    def select_id(self, obj_id: str, scroll: bool = True) -> None:
+        """Pick this row (opening its band); `scroll` brings it into view."""
         self._quiet = True
         found = next((r for r in self.rows() if r.data(0, ID) == obj_id), None)
         if found is not None:
@@ -338,27 +339,32 @@ class Table(QTreeWidget):
                 p.setData(0, OPEN, True)
                 p = p.parent()
             self.setCurrentItem(found)
-            self.scrollToItem(found, QAbstractItemView.ScrollHint.EnsureVisible)
+            if scroll:
+                self.scrollToItem(found, QAbstractItemView.ScrollHint.EnsureVisible)
         else:
             self.clearSelection()
         self._quiet = False
 
     # ------------------------------------------------------------------ filling
-    def _fill_start(self) -> tuple[str, int, Qt.SortOrder]:
-        """Before filling: what was picked and how it sorted, to put back after."""
+    def _fill_start(self) -> tuple[str, int, Qt.SortOrder, int]:
+        """Before filling: what was picked, how it sorted and how far down you'd scrolled, to put back after."""
         keep = self.current_id()
         col, order = self.sortColumn(), self.header().sortIndicatorOrder()
+        was_at = self.verticalScrollBar().value()
         self._quiet = True
         self.setSortingEnabled(False)
         self.clear()
-        return keep, col, order
+        return keep, col, order, was_at
 
-    def _fill_end(self, keep: str, col: int, order: Qt.SortOrder) -> None:
+    def _fill_end(self, keep: str, col: int, order: Qt.SortOrder, was_at: int) -> None:
         self.setSortingEnabled(True)
         self.sortItems(max(0, col), order)
         self._quiet = False
         if keep:
-            self.select_id(keep)
+            self.select_id(keep, scroll=False)
+        # the table stays where you left it: refilling (after every edit) used to send it back to the top
+        self.executeDelayedItemsLayout()
+        self.verticalScrollBar().setValue(was_at)
 
     def _cells(self, row: Row, cells: list[tuple[str, object]]) -> None:
         """A row's words and sort keys, column by column, aligned as the columns are."""
@@ -428,7 +434,7 @@ class InvoiceTable(Table):
 
     def fill(self, lib: Library, invoices: list[Invoice], divide: str = "month") -> None:
         """Show these invoices, divided by month, client or nothing."""
-        keep, col, order = self._fill_start()
+        keep, col, order, was_at = self._fill_start()
         self.divide = divide if divide in {k for k, _l, _t in DIVIDES} else "month"
         today = dates.today()
 
@@ -516,7 +522,7 @@ class InvoiceTable(Table):
             d.setText(COL["total"], money.fmt(sums[key], cur))
             d.setExpanded(d.data(0, FOLD) not in self.folded)
             d.setData(0, OPEN, d.isExpanded())
-        self._fill_end(keep, col, order)
+        self._fill_end(keep, col, order, was_at)
 
 
 class ClientTable(Table):
@@ -531,7 +537,7 @@ class ClientTable(Table):
         self.sortByColumn(0, Qt.SortOrder.AscendingOrder)  # A to Z
 
     def fill(self, lib: Library) -> None:
-        keep, col, order = self._fill_start()
+        keep, col, order, was_at = self._fill_start()
         today = dates.today()
         cur = next((b.currency for b in lib.businesses.values() if b.currency), "$")
         mine = lib.invoices_by_client()
@@ -566,7 +572,7 @@ class ClientTable(Table):
                 row.setForeground(self.col["owed"], theme.qcolor(tokens.BAD if late else tokens.WARN))
             words = [c.name, c.contact, c.email, c.address, c.code]
             row.setData(0, HAY, " ".join(words).casefold())
-        self._fill_end(keep, col, order)
+        self._fill_end(keep, col, order, was_at)
 
 
 def menu(parent: QWidget, items: list[tuple[str, str, object]]) -> QMenu:

@@ -309,7 +309,9 @@ Saldo talks like a helpful person, not like software.
   at the top, a bold question, one short line, Cancel and the action side by side. Return does it, Esc cancels.
 - **Undo / Redo** (⌘Z / ⇧⌘Z; Ctrl+Y too on Windows) cover every change to invoices, clients and profiles; in a text
   box they undo the typing instead.
-- **Scrolling never changes a value**: the wheel over a dropdown or a date scrolls the panel.
+- **Scrolling never changes a value**: the wheel over a dropdown or a date scrolls the panel, and so does the wheel
+  over a text box you aren't typing in (click in to scroll what's in it). The table stays where you scrolled it
+  while it updates; another invoice or client opens at its top.
 - **The page opens in its own window**, never in the way of editing: Save PDF…, Print…, ⋯, and after saving Show
   File, Email Client and (for a draft) Mark as Sent. The moon shows the **Dark Page**: the same layout in
   light-on-dark colors (`looks.DARK`), remembered, for your eyes only; PDF, PNG and print are always white paper.

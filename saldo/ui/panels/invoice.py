@@ -461,6 +461,8 @@ class InvoicePanel(DetailsBase):
         return self.lib.businesses.get(self.inv.business_id) if self.inv else None
 
     def load(self, inv: Invoice) -> None:
+        if self.inv is None or self.inv.id != inv.id:
+            self.to_top()  # not partway down, where the last invoice was left
         self._loading = True
         self.inv = inv
         self.show_form()

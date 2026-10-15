@@ -172,6 +172,8 @@ class ClientPanel(DetailsBase):
 
     # ------------------------------------------------------------------ loading
     def load(self, c: Client, fresh: bool = False) -> None:
+        if self.c is None or self.c.id != c.id:
+            self.to_top()  # not partway down, where the last client was left
         self._loading = True
         self.c = replace(c)
         self.fresh = fresh
