@@ -25,7 +25,8 @@ saldo/
 tests/         One test file per area (test_money.py, test_store.py, test_render.py, test_window.py, test_ai.py,
                test_security.py, test_release.py…); conftest.py gives every test its own empty data folder
                and an empty keychain in memory; screenshot.py takes every screen in dark, light and yellow;
-               cut_off.py finds words cut off at an edge anywhere in a window
+               cut_off.py finds words cut off at an edge anywhere in a window; mac_windows.py saves a profile in
+               a Mac's own windows (test_window.py runs it on the Mac builds)
 scripts/       make_icon.py, make_fonts.py, release_notes.py
 packaging/     Installer files per OS
 ```
@@ -109,6 +110,11 @@ packaging/     Installer files per OS
     may open a window or a menu, and whatever that window throws away is gone before the click is over: if it's
     the very thing that was clicked, Saldo crashes (on a Mac, every time). `still_there_after` in
     `tests/test_window.py` catches it.
+20. A form inside another window (a Settings pane) is hidden before it's thrown away (`SettingsDialog._fill`).
+    The field you were typing in still holds the focus; a form thrown away while it shows hands that focus on
+    halfway through being taken apart, and Saldo crashes (on a Mac, every time). Offscreen windows never hold
+    the focus, so only real windows show it: `test_saving_a_profile_in_a_macs_own_windows` runs
+    `tests/mac_windows.py` on the Mac builds.
 
 ---
 

@@ -3,7 +3,11 @@ window, undo, filters, Settings, light and dark."""
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 from PySide6.QtCore import QPoint, QPointF, Qt, QThread, QTimer
@@ -459,6 +463,50 @@ def test_the_paper_changes_with_the_profile(win, data_folder):
     assert Library(data_folder).load().businesses[b.id].look.header == "band"
     win.page_inv = win.lib.ordered()[0].id
     assert win.page_list()[0].steps[0].color == "#7A2E2E"  # the band
+
+
+def test_saving_a_profile_hides_the_old_form_before_throwing_it_away(win, monkeypatch):
+    """Save Changes builds the profile form again. The old one was thrown away while it still showed, holding
+    the focus of the field you'd typed in; it handed that focus on halfway through being taken apart, and
+    Saldo crashed (on a Mac, every time: offscreen windows never hold the focus, so
+    test_saving_a_profile_in_a_macs_own_windows saves one in real windows too)."""
+    from PySide6.QtWidgets import QDialog
+
+    from saldo.ui.dialogs.settings import SettingsDialog
+
+    showing = []
+    original = QWidget.deleteLater
+
+    def delete_later(w) -> None:
+        if w.isVisible() and (isinstance(w, QDialog) or w.findChildren(QDialog)):
+            showing.append(type(w).__name__)
+        original(w)
+
+    monkeypatch.setattr(QWidget, "deleteLater", delete_later)
+    s = SettingsDialog(win.lib, win, "profiles")
+    s.show()
+    for name in ("Juniper Lane", "Juniper Lane Films"):
+        s.profile_editor.name.setText(name)
+        s.profile_editor.save.click()
+    s._add_profile()  # Add a Profile builds it again too
+    s.profile_editor.name.setText("Second Profile")
+    s.profile_editor.save.click()
+    s.close()
+    assert not showing, f"a {showing[0]} was thrown away while it showed"
+    assert sorted(b.name for b in win.lib.businesses.values()) == ["Juniper Lane Films", "Second Profile"]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="a Mac's own windows")
+@pytest.mark.parametrize("route", ["tile", "settings", "card", "from", "add", "menubar"])
+def test_saving_a_profile_in_a_macs_own_windows(route):
+    """Saving a profile crashed on a Mac every time, by every route (tests/mac_windows.py lists them), and no
+    offscreen test could see it. Each route runs in a Saldo of its own, so a crash fails only that route."""
+    drive = Path(__file__).with_name("mac_windows.py")
+    env = {**os.environ, "QT_QPA_PLATFORM": "cocoa"}
+    r = subprocess.run(
+        [sys.executable, str(drive), route], env=env, capture_output=True, text=True, timeout=120
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
 
 
 def test_new_client_under_bill_to_fills_in_the_invoice(win, monkeypatch):

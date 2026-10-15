@@ -118,6 +118,10 @@ class SettingsDialog(QDialog):
         while lay.count():
             old = lay.takeAt(0).widget()
             if old is not None:
+                # hidden first, while everything around it is whole: a form you were typing in (Save Changes
+                # rebuilds the profile form) otherwise hands its focus on in the middle of being thrown away,
+                # and Saldo crashed (on a Mac, every time)
+                old.hide()
                 old.deleteLater()
         inner = w
         if scroll:

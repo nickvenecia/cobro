@@ -156,6 +156,10 @@ saldo.spec, packaging/, .github/workflows/build.yml, .github/dependabot.yml   bu
   the text `dates.span` writes ("Sep 26–27, 2026", read back by `document.work_days`); older typed text is kept.
 - **Act once the click is over.** A tile, a sidebar row or a line item a refresh can rebuild never opens a window or
   a menu inside its own click (CONTRIBUTING rule 19): the window can throw it away mid-click, which crashes Saldo.
+- **Hide a form before throwing it away.** A Settings pane rebuilt (Save Changes in Profiles) hides the old one
+  first (CONTRIBUTING rule 20): a form thrown away while it shows hands on the focus of the field you typed in
+  halfway through, which crashed Saldo on every Mac. Offscreen tests can't see it; `tests/mac_windows.py` saves a
+  profile in a Mac's real windows on CI.
 - New model fields need defaults that mean "off"/empty: old files are read through `from_dict()`.
 - Personal details never go in the code or the repo (it's public). Use core/sample.py's made-up business.
 
